@@ -5,8 +5,11 @@ https://rodrigopcviana-lab.github.io/bento-dashboard/
 
 ## Estrutura
 
-- `index.html`, `cocktails.html`, `regras.html` — portal público, gerado por
-  `bento/portal_gen.py` (no projeto `~/Desktop/Code 1`). **Não editar à mão.**
+- `index.html`, `cocktails.html`, `visitas.html`, `treinamentos.html`,
+  `regras.html` — portal público, gerado por `bento/portal_gen.py` (no
+  projeto `~/Desktop/Code 1`). **Não editar à mão.** Agenda de visitas e
+  treinamentos vêm de `data/bento/{visitas,treinamentos}.json` — para
+  agendar/atualizar, editar o JSON e regenerar.
 - `ranking.html` — ranking de produtos (posições da Curva ABC, sem valores),
   **criptografado com senha** (staticrypt, AES-256).
 - `vendas/index.html` (painel geral) e `vendas/completo.html` (produto a
