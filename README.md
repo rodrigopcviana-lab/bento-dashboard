@@ -41,7 +41,7 @@ npx --yes staticrypt *.html -d encrypted --short --remember 90 \
   --template-button "Entrar" --template-placeholder "Senha" \
   --template-error "Senha incorreta — tente de novo" \
   --template-remember "Lembrar neste aparelho" \
-  --template-color-primary "#2a78d6" --template-color-secondary "#faf9f5"
+  --template-color-primary "#d5a05c" --template-color-secondary "#2b2620"
 cp encrypted/ranking.html  ~/Desktop/bento-dashboard-site/ranking.html
 cp encrypted/index.html    ~/Desktop/bento-dashboard-site/vendas/index.html
 cp encrypted/completo.html ~/Desktop/bento-dashboard-site/vendas/completo.html
