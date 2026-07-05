@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#2b2620">
+<title>Contagem semanal · Portal do Bar | Bento</title>
+<style>
+  :root {
+    --bg: #2b2620; --card: #342e26; --card-2: #3b342a;
+    --border: #4a4133; --border-2: #5d5142;
+    --text: #f0e7d8; --text-2: #b3a68f; --text-3: #8f8370;
+    --ambar: #d5a05c; --ambar-2: #e0b273; --ambar-bg: rgba(213,160,92,.13);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--text);
+    padding: 16px 18px 24px; max-width: 980px; margin: 0 auto;
+  }
+  ::placeholder { color: var(--text-3); }
+  .ic { vertical-align: -3px; }
+  header.brand { display: flex; align-items: center; justify-content: center; padding: 14px 0 18px; }
+  .brand .logo { height: 80px; width: auto; display: block; }
+  nav { display: flex; gap: 2px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+        scrollbar-width: none; border-top: 1px solid var(--border);
+        border-bottom: 1px solid var(--border); padding: 6px 0; margin-bottom: 24px; }
+  nav::-webkit-scrollbar { display: none; }
+  nav a { color: var(--text-2); text-decoration: none; font-size: 14px;
+          padding: 8px 12px; border-radius: 8px; white-space: nowrap; }
+  nav a.on { color: var(--ambar-2); background: var(--ambar-bg); font-weight: 600; }
+  nav a:hover { color: var(--ambar-2); }
+  h1 { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+       font-size: 27px; font-weight: 500; margin-bottom: 6px; }
+  .sub { color: var(--text-2); font-size: 14px; margin-bottom: 22px; line-height: 1.5; }
+  h2 { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+       font-size: 19px; font-weight: 500; margin: 22px 0 10px; }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+           padding: 18px; margin-bottom: 14px; font-size: 14px; }
+  .panel p, .panel li { color: var(--text-2); line-height: 1.5; }
+  .nota { font-size: 12px; color: var(--text-3); margin-top: 30px; line-height: 1.5; }
+  .nota a { color: var(--ambar-2); }
+
+  .top-fields { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .top-fields label { font-size: 12px; color: var(--text-3); display: flex;
+                       flex-direction: column; gap: 5px; flex: 1; min-width: 150px; }
+  .top-fields input, .top-fields select { font: inherit; font-size: 14px; padding: 9px 12px;
+        border: 1px solid var(--border); border-radius: 8px;
+        background: var(--card); color: var(--text); }
+
+  .grupo { margin-bottom: 8px; }
+  .grupo h3 { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+              font-size: 15px; font-weight: 500; color: var(--ambar-2);
+              margin: 16px 0 4px; }
+  .grupo h3:first-child { margin-top: 4px; }
+  .linha { display: flex; align-items: center; gap: 10px; padding: 9px 0;
+           border-bottom: 1px dashed var(--border); }
+  .linha:last-child { border-bottom: none; }
+  .linha .nome { flex: 1; font-size: 14px; min-width: 0; }
+  .linha .lastro { display: block; font-size: 11px; color: var(--text-3); margin-top: 1px; }
+
+  .stepper { display: flex; align-items: center; gap: 6px; flex: none; }
+  .stepper button { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border);
+                     background: var(--card-2); color: var(--text); font-size: 17px; line-height: 1;
+                     cursor: pointer; }
+  .stepper button:active { border-color: var(--ambar); color: var(--ambar-2); }
+  .stepper input { width: 54px; text-align: center; font: inherit; font-size: 15px; padding: 7px 4px;
+                   border: 1px solid var(--border); border-radius: 8px; background: var(--bg);
+                   color: var(--text); font-variant-numeric: tabular-nums; }
+  .stepper input:focus { outline: none; border-color: var(--ambar); }
+
+  .enviar { display: inline-flex; align-items: center; gap: 8px; background: var(--ambar);
+            color: #2b2117; font-weight: 700; font-size: 14px; padding: 11px 20px;
+            border-radius: 999px; border: none; cursor: pointer; margin-top: 6px; }
+  .enviar:disabled { opacity: .55; cursor: default; }
+  .status { font-size: 13px; margin-top: 10px; min-height: 18px; }
+  .status.ok { color: #9fdcae; }
+  .status.erro { color: #f09b9b; }
+  .rascunho-aviso { font-size: 12px; color: var(--text-3); margin-top: 8px; }
+</style>
+</head>
+<body>
+<header class="brand"><img class="logo" src="logo-bento.png" alt="Bento Restaurante"></header>
+<nav><a href="index.html" class="">Início</a><a href="cocktails.html" class="">Fichas técnicas</a><a href="visitas.html" class="">Visitas</a><a href="treinamentos.html" class="">Treinamentos</a><a href="regras.html" class="">Escala &amp; BH</a><a href="contagem.html" class="on">Contagem</a><a href="ranking.html" class="">Ranking <svg class="ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></a><a href="vendas/index.html" class="">Vendas <svg class="ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></a></nav>
+
+<h1>Contagem semanal</h1>
+<p class="sub">Conte os insumos de geladeira e os copos/taças do bar. Cada seção salva sozinha,
+direto no histórico do Notion — pode fazer as duas na hora que der.</p>
+
+<h2>Insumos (bebidas de geladeira)</h2>
+<form id="form-insumos" class="panel" novalidate>
+  <div class="top-fields">
+    <label>Data da contagem
+      <input type="date" name="data" required>
+    </label>
+    <label>Quem contou
+      <input type="text" name="responsavel" list="nomes-equipe" placeholder="Seu nome" required>
+    </label>
+  </div>
+  <div id="lista-insumos"></div>
+  <button class="enviar" type="submit">Salvar contagem de insumos</button>
+  <p class="status" data-status-for="insumos"></p>
+</form>
+
+<h2>Copos e taças</h2>
+<form id="form-copos" class="panel" novalidate>
+  <div class="top-fields">
+    <label>Data da contagem
+      <input type="date" name="data" required>
+    </label>
+    <label>Quem contou
+      <input type="text" name="responsavel" list="nomes-equipe" placeholder="Seu nome" required>
+    </label>
+  </div>
+  <div id="lista-copos"></div>
+  <button class="enviar" type="submit">Salvar contagem de copos e taças</button>
+  <p class="status" data-status-for="copos"></p>
+</form>
+
+<datalist id="nomes-equipe">
+  <option value="Gabriel"></option>
+  <option value="Vitória"></option>
+  <option value="Yasmin"></option>
+  <option value="Jardel"></option>
+</datalist>
+
+<p class="nota">Dúvida com algum item da contagem?
+<a href="https://wa.me/556281483511?text=Ol%C3%A1%20Rodrigo!%20D%C3%BAvida%20na%20contagem%20do%20Portal%20do%20Bento%3A%20">avise o Rodrigo no WhatsApp</a>.</p>
+
+<p class="nota">Portal do Bar · Bento · página de contagem adicionada em 05/07/2026 (não faz parte da geração automática das demais páginas).</p>
+
+<script>
+(function () {
+  // Depois de publicar o Worker (ver worker/README no repo), troque estas duas
+  // constantes pela URL real e pela mesma chave configurada com `wrangler secret put FORM_SECRET`.
+  var WORKER_URL = 'https://bento-portal-contagem.SEU-SUBDOMINIO.workers.dev';
+  var CHAVE = 'COLOQUE-A-CHAVE-AQUI';
+
+  var INSUMOS = [
+    ['Águas', 'Água c/ gás 370ml'], ['Águas', 'Água s/ gás 370ml'],
+    ['Águas', 'Água de coco 330ml'], ['Águas', 'Água San Pellegrino'],
+    ['Cervejas', 'Baden Ipa'], ['Cervejas', 'Baden Cristal'],
+    ['Cervejas', 'Corona Long'], ['Cervejas', 'Corona Long Zero'],
+    ['Cervejas', 'Heineken Lata'], ['Cervejas', 'Heineken Long'],
+    ['Cervejas', 'Heineken Zero'], ['Cervejas', 'Stella Artois'],
+    ['Cervejas', 'Stella Artois S/ Glúten'],
+    ['Energéticos', 'Red Bull Normal'], ['Energéticos', 'Red Bull Melancia'],
+    ['Energéticos', 'Red Bull Tropical'], ['Energéticos', 'Red Bull Zero'],
+    ['Refrigerantes', 'Coca Cola Normal'], ['Refrigerantes', 'Coca Cola Zero'],
+    ['Refrigerantes', 'Guaraná Normal'], ['Refrigerantes', 'Guaraná Zero'],
+    ['Refrigerantes', 'H2O Limoneto'], ['Refrigerantes', 'Pink Limonade'],
+    ['Refrigerantes', 'Schweppes Lata']
+  ];
+
+  var COPOS = [
+    ['Caneca chopp', 108], ['Copo baixo liso', 24], ['Long Drink soho', 24],
+    ['Taça Mistic Coupe', 24], ['Caneca cobre', 12], ['Tulipa', 60],
+    ['Leafy', 18], ['Taça Gin', 72], ['Shot', 48],
+    ['Copo Baixo Soho', 36], ['Aruba', 48], ['Copo Haus', 18]
+  ];
+
+  function el(tag, attrs, children) {
+    var e = document.createElement(tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    (children || []).forEach(function (c) { e.appendChild(c); });
+    return e;
+  }
+
+  function linhaComStepper(nome, inputName, lastro) {
+    var nomeSpan = el('span', { class: 'nome' }, [document.createTextNode(nome)]);
+    if (lastro) {
+      var l = el('span', { class: 'lastro' }, [document.createTextNode('lastro: ' + lastro)]);
+      nomeSpan.appendChild(l);
+    }
+    var input = el('input', {
+      type: 'number', inputmode: 'numeric', min: '0', step: '1',
+      name: inputName, placeholder: '0'
+    });
+    var menos = el('button', { type: 'button', 'aria-label': 'diminuir' }, [document.createTextNode('–')]);
+    var mais = el('button', { type: 'button', 'aria-label': 'aumentar' }, [document.createTextNode('+')]);
+    menos.addEventListener('click', function () {
+      input.value = Math.max(0, (parseInt(input.value, 10) || 0) - 1);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    mais.addEventListener('click', function () {
+      input.value = (parseInt(input.value, 10) || 0) + 1;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    var stepper = el('div', { class: 'stepper' }, [menos, input, mais]);
+    return el('div', { class: 'linha' }, [nomeSpan, stepper]);
+  }
+
+  function montarInsumos() {
+    var host = document.getElementById('lista-insumos');
+    var categoriaAtual = null;
+    var grupo = null;
+    INSUMOS.forEach(function (par, i) {
+      var categoria = par[0], produto = par[1];
+      if (categoria !== categoriaAtual) {
+        categoriaAtual = categoria;
+        grupo = el('div', { class: 'grupo' }, [el('h3', {}, [document.createTextNode(categoria)])]);
+        host.appendChild(grupo);
+      }
+      grupo.appendChild(linhaComStepper(produto, 'produto_' + i, null));
+    });
+  }
+
+  function montarCopos() {
+    var host = document.getElementById('lista-copos');
+    COPOS.forEach(function (par, i) {
+      host.appendChild(linhaComStepper(par[0], 'item_' + i, par[1]));
+    });
+  }
+
+  montarInsumos();
+  montarCopos();
+
+  // --- rascunho local: nada se perde se a rede falhar ou a aba fechar ---
+  function chaveRascunho(tipo) { return 'bento_contagem_' + tipo + '_rascunho'; }
+
+  function salvarRascunho(form, tipo) {
+    var dados = {};
+    new FormData(form).forEach(function (v, k) { dados[k] = v; });
+    localStorage.setItem(chaveRascunho(tipo), JSON.stringify(dados));
+  }
+
+  function restaurarRascunho(form, tipo) {
+    var raw = localStorage.getItem(chaveRascunho(tipo));
+    if (!raw) return;
+    try {
+      var dados = JSON.parse(raw);
+      Object.keys(dados).forEach(function (k) {
+        var campo = form.elements.namedItem(k);
+        if (campo) campo.value = dados[k];
+      });
+    } catch (e) { /* rascunho corrompido, ignora */ }
+  }
+
+  function hoje() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  function configurarForm(tipo, montarItens) {
+    var form = document.getElementById('form-' + tipo);
+    var status = form.querySelector('[data-status-for="' + tipo + '"]');
+    var dataInput = form.querySelector('input[name="data"]');
+    dataInput.value = hoje();
+
+    restaurarRascunho(form, tipo);
+    form.addEventListener('input', function () { salvarRascunho(form, tipo); });
+
+    form.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      if (WORKER_URL.indexOf('SEU-SUBDOMINIO') !== -1) {
+        status.textContent = 'Portal ainda não configurado com o endereço do backend — fale com o Rodrigo. Nada foi perdido, o rascunho continua salvo neste aparelho.';
+        status.className = 'status erro';
+        return;
+      }
+      var fd = new FormData(form);
+      var itens = montarItens(fd);
+      var submitBtn = form.querySelector('.enviar');
+      submitBtn.disabled = true;
+      status.textContent = 'Enviando…';
+      status.className = 'status';
+
+      fetch(WORKER_URL + '/api/contagem/' + tipo, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          data: fd.get('data'),
+          responsavel: fd.get('responsavel'),
+          chave: CHAVE,
+          itens: itens
+        })
+      }).then(function (res) { return res.json().then(function (json) { return { res: res, json: json }; }); })
+        .then(function (r) {
+          if (r.res.ok && r.json.ok) {
+            status.textContent = 'Contagem salva no Notion — ' + r.json.criados + ' itens.';
+            status.className = 'status ok';
+            localStorage.removeItem(chaveRascunho(tipo));
+          } else {
+            status.textContent = 'Deu erro salvando (' + (r.json.erro || (r.json.falhas || []).length + ' item(ns) falharam') + '). O rascunho continua salvo — pode tentar de novo.';
+            status.className = 'status erro';
+          }
+        })
+        .catch(function () {
+          status.textContent = 'Sem conexão com o backend agora. O rascunho continua salvo neste aparelho — tente de novo em instantes.';
+          status.className = 'status erro';
+        })
+        .finally(function () { submitBtn.disabled = false; });
+    });
+  }
+
+  configurarForm('insumos', function (fd) {
+    return INSUMOS.map(function (par, i) {
+      return { categoria: par[0], produto: par[1], contagem: parseInt(fd.get('produto_' + i), 10) || 0 };
+    });
+  });
+
+  configurarForm('copos', function (fd) {
+    return COPOS.map(function (par, i) {
+      return { item: par[0], lastro: par[1], contagem: parseInt(fd.get('item_' + i), 10) || 0 };
+    });
+  });
+})();
+</script>
+</body>
+</html>
