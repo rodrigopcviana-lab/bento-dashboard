@@ -23,7 +23,7 @@
  * Caminhos relativos (sem barra inicial) resolvem contra a pasta do próprio
  * sw.js, então funciona tanto em localhost quanto em /bento-dashboard/ (Pages).
  */
-const CACHE = "bento-portal-v2";
+const CACHE = "bento-portal-v3";
 const HTML_RACE_MS = 350;
 const CORE = [
   "index.html",
@@ -72,8 +72,10 @@ self.addEventListener("fetch", (event) => {
         // cache, esse fetch segue rodando e atualiza o cache no final.
         const rede = fetch(req)
           .then((res) => {
-            const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+            if (res.ok) {
+              const copy = res.clone();
+              caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+            }
             return res;
           })
           .catch(() => null);
@@ -96,8 +98,10 @@ self.addEventListener("fetch", (event) => {
       caches.match(req).then((cached) => {
         const network = fetch(req)
           .then((res) => {
-            const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+            if (res.ok) {
+              const copy = res.clone();
+              caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+            }
             return res;
           })
           .catch(() => cached);

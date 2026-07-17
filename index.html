@@ -434,6 +434,100 @@
 </style>
 </head>
 <body>
+
+<script>
+window.BENTO_WORKER = "https://bento-portal-contagem.rodrigopcviana.workers.dev";
+window.SESSAO_BENTO_LS = 'bento_sessao';
+window.sessaoBentoLer = function () {
+  try {
+    var raw = localStorage.getItem(window.SESSAO_BENTO_LS);
+    if (!raw) return null;
+    var s = JSON.parse(raw);
+    if (!s || !s.token || !s.exp || Date.now() > s.exp) return null;
+    return s;
+  } catch (e) { return null; }
+};
+window.sessaoBentoSalvar = function (nivel, token, exp) {
+  try { localStorage.setItem(window.SESSAO_BENTO_LS, JSON.stringify({ nivel: nivel, token: token, exp: exp })); } catch (e) {}
+};
+window.sessaoBentoLimpar = function () {
+  try { localStorage.removeItem(window.SESSAO_BENTO_LS); } catch (e) {}
+};
+window.loginSenhaBento = function (senha) {
+  return fetch(window.BENTO_WORKER + '/api/nivel', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ senha: senha }),
+  }).then(function (r) {
+    if (r.status === 401) return { ok: false, status: 401 };
+    if (!r.ok) return { ok: false, status: r.status };
+    return r.json().then(function (d) {
+      if (d.token) window.sessaoBentoSalvar(d.nivel, d.token, d.exp);
+      return { ok: true, nivel: d.nivel, token: d.token };
+    });
+  }).catch(function () { return { ok: false, status: 0 }; });
+};
+// Gate padrão das páginas protegidas: sem sessão -> manda pra home logar,
+// com volta automática pra cá. "volta" é o NOME DO ARQUIVO atual (lido de
+// location.pathname, não o slug de nav — mural.html/maitres-mural.html/
+// admin-mural.html compartilham o mesmo slug "mural" pro nav, mas são
+// arquivos diferentes; voltar pro slug errado abriria o silo errado depois
+// do login). Sessão de nível diferente do exigido (ex.: Equipe abrindo
+// maitres-mural.html direto por URL) -> NÃO redireciona (senão a home
+// logada devolveria pra cá e viraria loop); mostra mensagem.
+window.irParaLoginBento = function () {
+  var atual = location.pathname.split('/').pop().replace(/\.html$/, '') || 'index';
+  location.replace('index.html?volta=' + encodeURIComponent(atual) + '#acesso');
+};
+window.exigirNivel = function (niveisOk, slug) {
+  var s = window.sessaoBentoLer();
+  if (s && niveisOk.indexOf(s.nivel) >= 0) return { ok: true, sessao: s };
+  if (!s) { window.irParaLoginBento(); return { ok: false, redirecionou: true }; }
+  document.body.innerHTML = '<div class="capa-wrap capa-centro"><p class="capa-sub">'
+    + 'Seu acesso atual não abre esta página. '
+    + '<a href="index.html">Trocar acesso</a>.</p></div>';
+  return { ok: false, nivelAtual: s.nivel };
+};
+// Injeta um fragmento vindo de /api/protegido/<chave> (vendas/ranking/
+// equipe-vendas/feedback-nutricionista — dado que embutido direto no HTML
+// público vazaria por URL sem senha, ver PLANO_LOGIN_TOKEN_BENTO.md seção 3).
+// innerHTML NÃO executa <script> injetado — recria os nós pra rodar mesmo.
+window.injetaProtegido = function (el, htmlTexto) {
+  el.innerHTML = htmlTexto;
+  el.querySelectorAll('script').forEach(function (velho) {
+    var novo = document.createElement('script');
+    if (velho.src) novo.src = velho.src; else novo.textContent = velho.textContent;
+    velho.replaceWith(novo);
+  });
+};
+window.carregaProtegido = function (chave, containerId) {
+  var el = document.getElementById(containerId);
+  var s = window.sessaoBentoLer();
+  if (!s || !el) return;
+  fetch(window.BENTO_WORKER + '/api/protegido/' + chave, { headers: { 'X-Token': s.token } })
+    .then(function (r) {
+      if (r.status === 401) { el.innerHTML = '<div class="panel"><p>Sua sessão não abre este conteúdo. <a href="index.html">Trocar acesso</a>.</p></div>'; return null; }
+      if (!r.ok) { el.innerHTML = '<div class="panel"><p>Falha ao carregar — tente de novo.</p></div>'; return null; }
+      return r.json();
+    })
+    .then(function (d) { if (d && d.conteudo) window.injetaProtegido(el, d.conteudo); })
+    .catch(function () { el.innerHTML = '<div class="panel"><p>Sem conexão — tente de novo.</p></div>'; });
+};
+// Variante pra quando o protegido é DADO (JSON), não HTML pronto — caso da
+// página de Vendas (bento/templates/vendas.html): o template já sabia
+// renderizar a partir de uma const D populada no load; aqui só troca de
+// onde D vem (const embutida -> fetch autenticado) e chama de volta com o
+// dado já parseado, sem reimplementar a renderização em si.
+window.carregaProtegidoJSON = function (chave, callback, onErro) {
+  var s = window.sessaoBentoLer();
+  if (!s) return;
+  fetch(window.BENTO_WORKER + '/api/protegido/' + chave, { headers: { 'X-Token': s.token } })
+    .then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
+    .then(function (d) { callback(JSON.parse(d.conteudo)); })
+    .catch(function (e) { if (onErro) onErro(e); });
+};
+</script>
+
+
 <header class="brand"><img class="logo" src="logo-bento.png" alt="Bento Restaurante">
 
 </header>
@@ -449,37 +543,42 @@
 <div class="capa-orn"><span class="dia"></span></div>
 <div class="capa-loc">RESTAURANTE — ANÁPOLIS</div>
 <p class="capa-oi" id="capa-saudacao">Bem-vindo</p>
-<p class="capa-sub">Escolha seu acesso — cada cargo tem senha própria.</p>
+<p class="capa-sub">Digite sua senha — ela decide seu acesso sozinha.</p>
 
 <p class="niveis-label">CAMADAS DO BAR</p>
 <div class="menu-lista">
-<a class="menu-linha nv-equipe" href="mural.html">
+<div class="menu-linha nv-equipe">
 <span class="num">I</span>
 <span class="txt"><span class="t">Equipe de Bar</span><span class="d">Fichas técnicas, treinamentos, visitas e contagem</span></span>
-<span class="cad"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span class="seta" aria-hidden="true">›</span></span>
-</a>
-<a class="menu-linha nv-maitres" href="maitres-mural.html">
+</div>
+<div class="menu-linha nv-maitres">
 <span class="num">II</span>
 <span class="txt"><span class="t">Maîtres</span><span class="d">Tudo da Equipe, mais Escala & BH e Ranking</span></span>
-<span class="cad"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span class="seta" aria-hidden="true">›</span></span>
-</a>
-<a class="menu-linha nv-admin" href="admin-mural.html">
+</div>
+<div class="menu-linha nv-admin">
 <span class="num">III</span>
 <span class="txt"><span class="t">Administração</span><span class="d">Tudo, mais Ranking e Vendas</span></span>
-<span class="cad"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span class="seta" aria-hidden="true">›</span></span>
-</a>
 </div>
-<p class="niveis-hint"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg> Senhas independentes — cada acesso abre direto o Mural do seu papel.</p>
+</div>
 
 <p class="niveis-label">RECURSOS HUMANOS</p>
 <div class="menu-lista">
-<a class="menu-linha nv-rh" href="rh.html">
+<div class="menu-linha nv-rh">
 <span class="num">RH</span>
 <span class="txt"><span class="t">Recursos Humanos</span><span class="d">Rotinas, visitas, escalas, quadro e férias</span></span>
-<span class="cad"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span class="seta" aria-hidden="true">›</span></span>
-</a>
+</div>
 </div>
 <p class="niveis-nota">Silo separado — senha própria, sem relação com as camadas do bar.</p>
+
+<div class="panel" id="acesso" style="margin-top:14px">
+<h2><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg> Entrar</h2>
+<form id="form-acesso" autocomplete="off">
+<input id="acesso-senha" type="password" placeholder="Sua senha" autocomplete="current-password"
+  style="width:100%;box-sizing:border-box;padding:12px 14px;border-radius:10px;border:1px solid var(--border);background:var(--card-2);color:var(--text);font-size:15px;margin-bottom:10px">
+<button type="submit" style="width:100%;background:var(--ambar);color:#2b2620;border:0;border-radius:10px;padding:13px 20px;font-size:15px;font-weight:700;cursor:pointer">Entrar</button>
+</form>
+<p id="acesso-erro" style="display:none;color:#e0665c;margin:10px 0 0">Senha incorreta — tente de novo.</p>
+</div>
 </div>
 
 <div class="capa-centro">
@@ -506,6 +605,30 @@ WhatsApp</a>
   var s = (h < 5 || h >= 18) ? 'Boa noite' : (h < 12 ? 'Bom dia' : 'Boa tarde');
   var el = document.getElementById('capa-saudacao');
   if (el) el.textContent = s + '. Quem está entrando?';
+})();
+(function () {
+  var HOME_POR_NIVEL = {"equipe": "mural.html", "maitres": "maitres-mural.html", "admin": "admin-mural.html", "rh": "rh.html"};
+  // Já logado (voltando pra home por engano) -> manda direto pro mural do
+  // papel, não fica pedindo senha nem tenta relogar.
+  var sessaoAtual = window.sessaoBentoLer();
+  if (sessaoAtual && HOME_POR_NIVEL[sessaoAtual.nivel]) {
+    location.replace(HOME_POR_NIVEL[sessaoAtual.nivel]);
+    return;
+  }
+  var form = document.getElementById('form-acesso');
+  var campo = document.getElementById('acesso-senha');
+  var erro = document.getElementById('acesso-erro');
+  var params = new URLSearchParams(location.search);
+  var volta = params.get('volta');
+  form.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    erro.style.display = 'none';
+    window.loginSenhaBento(campo.value).then(function (r) {
+      if (!r.ok) { erro.style.display = 'block'; campo.select(); return; }
+      location.replace(volta ? volta + '.html' : (HOME_POR_NIVEL[r.nivel] || 'rh.html'));
+    });
+  });
+  if (location.hash === '#acesso') campo.focus();
 })();
 </script>
 
