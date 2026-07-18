@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#2b2620">
 <link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black"><meta name="apple-mobile-web-app-title" content="Bento">
-<title>RH · Portal do Bar | Bento</title>
+<title>Escala · Portal do Bar | Bento</title>
 <style>
   /* Cross-document view transition (2026-07-11): navegadores que já suportam
      (Safari 18+/iOS 18+, Chrome) fazem um cross-fade suave entre páginas do
@@ -606,39 +606,483 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 </script>
 
 <script src="fila-offline.js"></script>
-<script>window.exigirNivel(["rh"], "rh");</script>
+<script>window.exigirNivel(["admin"], "escala");</script>
 <header class="brand"><img class="logo" src="logo-bento.png" alt="Bento Restaurante">
-<div class="topo-linha"><a class="nivel-pill" href="index.html">Página inicial <b>(Trocar acesso)</b></a><button type="button" class="fila-selo" id="fila-selo"></button></div>
+<div class="topo-linha"><a class="nivel-pill" href="index.html">Página inicial <b>(Trocar acesso)</b></a>
+<button class="lupa-busca" id="lupa-busca" type="button" aria-label="Buscar receita" title="Buscar receita (/)">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4.5 4.5"/></svg>
+</button>
+<div id="busca-global-ov" role="dialog" aria-modal="true" aria-label="Buscar receita">
+<div class="bg-caixa">
+<div class="bg-topo">
+<input id="bg-input" type="search" placeholder="Nome do drink…" autocomplete="off">
+<button class="bg-fechar" id="bg-fechar" type="button" aria-label="Fechar busca">&times;</button>
+</div>
+<div class="bg-res" id="bg-res"><p class="bg-dica">Digite ao menos 2 letras.</p></div>
+</div>
+</div>
+<button type="button" class="fila-selo" id="fila-selo"></button></div>
 </header>
+<a class="voltar" href="admin-mural.html">&larr; Mural</a>
+
+<style>
+  .prm-toggle-btn { width: 100%; display: flex; align-items: center; justify-content: space-between;
+                     gap: 8px; padding: 9px 13px; border-radius: 11px; border: 1px solid var(--border);
+                     background: var(--card); color: var(--text); font-size: 13px; font-weight: 600;
+                     cursor: pointer; margin-bottom: 8px; }
+  .prm-toggle-btn .prm-toggle-ic { display: flex; align-items: center; color: var(--acc); transition: transform .18s; }
+  .prm-toggle-btn .prm-toggle-ic svg { width: 15px; height: 15px; display: block; }
+  .prm-toggle-btn.aberto .prm-toggle-ic { transform: rotate(180deg); }
+  .pr-mini { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin: 0 0 16px; }
+  .pr-mini[hidden] { display: none; }
+  a.prm-card { position: relative; display: flex; flex-direction: column; align-items: center;
+               justify-content: center; text-align: center; gap: 5px; border-radius: 11px; padding: 8px 6px;
+               text-decoration: none; color: var(--text); min-height: 52px; min-width: 0; border: 1.5px solid;
+               overflow: hidden; transition: filter .15s; }
+  a.prm-card:hover { filter: brightness(1.12); }
+  a.prm-card::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; }
+  .prm-card.prm-oc { background: linear-gradient(135deg,#33221d,#241713); border-color: #e07a52; }
+  .prm-card.prm-oc::before { background: #f28a63; }
+  .prm-card.prm-so { background: linear-gradient(135deg,#152a22,#111d17); border-color: #4fbf92; }
+  .prm-card.prm-so::before { background: #7fe6bd; }
+  .prm-card.prm-dose { background: linear-gradient(135deg,#16222c,#121a21); border-color: #6fa8dc; }
+  .prm-card.prm-dose::before { background: #8ec0ea; }
+  a.prm-card .prm-chip { width: 24px; height: 24px; border-radius: 7px; display: flex;
+                          align-items: center; justify-content: center; flex: none; }
+  a.prm-card .prm-chip svg { width: 13px; height: 13px; display: block; flex: none; }
+  .prm-card.prm-oc .prm-chip { background: rgba(226,75,74,.16); color: #f0a58f; }
+  .prm-card.prm-so .prm-chip { background: rgba(80,170,110,.16); color: #9fdcae; }
+  .prm-card.prm-dose .prm-chip { background: rgba(111,168,220,.18); color: #8ec0ea; }
+  .prm-card .prm-t { font-size: 11.5px; font-weight: 600; }
+</style>
+<button type="button" class="prm-toggle-btn" id="prm-toggle-btn" aria-expanded="false" aria-controls="pr-mini-conteudo">
+  <span>Painel Rápido</span>
+  <span class="prm-toggle-ic"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span>
+</button>
+<div class="pr-mini" id="pr-mini-conteudo" hidden>
+  <a class="prm-card prm-oc" href="admin-registro.html?tipo=ocorrencia">
+    <span class="prm-chip"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4"/><path d="M12 16h.01"/><path d="M10.36 3.6 2.26 17.5a1.9 1.9 0 0 0 1.64 2.5h16.2a1.9 1.9 0 0 0 1.64-2.5L13.64 3.6a1.9 1.9 0 0 0-3.28 0z"/></svg></span><span class="prm-t">Ocorrência</span></a>
+  <a class="prm-card prm-so" href="admin-registro.html?tipo=solicitacao">
+    <span class="prm-chip"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 3h6v4H9z"/><path d="M9 12h6M9 16h4"/></svg></span><span class="prm-t">Solicitação</span></a>
+  <a class="prm-card prm-dose" href="admin-dose.html"><span class="prm-chip"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3h4v3l2 3v10a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2V9l2-3z"/><path d="M9 13h6"/></svg></span><span class="prm-t">Registro de Dose</span></a>
+</div>
+<script>(function(){
+  var btn = document.getElementById('prm-toggle-btn');
+  var conteudo = document.getElementById('pr-mini-conteudo');
+  btn.onclick = function () {
+    var abrir = conteudo.hidden;
+    conteudo.hidden = !abrir;
+    btn.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+    btn.classList.toggle('aberto', abrir);
+  };
+})();</script>
 
 
+<h1><svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M16 3v4M8 3v4M4 11h16"/></svg> Escala</h1>
+<p class="sub">Grade da equipe com regras de CLT — a edição só salva se a escala
+continuar dentro das regras (cobertura mínima, 44h semanais, 11h de intervalo,
+folga semanal, folga de domingo por sexo e folga compensatória).</p>
 
-<h1>RH</h1>
-<p class="sub">Bento · Anápolis — rotinas, agenda e gestão de equipe, num lugar só.</p>
+<style>
+  .es-modo { display: flex; gap: 8px; margin-bottom: 14px; }
+  .es-modo-btn { flex: 1; padding: 9px; border-radius: 999px; border: 1px solid var(--border);
+                 background: var(--card); color: var(--text-2); font-size: 13.5px; font-weight: 600;
+                 cursor: pointer; font-family: inherit; }
+  .es-modo-btn.on { background: var(--ambar); border-color: var(--ambar); color: #2b2117; }
+  .es-nav { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .es-nav button { font-size: 13px; border-radius: 9px; padding: 7px 12px; border: 1px solid var(--border);
+                    background: var(--card); color: var(--text); cursor: pointer; font-family: inherit; }
+  .es-nav .lbl { flex: 1; text-align: center; font-size: 13.5px; color: var(--text-2); }
+  .es-viol { border-radius: 10px; padding: 10px 13px; margin-bottom: 12px; font-size: 13px; }
+  .es-viol.bloqueio { background: rgba(226,75,74,.12); border: 1px solid rgba(226,75,74,.4); color: #f09b9b; }
+  .es-viol.aviso { background: rgba(230,170,60,.12); border: 1px solid rgba(230,170,60,.4); color: var(--ambar-2); }
+  .es-viol ul { margin: 6px 0 0; padding-left: 18px; }
+  .es-viol li { margin-bottom: 3px; }
+  .es-grade { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 14px; }
+  table.es-tab { border-collapse: collapse; width: 100%; min-width: 560px; }
+  table.es-tab th, table.es-tab td { border: 1px solid var(--border); padding: 6px; vertical-align: top; }
+  table.es-tab th { background: var(--card); font-size: 12px; color: var(--text-2); font-weight: 600; text-align: left; }
+  table.es-tab td.es-dia { font-size: 12.5px; color: var(--text-2); white-space: nowrap; background: var(--card); }
+  table.es-tab tr.es-hoje td { background: var(--card-2); }
+  .es-cel { display: flex; flex-direction: column; gap: 3px; min-width: 118px; }
+  .es-cel select, .es-cel input[type=time] { font: inherit; font-size: 12px; background: var(--bg); color: var(--text);
+                                              border: 1px solid var(--border); border-radius: 6px; padding: 3px 5px; width: 100%; }
+  .es-cel.dirty { outline: 2px solid var(--ambar-2); border-radius: 8px; }
+  .es-horas { display: flex; gap: 3px; }
+  .es-cel-extra { display: flex; align-items: center; gap: 4px; font-size: 10.5px; color: var(--text-3); }
+  .es-cel-obs { font-size: 11px; padding: 3px 5px; border: 1px solid var(--border); border-radius: 6px;
+                background: var(--bg); color: var(--text); width: 100%; resize: vertical; min-height: 26px; }
+  .es-cel-salvar { font-size: 11px; border-radius: 7px; padding: 4px 8px; border: 1px solid var(--ambar);
+                    background: var(--ambar); color: #2b2117; cursor: pointer; font-weight: 600; display: none; }
+  .es-cel.dirty .es-cel-salvar { display: block; }
+  .es-padrao-tab { border-collapse: collapse; width: 100%; margin-bottom: 12px; }
+  .es-padrao-tab th, .es-padrao-tab td { border: 1px solid var(--border); padding: 6px; font-size: 12.5px; }
+  .es-padrao-tab th { background: var(--card); color: var(--text-2); text-align: left; }
+  .es-padrao-tab input, .es-padrao-tab select { font: inherit; font-size: 12.5px; background: var(--bg); color: var(--text);
+                                                 border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; width: 100%; }
+  .es-acoes { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+  .es-btn { font-size: 13px; border-radius: 9px; padding: 9px 15px; border: 1px solid var(--border);
+            background: var(--bg); color: var(--text); cursor: pointer; font-family: inherit; }
+  .es-btn.pri { background: var(--ambar); color: #2b2117; border-color: var(--ambar); font-weight: 600; }
+  .es-btn:disabled { opacity: .5; cursor: default; }
+  .es-toast { position: fixed; left: 50%; bottom: 18px; transform: translate(-50%, 8px); z-index: 80;
+              background: var(--card); border: 1px solid var(--border); border-radius: 999px;
+              padding: 9px 18px; font-size: 13px; color: var(--text); opacity: 0; pointer-events: none;
+              transition: opacity .18s, transform .18s; }
+  .es-toast.on { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+  .es-toast.erro { border-color: rgba(226,75,74,.5); color: #f09b9b; }
+</style>
 
-<div class="cards">
-<a class="card" href="rh-rotinas.html"><div class="t"><span class="tic"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 3h6v4H9z"/><path d="M9 12h6M9 16h4"/></svg></span>Rotinas</div>
-<div class="d">Check-lists e rotinas fixas da operação.</div></a>
-<a class="card" href="rh-visitas.html"><div class="t"><span class="tic"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M16 3v4M8 3v4M4 11h16"/></svg></span>Visitas</div>
-<div class="d">Quando a coordenação vem — data e pauta.</div></a>
-<a class="card" href="rh-escalas.html"><div class="t"><span class="tic"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 3h6v4H9z"/><path d="M9 12h6M9 16h4"/></svg></span>Escalas</div>
-<div class="d">Editar a escala real — pontual ou padrão, com trava de CLT.</div></a>
-<a class="card" href="rh-equipe.html"><div class="t"><span class="tic"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>Quadro de equipe</div>
-<div class="d">Quem é quem no time do Bento.</div></a>
-<a class="card" href="rh-ferias.html"><div class="t"><span class="tic"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>Férias</div>
-<div class="d">Calendário e pedido de férias, direto pro histórico do Notion.</div></a>
+<div class="es-modo" id="es-modo">
+  <button type="button" class="es-modo-btn on" data-modo="grade">Grade</button>
+  <button type="button" class="es-modo-btn" data-modo="padrao">Padrão</button>
 </div>
 
-<h2>Fale com a coordenação</h2>
-<div class="panel">
-<p>Dúvidas de RH, escala ou férias:</p>
-<a class="wa" href="https://wa.me/556281483511?text=Ol%C3%A1%20Rodrigo!%20Vim%20pelo%20Portal%20do%20Bento%20%28RH%29.%20">
-WhatsApp — Rodrigo (Coordenação de Bares)</a>
+<div id="es-violacoes"></div>
+
+<div id="es-view-grade">
+  <div class="es-nav">
+    <button type="button" id="es-prev">&larr; Semana anterior</button>
+    <span class="lbl" id="es-periodo">carregando…</span>
+    <button type="button" id="es-next">Próxima semana &rarr;</button>
+  </div>
+  <div class="es-grade"><table class="es-tab" id="es-grade-tab"><thead></thead><tbody></tbody></table></div>
+  <div class="es-acoes">
+    <button type="button" class="es-btn pri" id="es-salvar-tudo" disabled>Salvar alterações pontuais</button>
+    <span style="font-size:12px;color:var(--text-3)">Cada célula editada precisa passar na validação antes de salvar.</span>
+  </div>
 </div>
+
+<div id="es-view-padrao" style="display:none">
+  <p class="sub" style="margin-bottom:10px">Padrão fixo da equipe. "Aplicar a partir de" regenera a grade dali pra
+  frente — dias já editados pontualmente (ex.: freelancer num domingo) não são sobrescritos.</p>
+  <table class="es-padrao-tab" id="es-padrao-tab">
+    <thead><tr><th>Pessoa</th><th>Sexo</th><th>Turno base</th><th>Entrada</th><th>Saída</th><th>Folga fixa</th><th>Rodízio</th><th>Ativo</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <button type="button" class="es-btn" id="es-padrao-add">+ Adicionar pessoa</button>
+  <div class="es-acoes">
+    <label style="font-size:12.5px;color:var(--text-2)">Aplicar a partir de</label>
+    <input type="date" id="es-aplicar-desde">
+    <button type="button" class="es-btn pri" id="es-padrao-salvar">Salvar padrão e aplicar</button>
+  </div>
+</div>
+
+<div class="es-toast" id="es-toast"></div>
+
+<script>
+(function () {
+  var WORKER = "https://bento-portal-contagem.rodrigopcviana.workers.dev";
+  var DIAS_SEMANA = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
+  var TURNOS = ['Dia', 'Noite', 'Folga'];
+
+  var estado = { padrao: [], dias: [], regras: null, semanaInicio: null, dirty: {}, timerValidar: null };
+
+  function token() { var s = window.sessaoBentoLer(); return s ? s.token : null; }
+
+  function toast(msg, erro) {
+    var el = document.getElementById('es-toast');
+    el.textContent = msg;
+    el.className = 'es-toast on' + (erro ? ' erro' : '');
+    setTimeout(function () { el.className = 'es-toast'; }, 3200);
+  }
+
+  function segundaDaSemana(d) {
+    var dt = new Date(d + 'T00:00:00');
+    var dow = (dt.getDay() + 6) % 7;
+    dt.setDate(dt.getDate() - dow);
+    return dt.toISOString().slice(0, 10);
+  }
+  function somaDias(d, n) {
+    var dt = new Date(d + 'T00:00:00');
+    dt.setDate(dt.getDate() + n);
+    return dt.toISOString().slice(0, 10);
+  }
+  function fmtBr(d) { var p = d.split('-'); return p[2] + '/' + p[1]; }
+
+  function chave(pessoa, data) { return pessoa + '|' + data; }
+
+  function diaAtual(pessoa, data) {
+    var k = chave(pessoa, data);
+    if (estado.dirty[k]) return estado.dirty[k];
+    for (var i = 0; i < estado.dias.length; i++) {
+      if (estado.dias[i].pessoa === pessoa && estado.dias[i].data === data) return estado.dias[i];
+    }
+    var diaSemana = DIAS_SEMANA[(new Date(data + 'T00:00:00').getDay() + 6) % 7];
+    return { pessoa: pessoa, sexo: 'M', data: data, diaSemana: diaSemana, turno: 'Folga', entrada: '', saida: '', origem: 'Padrão', aprovadoDiretoria: false, observacao: '' };
+  }
+
+  function conjuntoMesclado() {
+    var porChave = {};
+    estado.dias.forEach(function (d) { porChave[chave(d.pessoa, d.data)] = d; });
+    Object.keys(estado.dirty).forEach(function (k) { porChave[k] = estado.dirty[k]; });
+    return Object.keys(porChave).map(function (k) { return porChave[k]; });
+  }
+
+  function renderViolacoes(violacoes) {
+    var el = document.getElementById('es-violacoes');
+    if (!violacoes || !violacoes.length) { el.innerHTML = ''; atualizaBotoes(false); return; }
+    var bloqueios = violacoes.filter(function (v) { return v.nivel === 'bloqueio'; });
+    var avisos = violacoes.filter(function (v) { return v.nivel === 'aviso'; });
+    var html = '';
+    if (bloqueios.length) {
+      html += '<div class="es-viol bloqueio"><strong>' + bloqueios.length + ' violação(ões) travando o salvamento</strong><ul>'
+        + bloqueios.map(function (v) { return '<li>' + v.mensagem + '</li>'; }).join('') + '</ul></div>';
+    }
+    if (avisos.length) {
+      html += '<div class="es-viol aviso"><strong>' + avisos.length + ' aviso(s)</strong><ul>'
+        + avisos.map(function (v) { return '<li>' + v.mensagem + '</li>'; }).join('') + '</ul></div>';
+    }
+    el.innerHTML = html;
+    atualizaBotoes(bloqueios.length > 0);
+  }
+
+  var travado = false;
+  function atualizaBotoes(temBloqueio) {
+    travado = temBloqueio;
+    document.getElementById('es-salvar-tudo').disabled = temBloqueio || !Object.keys(estado.dirty).length;
+    document.getElementById('es-padrao-salvar').disabled = temBloqueio;
+  }
+
+  function agendaValidacao() {
+    clearTimeout(estado.timerValidar);
+    estado.timerValidar = setTimeout(function () {
+      fetch(WORKER + '/api/escala/validar', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Token': token() },
+        body: JSON.stringify({ dias: conjuntoMesclado() }),
+      }).then(function (r) { return r.json(); })
+        .then(function (d) { renderViolacoes(d.violacoes || []); })
+        .catch(function () {});
+    }, 500);
+  }
+
+  function celulaHtml(pessoa, data) {
+    var d = diaAtual(pessoa, data);
+    var k = chave(pessoa, data);
+    var dirty = !!estado.dirty[k];
+    var opcoesT = TURNOS.map(function (t) { return '<option value="' + t + '"' + (t === d.turno ? ' selected' : '') + '>' + t + '</option>'; }).join('');
+    return '<div class="es-cel' + (dirty ? ' dirty' : '') + '" data-pessoa="' + pessoa + '" data-data="' + data + '">'
+      + '<select class="es-turno">' + opcoesT + '</select>'
+      + '<div class="es-horas">'
+      + '<input type="time" class="es-entrada" value="' + (d.entrada || '') + '"' + (d.turno === 'Folga' ? ' disabled' : '') + '>'
+      + '<input type="time" class="es-saida" value="' + (d.saida || '') + '"' + (d.turno === 'Folga' ? ' disabled' : '') + '>'
+      + '</div>'
+      + '<label class="es-cel-extra"><input type="checkbox" class="es-aprovado"' + (d.aprovadoDiretoria ? ' checked' : '') + '> extra aprovada</label>'
+      + '<textarea class="es-cel-obs" placeholder="observação" rows="1">' + (d.observacao || '') + '</textarea>'
+      + '<button type="button" class="es-cel-salvar">Salvar</button>'
+      + '</div>';
+  }
+
+  function marcaDirty(pessoa, data, campo, valor) {
+    var k = chave(pessoa, data);
+    var base = estado.dirty[k] || Object.assign({}, diaAtual(pessoa, data));
+    base[campo] = valor;
+    if (campo === 'turno' && valor === 'Folga') { base.entrada = ''; base.saida = ''; }
+    estado.dirty[k] = base;
+    agendaValidacao();
+  }
+
+  function renderGrade() {
+    var pessoas = estado.padrao.filter(function (p) { return p.ativo; }).map(function (p) { return p.pessoa; });
+    var thead = document.querySelector('#es-grade-tab thead');
+    thead.innerHTML = '<tr><th>Dia</th>' + pessoas.map(function (p) { return '<th>' + p + '</th>'; }).join('') + '</tr>';
+    var hoje = new Date().toISOString().slice(0, 10);
+    var linhas = [];
+    for (var i = 0; i < 7; i++) {
+      var data = somaDias(estado.semanaInicio, i);
+      var diaSemana = DIAS_SEMANA[i];
+      var celulas = pessoas.map(function (p) { return '<td>' + celulaHtml(p, data) + '</td>'; }).join('');
+      linhas.push('<tr' + (data === hoje ? ' class="es-hoje"' : '') + '><td class="es-dia">' + diaSemana + '<br>' + fmtBr(data) + '</td>' + celulas + '</tr>');
+    }
+    document.querySelector('#es-grade-tab tbody').innerHTML = linhas.join('');
+    document.getElementById('es-periodo').textContent = fmtBr(estado.semanaInicio) + ' – ' + fmtBr(somaDias(estado.semanaInicio, 6));
+    ligaEventosCelulas();
+  }
+
+  function ligaEventosCelulas() {
+    document.querySelectorAll('#es-grade-tab .es-cel').forEach(function (cel) {
+      var pessoa = cel.getAttribute('data-pessoa');
+      var data = cel.getAttribute('data-data');
+      var turnoSel = cel.querySelector('.es-turno');
+      var entradaEl = cel.querySelector('.es-entrada');
+      var saidaEl = cel.querySelector('.es-saida');
+      var aprovadoEl = cel.querySelector('.es-aprovado');
+      var obsEl = cel.querySelector('.es-cel-obs');
+      turnoSel.addEventListener('change', function () {
+        var folga = turnoSel.value === 'Folga';
+        entradaEl.disabled = folga; saidaEl.disabled = folga;
+        cel.classList.add('dirty');
+        marcaDirty(pessoa, data, 'turno', turnoSel.value);
+      });
+      [entradaEl, saidaEl].forEach(function (el, idx) {
+        el.addEventListener('change', function () {
+          cel.classList.add('dirty');
+          marcaDirty(pessoa, data, idx === 0 ? 'entrada' : 'saida', el.value);
+        });
+      });
+      aprovadoEl.addEventListener('change', function () {
+        cel.classList.add('dirty');
+        marcaDirty(pessoa, data, 'aprovadoDiretoria', aprovadoEl.checked);
+      });
+      obsEl.addEventListener('change', function () {
+        cel.classList.add('dirty');
+        marcaDirty(pessoa, data, 'observacao', obsEl.value);
+      });
+      var salvarBtn = cel.querySelector('.es-cel-salvar');
+      salvarBtn.addEventListener('click', function () { salvaCelula(pessoa, data); });
+    });
+    document.getElementById('es-salvar-tudo').disabled = travado || !Object.keys(estado.dirty).length;
+  }
+
+  function salvaCelula(pessoa, data) {
+    var k = chave(pessoa, data);
+    var d = estado.dirty[k];
+    if (!d) return;
+    fetch(WORKER + '/api/escala/dia', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Token': token() },
+      body: JSON.stringify(d),
+    }).then(function (r) { return r.json().then(function (j) { return { status: r.status, corpo: j }; }); })
+      .then(function (res) {
+        if (res.status === 422) { renderViolacoes(res.corpo.violacoes || []); toast('Bloqueado — veja as violações acima', true); return; }
+        if (!res.corpo.ok) { toast('Falha ao salvar', true); return; }
+        delete estado.dirty[k];
+        toast('Salvo.');
+        carregaEscala();
+      })
+      .catch(function () { toast('Sem conexão — tente de novo', true); });
+  }
+
+  function salvaTodasPontuais() {
+    var chaves = Object.keys(estado.dirty);
+    if (!chaves.length) return;
+    var restantes = chaves.slice();
+    function proxima() {
+      if (!restantes.length) { toast('Alterações salvas.'); carregaEscala(); return; }
+      var k = restantes.shift();
+      var partes = k.split('|');
+      salvaCelulaEncadeada(partes[0], partes.slice(1).join('|'), proxima);
+    }
+    proxima();
+  }
+  function salvaCelulaEncadeada(pessoa, data, cont) {
+    var k = chave(pessoa, data);
+    var d = estado.dirty[k];
+    if (!d) { cont(); return; }
+    fetch(WORKER + '/api/escala/dia', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Token': token() },
+      body: JSON.stringify(d),
+    }).then(function (r) { return r.json().then(function (j) { return { status: r.status, corpo: j }; }); })
+      .then(function (res) {
+        if (res.status === 422) { renderViolacoes(res.corpo.violacoes || []); toast('Bloqueado em ' + pessoa + ' (' + data + ') — pare e ajuste', true); return; }
+        delete estado.dirty[k];
+        cont();
+      })
+      .catch(function () { toast('Sem conexão — tente de novo', true); });
+  }
+
+  function renderPadrao() {
+    var tbody = document.querySelector('#es-padrao-tab tbody');
+    tbody.innerHTML = estado.padrao.map(function (p, i) {
+      return '<tr data-idx="' + i + '">'
+        + '<td><input class="ep-pessoa" value="' + (p.pessoa || '') + '"></td>'
+        + '<td><select class="ep-sexo"><option value="F"' + (p.sexo === 'F' ? ' selected' : '') + '>F</option><option value="M"' + (p.sexo === 'M' ? ' selected' : '') + '>M</option></select></td>'
+        + '<td><select class="ep-turno"><option value="Dia"' + (p.turnoBase === 'Dia' ? ' selected' : '') + '>Dia</option><option value="Noite"' + (p.turnoBase === 'Noite' ? ' selected' : '') + '>Noite</option></select></td>'
+        + '<td><input type="time" class="ep-entrada" value="' + (p.entradaBase || '') + '"></td>'
+        + '<td><input type="time" class="ep-saida" value="' + (p.saidaBase || '') + '"></td>'
+        + '<td><select class="ep-folga">' + DIAS_SEMANA.map(function (d) { return '<option value="' + d + '"' + (d === p.folgaFixa ? ' selected' : '') + '>' + d + '</option>'; }).join('') + '</select></td>'
+        + '<td><input class="ep-rodizio" value="' + (p.rodizio || '') + '"></td>'
+        + '<td style="text-align:center"><input type="checkbox" class="ep-ativo"' + (p.ativo ? ' checked' : '') + '></td>'
+        + '</tr>';
+    }).join('');
+  }
+
+  function lePadraoDaTela() {
+    var linhas = [];
+    document.querySelectorAll('#es-padrao-tab tbody tr').forEach(function (tr) {
+      linhas.push({
+        pessoa: tr.querySelector('.ep-pessoa').value.trim(),
+        sexo: tr.querySelector('.ep-sexo').value,
+        turnoBase: tr.querySelector('.ep-turno').value,
+        entradaBase: tr.querySelector('.ep-entrada').value,
+        saidaBase: tr.querySelector('.ep-saida').value,
+        folgaFixa: tr.querySelector('.ep-folga').value,
+        rodizio: tr.querySelector('.ep-rodizio').value,
+        ativo: tr.querySelector('.ep-ativo').checked,
+      });
+    });
+    return linhas.filter(function (p) { return p.pessoa; });
+  }
+
+  function carregaEscala() {
+    var desde = somaDias(estado.semanaInicio, -7);
+    var ate = somaDias(estado.semanaInicio, 13);
+    fetch(WORKER + '/api/escala?desde=' + desde + '&ate=' + ate, { headers: { 'X-Token': token() } })
+      .then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
+      .then(function (d) {
+        estado.padrao = d.padrao || []; estado.dias = d.dias || []; estado.regras = d.regras;
+        renderGrade(); renderPadrao();
+        agendaValidacao();
+      })
+      .catch(function () { toast('Falha ao carregar a escala', true); });
+  }
+
+  document.querySelectorAll('.es-modo-btn').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('.es-modo-btn').forEach(function (x) { x.classList.remove('on'); });
+      b.classList.add('on');
+      var modo = b.getAttribute('data-modo');
+      document.getElementById('es-view-grade').style.display = modo === 'grade' ? 'block' : 'none';
+      document.getElementById('es-view-padrao').style.display = modo === 'padrao' ? 'block' : 'none';
+    });
+  });
+
+  document.getElementById('es-prev').addEventListener('click', function () {
+    estado.semanaInicio = somaDias(estado.semanaInicio, -7);
+    estado.dirty = {};
+    carregaEscala();
+  });
+  document.getElementById('es-next').addEventListener('click', function () {
+    estado.semanaInicio = somaDias(estado.semanaInicio, 7);
+    estado.dirty = {};
+    carregaEscala();
+  });
+  document.getElementById('es-salvar-tudo').addEventListener('click', salvaTodasPontuais);
+  document.getElementById('es-padrao-add').addEventListener('click', function () {
+    estado.padrao.push({ pessoa: '', sexo: 'M', turnoBase: 'Dia', entradaBase: '', saidaBase: '', folgaFixa: 'Segunda', rodizio: '', ativo: true });
+    renderPadrao();
+  });
+  document.getElementById('es-padrao-salvar').addEventListener('click', function () {
+    var padrao = lePadraoDaTela();
+    var aplicarDesde = document.getElementById('es-aplicar-desde').value;
+    if (!padrao.length || !aplicarDesde) { toast('Preencha ao menos uma pessoa e a data', true); return; }
+    fetch(WORKER + '/api/escala/padrao', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Token': token() },
+      body: JSON.stringify({ padrao: padrao, aplicarDesde: aplicarDesde }),
+    }).then(function (r) { return r.json().then(function (j) { return { status: r.status, corpo: j }; }); })
+      .then(function (res) {
+        if (res.status === 422) { renderViolacoes(res.corpo.violacoes || []); toast('Padrão bloqueado — veja as violações acima', true); return; }
+        if (!res.corpo.ok) { toast('Falha ao salvar padrão', true); return; }
+        toast('Padrão aplicado — ' + (res.corpo.diasAtualizados || 0) + ' dia(s) atualizado(s).');
+        carregaEscala();
+      })
+      .catch(function () { toast('Sem conexão — tente de novo', true); });
+  });
+
+  var proximaSegunda = (function () {
+    var d = new Date(); var dow = (d.getDay() + 6) % 7; d.setDate(d.getDate() + (7 - dow) % 7 || 7);
+    return d.toISOString().slice(0, 10);
+  })();
+  document.getElementById('es-aplicar-desde').value = proximaSegunda;
+
+  estado.semanaInicio = segundaDaSemana(new Date().toISOString().slice(0, 10));
+  carregaEscala();
+})();
+</script>
 
 <p class="nota">Portal do Bar · Bento · atualizado em 18/07/2026.
 Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à mão.</p>
-
+<script>if (window.FilaOffline) window.FilaOffline.iniciarSelo({"elId": "fila-selo", "destinos": {"registro": "admin-registro.html", "turno": "admin-turno.html"}});</script>
 
 <script>
 if ('serviceWorker' in navigator) {
@@ -670,6 +1114,78 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 
+
+<script>
+(function () {
+  var COCKTAILS_HREF = "admin-cocktails.html";
+  var btn = document.getElementById('lupa-busca');
+  var ov = document.getElementById('busca-global-ov');
+  var input = document.getElementById('bg-input');
+  var res = document.getElementById('bg-res');
+  var fechar = document.getElementById('bg-fechar');
+  if (!btn || !ov) return;
+  var idx = null, carregando = false;
+
+  function semAcento(s) { return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+
+  function carrega() {
+    if (idx || carregando) return;
+    carregando = true;
+    fetch('receitas_idx.json').then(function (r) { return r.json(); })
+      .then(function (d) { idx = d; if (input.value.trim().length >= 2) aplica(); })
+      .catch(function () { idx = []; res.innerHTML = '<p class="bg-vazio">Índice indisponível — ' +
+        '<a href="' + COCKTAILS_HREF + '">abrir fichas técnicas</a>.</p>'; });
+  }
+
+  function marca(nome, q) {
+    var i = semAcento(nome).indexOf(q);
+    if (i < 0) return nome;
+    return nome.slice(0, i) + '<mark>' + nome.slice(i, i + q.length) + '</mark>' + nome.slice(i + q.length);
+  }
+
+  function aplica() {
+    var q = semAcento(input.value.trim());
+    if (q.length < 2) { res.innerHTML = '<p class="bg-dica">Digite ao menos 2 letras.</p>'; return; }
+    if (!idx) { res.innerHTML = '<p class="bg-dica">Carregando…</p>'; return; }
+    var achados = idx.filter(function (it) { return semAcento(it.n).indexOf(q) >= 0; }).slice(0, 8);
+    if (!achados.length) {
+      res.innerHTML = '<p class="bg-vazio">Nada com "' + input.value.trim() +
+        '" — <a href="' + COCKTAILS_HREF + '">ver todas as fichas &rarr;</a></p>';
+      return;
+    }
+    res.innerHTML = '';
+    achados.forEach(function (it) {
+      var a = document.createElement('a');
+      a.className = 'bg-item'; a.href = COCKTAILS_HREF + '#ficha-' + it.s;
+      a.innerHTML = '<span class="nome">' + marca(it.n, q) + '</span>';
+      res.appendChild(a);
+    });
+  }
+
+  function abre() {
+    ov.classList.add('aberto');
+    document.body.style.overflow = 'hidden';
+    carrega();
+    setTimeout(function () { input.focus(); }, 30);
+  }
+  function fecha() {
+    ov.classList.remove('aberto');
+    document.body.style.overflow = '';
+  }
+  btn.addEventListener('click', abre);
+  fechar.addEventListener('click', fecha);
+  ov.addEventListener('click', function (e) { if (e.target === ov) fecha(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === '/' && !ov.classList.contains('aberto') &&
+        document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+      e.preventDefault(); abre();
+    } else if (e.key === 'Escape' && ov.classList.contains('aberto')) {
+      fecha();
+    }
+  });
+  input.addEventListener('input', aplica);
+})();
+</script>
 
 </body>
 </html>
