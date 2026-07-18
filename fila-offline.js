@@ -21,10 +21,15 @@
 (function () {
   var KEY_MAP = { registro: 'registro_fila', turno: 'bento_turno_fila' };
   var LAST_SYNC_KEY = 'fila_offline_ultimo_sync';
-  // Instâncias vivas nesta página (criadas por .criar()). Normalmente é uma
-  // só — registro OU turno —, mas guardamos todas pra o selo poder mandar
-  // sincronizar na hora sem depender de um global frágil.
-  var instancias = [];
+  // filaKeys que TÊM instância criar() ativa nesta página (ex.: 'registro' na
+  // registro.html). O selo global IGNORA essas — a própria página já mostra o
+  // banner dela; o selo é pra pendência de OUTRAS features não visíveis aqui.
+  var filasLocais = {};
+  // Render de cada selo ativo, pra atualização INSTANTÂNEA quando a fila muda
+  // (sem esperar o poll de 5s nem depender de evento 'storage', que só dispara
+  // cross-tab). criar() chama isto a cada mudança de fila.
+  var selosRender = [];
+  function notificarSelos() { selosRender.forEach(function (fn) { try { fn(); } catch (e) {} }); }
 
   function lerFila(filaKey) {
     try { return JSON.parse(localStorage.getItem(KEY_MAP[filaKey]) || '[]'); }
@@ -87,6 +92,14 @@
     var enviando = false;
     var aguardando = {}; // id -> [callbacks disparados quando aquele item settle]
 
+    filasLocais[filaKey] = true; // esta página é dona desta fila -> selo a ignora
+
+    // avisa a página (onMudou) E o selo global (instantâneo) numa mudança de fila
+    function emitirMudanca() {
+      if (cfg.onMudou) cfg.onMudou(pendentes());
+      notificarSelos();
+    }
+
     function idDe(item) { return item[idField]; }
 
     function notificar(id, resultado) {
@@ -105,7 +118,7 @@
         aguardando[id] = aguardando[id] || [];
         aguardando[id].push(aoConcluir);
       }
-      if (cfg.onMudou) cfg.onMudou(pendentes());
+      emitirMudanca();
       processar();
     }
 
@@ -131,11 +144,11 @@
               if (cfg.onSucesso) cfg.onSucesso(item);
             }
             notificar(id, { ok: !!acao.sucesso, aindaNaFila: false, motivo: acao.motivo });
-            if (cfg.onMudou) cfg.onMudou(pendentes());
+            emitirMudanca();
             setTimeout(processar, 350); // drena o próximo item da fila, se houver
           } else {
             notificar(id, { ok: false, aindaNaFila: true, motivo: acao.motivo });
-            if (cfg.onMudou) cfg.onMudou(pendentes());
+            emitirMudanca();
             var reagendar = acao.reagendar !== false;
             if (backoffCfg && reagendar) {
               setTimeout(processar, backoffMs);
@@ -146,7 +159,7 @@
       }).catch(function () {
         enviando = false;
         notificar(id, { ok: false, aindaNaFila: true, motivo: 'rede' });
-        if (cfg.onMudou) cfg.onMudou(pendentes());
+        emitirMudanca();
         if (backoffCfg) {
           setTimeout(processar, backoffMs);
           backoffMs = Math.min(backoffMs * 2, backoffCfg.maxMs);
@@ -168,44 +181,44 @@
     setInterval(processar, intervaloMs);
     processar();
 
-    var instancia = { enfileirar: enfileirar, processar: processar, pendentes: pendentes, uuid: uuid };
-    instancias.push(instancia);
-    return instancia;
+    return { enfileirar: enfileirar, processar: processar, pendentes: pendentes, uuid: uuid };
   }
 
   // Selo global de pendências — roda em QUALQUER página que inclua este
   // script, mesmo sem chamar criar() (não precisa do fetch/backoff pra só
   // mostrar uma contagem). cfg: {elId, destinos: {registro: url, turno: url}}
   // destinos é opcional; sem ele o selo só mostra a contagem, sem navegar.
+  // IMPORTANTE: o selo IGNORA filas que têm instância criar() local (registro
+  // na registro.html, turno nas turno*.html) — nessas a própria página já
+  // mostra o banner, e um segundo indicador da mesma coisa confundiria. Então
+  // o selo representa só pendência de OUTRAS features; o toque leva pra lá.
   function iniciarSelo(cfg) {
     var el = document.getElementById(cfg.elId);
     if (!el) return;
     function render() {
       var r = contarPendentes();
+      var total = 0, keys = [];
+      Object.keys(r.porFila).forEach(function (k) {
+        if (filasLocais[k]) return;      // fila local -> banner da página cobre
+        if (r.porFila[k] > 0) { total += r.porFila[k]; keys.push(k); }
+      });
       // display:none vem de regra de CLASSE (.fila-selo) no <style> da página —
       // então mostrar exige um valor EXPLÍCITO ('inline-flex'); '' só limparia
       // o inline e a regra de classe continuaria escondendo (lição registrada
       // no CLAUDE.md do Bento, batida de novo aqui).
-      if (!r.total) { el.style.display = 'none'; return; }
+      if (!total) { el.style.display = 'none'; return; }
       el.style.display = 'inline-flex';
-      el.textContent = 'Pendente neste aparelho (' + r.total + ')';
+      el.textContent = 'Pendente neste aparelho (' + total + ')';
       el.onclick = function () {
-        // Se esta página tem instância(s) ativa(s) com item pendente (é a
-        // própria página de registro/turno), sincroniza na hora. Senão,
-        // navega pra página que drena a maior fila pendente.
-        var ativas = instancias.filter(function (i) { return i.pendentes() > 0; });
-        if (ativas.length) {
-          ativas.forEach(function (i) { i.processar(); });
-          return;
-        }
-        var chaveMaior = Object.keys(r.porFila).sort(function (a, b) { return r.porFila[b] - r.porFila[a]; })[0];
-        if (cfg.destinos && cfg.destinos[chaveMaior]) {
-          location.href = cfg.destinos[chaveMaior];
-        }
+        // Só filas SEM instância local chegam aqui -> navega pra página que as
+        // drena (a maior). A página de destino sincroniza sozinha ao abrir.
+        var chaveMaior = keys.sort(function (a, b) { return r.porFila[b] - r.porFila[a]; })[0];
+        if (cfg.destinos && cfg.destinos[chaveMaior]) location.href = cfg.destinos[chaveMaior];
       };
     }
+    selosRender.push(render);         // atualização instantânea via notificarSelos()
     render();
-    setInterval(render, 5000);
+    setInterval(render, 5000);        // reforço (cross-tab / mudanças fora do criar)
     window.addEventListener('storage', render);
   }
 
