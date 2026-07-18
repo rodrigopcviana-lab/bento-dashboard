@@ -814,7 +814,57 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 })();
 </script>
 
-<p class="nota">Portal do Bar · Bento · atualizado em 17/07/2026.
+<style>
+  .diag-box { margin: 22px 0 4px; border: 1px solid var(--border); border-radius: 12px;
+              background: var(--card); overflow: hidden; }
+  .diag-box > summary { list-style: none; cursor: pointer; padding: 12px 14px; font-size: 13px;
+              color: var(--text-2); display: flex; align-items: center; gap: 8px; }
+  .diag-box > summary::-webkit-details-marker { display: none; }
+  .diag-box > summary .seta { margin-left: auto; color: var(--text-3); transition: transform .15s; }
+  .diag-box[open] > summary .seta { transform: rotate(180deg); }
+  .diag-corpo { padding: 4px 14px 14px; display: flex; flex-direction: column; gap: 10px; }
+  .diag-linha { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--text-3); }
+  .diag-linha b { color: var(--text-2); font-weight: 600; }
+  .diag-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px;
+               border: 1px solid var(--border); background: var(--bg); color: var(--text-2); font-size: 12px; }
+  .diag-chip.pend { border-color: #5d5142; background: var(--ambar-bg); color: var(--ambar-2); }
+</style>
+<details class="diag-box">
+<summary>Diagnóstico de sincronia <span class="seta">&#9662;</span></summary>
+<div class="diag-corpo">
+  <div class="diag-linha"><b>Cache do app:</b> <span class="diag-chip" id="diag-cache">—</span></div>
+  <div class="diag-linha"><b>Fila neste aparelho:</b> <span id="diag-filas">—</span></div>
+  <div class="diag-linha"><b>Último envio com sucesso:</b> <span class="diag-chip" id="diag-sync">—</span></div>
+</div>
+</details>
+<script>
+(function () {
+  var elCache = document.getElementById('diag-cache');
+  var elFilas = document.getElementById('diag-filas');
+  var elSync = document.getElementById('diag-sync');
+  if (window.caches && caches.keys) {
+    caches.keys().then(function (ks) {
+      var app = ks.filter(function (k) { return k.indexOf('bento-portal-') === 0; });
+      elCache.textContent = app.length ? app.join(', ') : (ks.length ? ks.join(', ') : 'nenhum');
+    }).catch(function () { elCache.textContent = 'indisponível'; });
+  } else { elCache.textContent = 'sem cache'; }
+  function render() {
+    if (!window.FilaOffline) { elFilas.textContent = 'módulo não carregado'; return; }
+    var r = window.FilaOffline.contarPendentes();
+    var partes = Object.keys(r.porFila).map(function (k) {
+      var n = r.porFila[k];
+      return '<span class="diag-chip' + (n ? ' pend' : '') + '">' + k + ': ' + n + '</span>';
+    });
+    elFilas.innerHTML = partes.join(' ') || '<span class="diag-chip">vazia</span>';
+    var ts = window.FilaOffline.ultimoSync();
+    elSync.textContent = ts ? new Date(ts).toLocaleString('pt-BR') : 'nenhum registrado';
+  }
+  render();
+  setInterval(render, 5000);
+})();
+</script>
+
+<p class="nota">Portal do Bar · Bento · atualizado em 18/07/2026.
 Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à mão.</p>
 <script>if (window.FilaOffline) window.FilaOffline.iniciarSelo({"elId": "fila-selo", "destinos": {"registro": "admin-registro.html", "turno": "admin-turno.html"}});</script>
 
@@ -822,6 +872,28 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
     navigator.serviceWorker.register('sw.js').catch(function () {});
+  });
+  // Aviso de "nova versão" — o sw.js já faz skipWaiting()+clients.claim() no
+  // install, então a troca de versão acontece SOZINHA; não há "clique pra
+  // ativar" a construir. Este listener é só informativo: quando um SW novo
+  // assume o controle (controllerchange) E já havia um controller antes
+  // (não é o primeiro install do zero), mostra um toast dispensável. Guarda
+  // 'controller' pré-registro pra distinguir primeiro-install de troca real.
+  var tinhaControllerAntes = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', function () {
+    if (!tinhaControllerAntes) { tinhaControllerAntes = true; return; }
+    if (document.getElementById('sw-toast')) return;
+    var t = document.createElement('div');
+    t.id = 'sw-toast';
+    t.setAttribute('role', 'status');
+    t.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:9999;' +
+      'background:#2b2620;color:#f4ead9;border:1px solid #5d5142;border-radius:999px;' +
+      'padding:11px 18px;font-size:13px;box-shadow:0 6px 24px rgba(0,0,0,.35);cursor:pointer;' +
+      'max-width:90vw;text-align:center;';
+    t.textContent = 'Página atualizada — toque para recarregar';
+    t.onclick = function () { location.reload(); };
+    document.body.appendChild(t);
+    setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 12000);
   });
 }
 </script>

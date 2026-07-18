@@ -23,7 +23,7 @@
  * Caminhos relativos (sem barra inicial) resolvem contra a pasta do próprio
  * sw.js, então funciona tanto em localhost quanto em /bento-dashboard/ (Pages).
  */
-const CACHE = "bento-portal-v3";
+const CACHE = "bento-portal-v4";
 const HTML_RACE_MS = 350;
 const CORE = [
   "index.html",
@@ -34,6 +34,7 @@ const CORE = [
   "icon-512.png",
   "icon-512-maskable.png",
   "apple-touch-icon.png",
+  "fila-offline.js",
 ];
 
 self.addEventListener("install", (event) => {

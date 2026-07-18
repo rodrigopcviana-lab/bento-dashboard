@@ -306,6 +306,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 <p class="nota">Portal do Bar · Bento · Turno v2 (checklist, foto obrigatória e senha individual) —
 mantida à mão (não faz parte da geração automática das demais páginas).</p>
 
+<script src="fila-offline.js"></script>
 <script>
 (function () {
   var WORKER_URL = "https://bento-portal-contagem.rodrigopcviana.workers.dev";
@@ -502,97 +503,69 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
   restaurarRascunho();
   form.addEventListener('input', salvarRascunho);
 
-  // --- fila offline + idempotência (_idemp, espelho do padrão IZ) -------------
-  var FILA_KEY = 'bento_turno_fila';
+  // --- fila offline — via fila-offline.js (módulo compartilhado com o Registro
+  // Rápido e os outros 5 turno). A máquina de estados por status HTTP
+  // (401/403/503/400/sucesso/5xx), o efeito de salvar a senha individual no
+  // sucesso, o intervalo de 8s e a AUSÊNCIA de backoff são preservados EXATOS,
+  // só realocados pra dentro de onResultado/onSucesso.
   var elBanner = document.getElementById('tv-fila-banner');
-  var enviando = false;
 
-  function uuid() {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-      var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
-      return v.toString(16);
-    });
-  }
-  function lerFila() { try { return JSON.parse(localStorage.getItem(FILA_KEY) || '[]'); } catch (e) { return []; } }
-  function salvarFila(f) { localStorage.setItem(FILA_KEY, JSON.stringify(f)); }
-  function removeFila(idemp) { salvarFila(lerFila().filter(function (x) { return x._idemp !== idemp; })); }
-  function estaNaFila(idemp) { return lerFila().some(function (x) { return x._idemp === idemp; }); }
-
-  function bannerRender() {
-    var fila = lerFila();
-    if (!fila.length) { elBanner.className = 'fila-banner'; elBanner.innerHTML = ''; return; }
+  function bannerRender(n) {
+    if (n === undefined) n = window.FilaOffline ? window.FilaOffline.contarPendentes().porFila.turno : 0;
+    if (!n) { elBanner.className = 'fila-banner'; elBanner.innerHTML = ''; return; }
     elBanner.className = 'fila-banner pend on';
-    elBanner.textContent = 'Guardado neste aparelho (' + fila.length + ' na fila) — envia sozinho quando a conexão voltar.';
+    elBanner.textContent = 'Guardado neste aparelho (' + n + ' na fila) — envia sozinho quando a conexão voltar.';
   }
   function bannerErro(msg) { elBanner.className = 'fila-banner erro on'; elBanner.textContent = msg; }
 
-  function processaFila(onDone) {
-    var fila = lerFila();
-    if (!fila.length) { bannerRender(); if (onDone) onDone(); return; }
-    if (enviando) { if (onDone) onDone(); return; }
-    enviando = true;
-    var item = fila[0];
-    fetch(WORKER_URL + '/api/turno', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item)
-    }).then(function (r) {
-      return r.json().catch(function () { return {}; }).then(function (json) { return { r: r, json: json }; });
-    }).then(function (x) {
-      enviando = false;
-      if (x.r.status === 401) {
+  if (!window.FilaOffline) {
+    bannerErro('Um recurso da página não carregou direito. Recarregue (puxe a tela pra baixo) e tente de novo.');
+    return;
+  }
+
+  var filaTurno = window.FilaOffline.criar({
+    filaKey: 'turno',
+    idField: '_idemp',
+    endpoint: WORKER_URL + '/api/turno',
+    intervaloMs: 8000,
+    backoff: null,
+    montarBody: function (item) { return item; },
+    onResultado: function (status, json, item) {
+      if (status === 401) {
         bannerErro('Formulário desatualizado (chave inválida) — avise a coordenação. O relatório continua guardado neste aparelho.');
-        if (onDone) onDone();
-        return;
+        return { remover: false, reagendar: false };
       }
-      if (x.r.status === 403) {
-        removeFila(item._idemp);
+      if (status === 403) {
         localStorage.removeItem(SENHA_KEY);
         elSenha.value = '';
         bannerErro('Senha individual inválida — peça a sua ao Rodrigo. O restante do relatório não foi perdido, só reenvie após corrigir a senha.');
-        if (onDone) onDone(false);
-        return;
+        return { remover: true, sucesso: false };
       }
-      if (x.r.status === 503) {
-        removeFila(item._idemp);
+      if (status === 503) {
         bannerErro('Identidade individual ainda não configurada no servidor — avise o Rodrigo.');
-        if (onDone) onDone(false);
-        return;
+        return { remover: true, sucesso: false };
       }
-      if (x.r.status === 400) {
-        removeFila(item._idemp);
+      if (status === 400) {
         bannerErro('O servidor não aceitou este relatório (dado inválido). Confira os campos e reenvie.');
-        if (onDone) onDone(false);
-        return;
+        return { remover: true, sucesso: false };
       }
-      if (x.r.ok && x.json && x.json.ok) {
-        removeFila(item._idemp);
-        localStorage.setItem(SENHA_KEY, item.senha_pessoa);
-        bannerRender();
-        setTimeout(function () { processaFila(); }, 300);
-        if (onDone) onDone(true);
-        return;
+      if (status >= 200 && status < 300 && json && json.ok) {
+        return { remover: true, sucesso: true };
       }
-      // outro erro/5xx: mantém na fila, tenta de novo depois
-      bannerRender();
-      if (onDone) onDone(false);
-    }).catch(function () {
-      enviando = false;
-      bannerRender();
-      if (onDone) onDone(false);
-    });
-  }
-  window.addEventListener('online', function () { processaFila(); });
-  document.addEventListener('visibilitychange', function () { if (!document.hidden) processaFila(); });
-  window.addEventListener('pageshow', function () { processaFila(); });
-  setInterval(function () { processaFila(); }, 8000);
+      // outro erro/5xx: mantém na fila, tenta de novo no próximo gatilho/tick de 8s
+      return { remover: false, reagendar: true };
+    },
+    onSucesso: function (item) { localStorage.setItem(SENHA_KEY, item.senha_pessoa); },
+    onMudou: function (n) { bannerRender(n); }
+  });
   bannerRender();
-  processaFila();
 
   // --- envio -------------------------------------------------------------------
   function montarBody(senha, anexoId) {
     var pendentes = [];
     ITENS.forEach(function (it, i) { if (!checkState[i]) pendentes.push(it.t); });
     var body = {
-      chave: CHAVE, _idemp: uuid(), senha_pessoa: senha, fase: FASE,
+      chave: CHAVE, _idemp: filaTurno.uuid(), senha_pessoa: senha, fase: FASE,
       data: document.getElementById('tv-data').value, turno: turnoSel,
       checklist: { total: ITENS.length, feitos: ITENS.length - pendentes.length, pendentes: pendentes },
       gelo_pct: geloSel === null ? null : geloSel,
@@ -628,13 +601,12 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
 
     function prosseguir(anexoId) {
       var body = montarBody(senha, anexoId);
-      var fila = lerFila(); fila.push(body); salvarFila(fila);
-      processaFila(function (ok) {
+      filaTurno.enfileirar(body, function (res) {
         atualizaBotaoEnviar();
-        if (estaNaFila(body._idemp)) {
+        if (res.aindaNaFila) {
           status.textContent = 'Guardado neste aparelho — envia sozinho quando a conexão voltar.';
           status.className = 'status';
-        } else if (ok) {
+        } else if (res.ok) {
           status.textContent = body.checklist.pendentes.length
             ? 'Enviado com ' + body.checklist.pendentes.length + ' pendência(s) ✓' : 'Enviado ✓';
           status.className = 'status ok';

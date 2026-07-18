@@ -718,7 +718,7 @@ ida ao Bento, ela aparece aqui com data e pauta.</p>
 WhatsApp — Rodrigo (Coordenação de Bares)</a>
 </div>
 
-<p class="nota">Portal do Bar · Bento · atualizado em 17/07/2026.
+<p class="nota">Portal do Bar · Bento · atualizado em 18/07/2026.
 Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à mão.</p>
 <script>if (window.FilaOffline) window.FilaOffline.iniciarSelo({"elId": "fila-selo", "destinos": {"registro": "registro.html", "turno": "turno.html"}});</script>
 
@@ -726,6 +726,28 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
     navigator.serviceWorker.register('sw.js').catch(function () {});
+  });
+  // Aviso de "nova versão" — o sw.js já faz skipWaiting()+clients.claim() no
+  // install, então a troca de versão acontece SOZINHA; não há "clique pra
+  // ativar" a construir. Este listener é só informativo: quando um SW novo
+  // assume o controle (controllerchange) E já havia um controller antes
+  // (não é o primeiro install do zero), mostra um toast dispensável. Guarda
+  // 'controller' pré-registro pra distinguir primeiro-install de troca real.
+  var tinhaControllerAntes = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', function () {
+    if (!tinhaControllerAntes) { tinhaControllerAntes = true; return; }
+    if (document.getElementById('sw-toast')) return;
+    var t = document.createElement('div');
+    t.id = 'sw-toast';
+    t.setAttribute('role', 'status');
+    t.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:9999;' +
+      'background:#2b2620;color:#f4ead9;border:1px solid #5d5142;border-radius:999px;' +
+      'padding:11px 18px;font-size:13px;box-shadow:0 6px 24px rgba(0,0,0,.35);cursor:pointer;' +
+      'max-width:90vw;text-align:center;';
+    t.textContent = 'Página atualizada — toque para recarregar';
+    t.onclick = function () { location.reload(); };
+    document.body.appendChild(t);
+    setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 12000);
   });
 }
 </script>
