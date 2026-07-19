@@ -656,6 +656,10 @@ folga semanal, folga de domingo por sexo e folga compensatória).</p>
   .es-padrao-tab input, .es-padrao-tab select { font: inherit; font-size: 12.5px; background: var(--bg); color: var(--text);
                                                  border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; width: 100%; }
   .es-acoes { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+  .es-acoes input[type=text] { font: inherit; font-size: 13px; background: var(--bg); color: var(--text);
+                                border: 1px solid var(--border); border-radius: 9px; padding: 8px 10px; }
+  .es-col-freela { font-weight: 400; font-style: italic; }
+  .es-col-freela .es-col-remover { margin-left: 5px; font-style: normal; cursor: pointer; color: var(--text-3); }
   .es-btn { font-size: 13px; border-radius: 9px; padding: 9px 15px; border: 1px solid var(--border);
             background: var(--bg); color: var(--text); cursor: pointer; font-family: inherit; }
   .es-btn.pri { background: var(--ambar); color: #2b2117; border-color: var(--ambar); font-weight: 600; }
@@ -682,6 +686,11 @@ folga semanal, folga de domingo por sexo e folga compensatória).</p>
     <button type="button" id="es-next">Próxima semana &rarr;</button>
   </div>
   <div class="es-grade"><table class="es-tab" id="es-grade-tab"><thead></thead><tbody></tbody></table></div>
+  <div class="es-acoes">
+    <input type="text" id="es-freela-nome" placeholder="Nome do freelancer" style="max-width:220px">
+    <select id="es-freela-sexo"><option value="F">F</option><option value="M" selected>M</option></select>
+    <button type="button" class="es-btn" id="es-freela-add">+ Adicionar pessoa só nesta semana</button>
+  </div>
   <div class="es-acoes">
     <button type="button" class="es-btn pri" id="es-salvar-tudo" disabled>Salvar alterações pontuais</button>
     <span style="font-size:12px;color:var(--text-3)">Cada célula editada precisa passar na validação antes de salvar.</span>
@@ -711,7 +720,52 @@ folga semanal, folga de domingo por sexo e folga compensatória).</p>
   var DIAS_SEMANA = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
   var TURNOS = ['Dia', 'Noite', 'Folga'];
 
-  var estado = { padrao: [], dias: [], regras: null, semanaInicio: null, dirty: {}, timerValidar: null };
+  // "extras" = freelancers/pessoas fora do Padrão adicionados só pra dar uma
+  // coluna editável na Grade nesta sessão do navegador — não é gravado em
+  // lugar nenhum por si só; só existe de verdade quando uma célula da coluna
+  // é salva (POST /api/escala/dia, Origem=Pontual — o worker aceita
+  // qualquer "pessoa", não exige que esteja no Padrão). Pessoa que já tem
+  // dia salvo aparece sozinha via estado.dias, sem precisar disso.
+  var estado = { padrao: [], dias: [], regras: null, semanaInicio: null, dirty: {}, timerValidar: null, extras: [] };
+
+  function normNome(s) { return (s || '').trim().toLowerCase(); }
+
+  // Nome de freelancer é digitado na hora pelo coordenador — escapa antes de
+  // ir pro innerHTML do cabeçalho da grade (não é dado vindo do Notion/servidor).
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function pessoasDaGrade() {
+    var vistos = {};
+    var lista = [];
+    function add(nome) {
+      var k = normNome(nome);
+      if (!k || vistos[k]) return;
+      vistos[k] = true;
+      lista.push(nome);
+    }
+    estado.padrao.filter(function (p) { return p.ativo; }).forEach(function (p) { add(p.pessoa); });
+    estado.dias.forEach(function (d) { add(d.pessoa); });
+    estado.extras.forEach(function (e) { add(e.nome); });
+    return lista;
+  }
+
+  function ehFreelancer(nome) {
+    var k = normNome(nome);
+    return !estado.padrao.some(function (p) { return p.ativo && normNome(p.pessoa) === k; });
+  }
+
+  // Sexo de quem não está no Padrão (freelancer) — decide a cadência de
+  // folga de domingo corretamente em vez de assumir 'M' às cegas.
+  function sexoDaPessoa(pessoa) {
+    var k = normNome(pessoa);
+    var noPadrao = estado.padrao.find(function (p) { return normNome(p.pessoa) === k; });
+    if (noPadrao) return noPadrao.sexo === 'F' ? 'F' : 'M';
+    var extra = estado.extras.find(function (e) { return normNome(e.nome) === k; });
+    if (extra) return extra.sexo === 'F' ? 'F' : 'M';
+    return 'M';
+  }
 
   function token() { var s = window.sessaoBentoLer(); return s ? s.token : null; }
 
@@ -744,7 +798,7 @@ folga semanal, folga de domingo por sexo e folga compensatória).</p>
       if (estado.dias[i].pessoa === pessoa && estado.dias[i].data === data) return estado.dias[i];
     }
     var diaSemana = DIAS_SEMANA[(new Date(data + 'T00:00:00').getDay() + 6) % 7];
-    return { pessoa: pessoa, sexo: 'M', data: data, diaSemana: diaSemana, turno: 'Folga', entrada: '', saida: '', origem: 'Padrão', aprovadoDiretoria: false, observacao: '' };
+    return { pessoa: pessoa, sexo: sexoDaPessoa(pessoa), data: data, diaSemana: diaSemana, turno: 'Folga', entrada: '', saida: '', origem: 'Padrão', aprovadoDiretoria: false, observacao: '' };
   }
 
   function conjuntoMesclado() {
@@ -796,7 +850,7 @@ folga semanal, folga de domingo por sexo e folga compensatória).</p>
     var k = chave(pessoa, data);
     var dirty = !!estado.dirty[k];
     var opcoesT = TURNOS.map(function (t) { return '<option value="' + t + '"' + (t === d.turno ? ' selected' : '') + '>' + t + '</option>'; }).join('');
-    return '<div class="es-cel' + (dirty ? ' dirty' : '') + '" data-pessoa="' + pessoa + '" data-data="' + data + '">'
+    return '<div class="es-cel' + (dirty ? ' dirty' : '') + '" data-pessoa="' + esc(pessoa) + '" data-data="' + data + '">'
       + '<select class="es-turno">' + opcoesT + '</select>'
       + '<div class="es-horas">'
       + '<input type="time" class="es-entrada" value="' + (d.entrada || '') + '"' + (d.turno === 'Folga' ? ' disabled' : '') + '>'
@@ -818,9 +872,20 @@ folga semanal, folga de domingo por sexo e folga compensatória).</p>
   }
 
   function renderGrade() {
-    var pessoas = estado.padrao.filter(function (p) { return p.ativo; }).map(function (p) { return p.pessoa; });
+    var pessoas = pessoasDaGrade();
     var thead = document.querySelector('#es-grade-tab thead');
-    thead.innerHTML = '<tr><th>Dia</th>' + pessoas.map(function (p) { return '<th>' + p + '</th>'; }).join('') + '</tr>';
+    thead.innerHTML = '<tr><th>Dia</th>' + pessoas.map(function (p) {
+      if (!ehFreelancer(p)) return '<th>' + esc(p) + '</th>';
+      return '<th class="es-col-freela">' + esc(p)
+        + ' <span class="es-col-remover" data-extra="' + esc(p) + '" title="Tirar esta coluna (não apaga dado já salvo)">&times;</span></th>';
+    }).join('') + '</tr>';
+    thead.querySelectorAll('.es-col-remover').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var nome = btn.getAttribute('data-extra');
+        estado.extras = estado.extras.filter(function (e) { return normNome(e.nome) !== normNome(nome); });
+        renderGrade();
+      });
+    });
     var hoje = new Date().toISOString().slice(0, 10);
     var linhas = [];
     for (var i = 0; i < 7; i++) {
@@ -981,6 +1046,18 @@ folga semanal, folga de domingo por sexo e folga compensatória).</p>
     estado.dirty = {};
     carregaEscala();
   });
+  document.getElementById('es-freela-add').addEventListener('click', function () {
+    var input = document.getElementById('es-freela-nome');
+    var sexoSel = document.getElementById('es-freela-sexo');
+    var nome = input.value.trim();
+    if (!nome) { toast('Digite o nome do freelancer', true); return; }
+    if (pessoasDaGrade().some(function (p) { return normNome(p) === normNome(nome); })) {
+      toast('Já tem uma coluna com esse nome', true); input.value = ''; return;
+    }
+    estado.extras.push({ nome: nome, sexo: sexoSel.value === 'F' ? 'F' : 'M' });
+    input.value = '';
+    renderGrade();
+  });
   document.getElementById('es-salvar-tudo').addEventListener('click', salvaTodasPontuais);
   document.getElementById('es-padrao-add').addEventListener('click', function () {
     estado.padrao.push({ pessoa: '', sexo: 'M', turnoBase: 'Dia', entradaBase: '', saidaBase: '', folgaFixa: 'Segunda', rodizio: '', ativo: true });
@@ -1014,7 +1091,7 @@ folga semanal, folga de domingo por sexo e folga compensatória).</p>
 })();
 </script>
 
-<p class="nota">Portal do Bar · Bento · atualizado em 18/07/2026.
+<p class="nota">Portal do Bar · Bento · atualizado em 19/07/2026.
 Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à mão.</p>
 
 
