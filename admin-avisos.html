@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#2b2620">
 <link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black"><meta name="apple-mobile-web-app-title" content="Bento">
-<title>Escala · Portal do Bar | Bento</title>
+<title>Avisos · Portal do Bar | Bento</title>
 <style>
   /* Cross-document view transition (2026-07-11): navegadores que já suportam
      (Safari 18+/iOS 18+, Chrome) fazem um cross-fade suave entre páginas do
@@ -676,7 +676,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 </script>
 
 <script src="fila-offline.js"></script>
-<script>window.exigirNivel(["admin"], "escala");</script>
+<script>window.exigirNivel(["admin"], "avisos");</script>
 <header class="brand"><img class="logo" src="logo-bento.png" alt="Bento Restaurante">
 <div class="topo-linha"><a class="nivel-pill" href="admin-meu-perfil.html">Meu perfil</a>
 <button class="lupa-busca" id="lupa-busca" type="button" aria-label="Buscar receita" title="Buscar receita (/)">
@@ -749,661 +749,99 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 })();</script>
 
 
-<h1><svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M16 3v4M8 3v4M4 11h16"/></svg> Escala</h1>
-<p class="sub">Grade da equipe com regras de CLT — a edição só salva se a escala
-continuar dentro das regras (cobertura mínima, 44h semanais, 11h de intervalo,
-folga semanal, folga de domingo por sexo e folga compensatória).</p>
-
+<h1><svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Avisos</h1>
+<p class="sub">Recados da Administração — aparecem no sino de todo mundo. Só a Administração publica; toda a equipe lê.</p>
 <style>
-  .es-modo { display: flex; gap: 8px; margin-bottom: 14px; }
-  .es-modo-btn { flex: 1; padding: 9px; border-radius: 999px; border: 1px solid var(--border);
-                 background: var(--card); color: var(--text-2); font-size: 13.5px; font-weight: 600;
-                 cursor: pointer; font-family: inherit; }
-  .es-modo-btn.on { background: var(--ambar); border-color: var(--ambar); color: #2b2117; }
-  .es-nav { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-  .es-nav button { font-size: 13px; border-radius: 9px; padding: 7px 12px; border: 1px solid var(--border);
-                    background: var(--card); color: var(--text); cursor: pointer; font-family: inherit; }
-  .es-nav .lbl { flex: 1; text-align: center; font-size: 13.5px; color: var(--text-2); }
-  .es-versoes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;
-                 padding: 9px 11px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); }
-  .es-versoes label { font-size: 12.5px; color: var(--text-2); font-weight: 600; }
-  .es-versoes select { font: inherit; font-size: 12.5px; background: var(--bg); color: var(--text);
-                        border: 1px solid var(--border); border-radius: 7px; padding: 5px 7px; max-width: 220px; }
-  .es-versoes .es-vbtn { font-size: 12px; border-radius: 7px; padding: 5px 10px; border: 1px solid var(--border);
-                          background: var(--bg); color: var(--text); cursor: pointer; font-family: inherit; }
-  .es-versoes .es-vbtn:disabled { opacity: .45; cursor: default; }
-  .es-versao-status { font-size: 11.5px; color: var(--text-3); margin-right: auto; }
-  .es-versao-status .ok { color: #7bd88f; }
-  .es-versao-status .bloq { color: #f09b9b; }
-  .es-viol { border-radius: 10px; padding: 10px 13px; margin-bottom: 12px; font-size: 13px; }
-  .es-viol.bloqueio { background: rgba(226,75,74,.12); border: 1px solid rgba(226,75,74,.4); color: #f09b9b; }
-  .es-viol.aviso { background: rgba(230,170,60,.12); border: 1px solid rgba(230,170,60,.4); color: var(--ambar-2); }
-  .es-viol ul { margin: 6px 0 0; padding-left: 18px; }
-  .es-viol li { margin-bottom: 3px; }
-  .es-grade { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 14px; }
-  table.es-tab { border-collapse: collapse; width: 100%; min-width: 560px; }
-  table.es-tab th, table.es-tab td { border: 1px solid var(--border); padding: 6px; vertical-align: top; }
-  table.es-tab th { background: var(--card); font-size: 12px; color: var(--text-2); font-weight: 600; text-align: left; }
-  table.es-tab td.es-dia { font-size: 12.5px; color: var(--text-2); white-space: nowrap; background: var(--card); }
-  table.es-tab tr.es-hoje td { background: var(--card-2); }
-  .es-cel { display: flex; flex-direction: column; gap: 3px; min-width: 118px; }
-  .es-cel select, .es-cel input[type=time] { font: inherit; font-size: 12px; background: var(--bg); color: var(--text);
-                                              border: 1px solid var(--border); border-radius: 6px; padding: 3px 5px; width: 100%; }
-  .es-cel.dirty { outline: 2px solid var(--ambar-2); border-radius: 8px; }
-  .es-horas { display: flex; gap: 3px; }
-  .es-cel-extra { display: flex; align-items: center; gap: 4px; font-size: 10.5px; color: var(--text-3); }
-  .es-cel-obs { font-size: 11px; padding: 3px 5px; border: 1px solid var(--border); border-radius: 6px;
-                background: var(--bg); color: var(--text); width: 100%; resize: vertical; min-height: 26px; }
-  .es-cel-salvar { font-size: 11px; border-radius: 7px; padding: 4px 8px; border: 1px solid var(--ambar);
-                    background: var(--ambar); color: #2b2117; cursor: pointer; font-weight: 600; display: none; }
-  .es-cel.dirty .es-cel-salvar { display: block; }
-  .es-padrao-tab { border-collapse: collapse; width: 100%; margin-bottom: 12px; }
-  .es-padrao-tab th, .es-padrao-tab td { border: 1px solid var(--border); padding: 6px; font-size: 12.5px; }
-  .es-padrao-tab th { background: var(--card); color: var(--text-2); text-align: left; }
-  .es-padrao-tab input, .es-padrao-tab select { font: inherit; font-size: 12.5px; background: var(--bg); color: var(--text);
-                                                 border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; width: 100%; }
-  .es-acoes { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
-  .es-acoes input[type=text] { font: inherit; font-size: 13px; background: var(--bg); color: var(--text);
-                                border: 1px solid var(--border); border-radius: 9px; padding: 8px 10px; }
-  .es-col-freela { font-weight: 400; font-style: italic; }
-  .es-col-freela .es-col-remover { margin-left: 5px; font-style: normal; cursor: pointer; color: var(--text-3); }
-  .es-btn { font-size: 13px; border-radius: 9px; padding: 9px 15px; border: 1px solid var(--border);
-            background: var(--bg); color: var(--text); cursor: pointer; font-family: inherit; }
-  .es-btn.pri { background: var(--ambar); color: #2b2117; border-color: var(--ambar); font-weight: 600; }
-  .es-btn:disabled { opacity: .5; cursor: default; }
-  .es-toast { position: fixed; left: 50%; bottom: 18px; transform: translate(-50%, 8px); z-index: 80;
-              background: var(--card); border: 1px solid var(--border); border-radius: 999px;
-              padding: 9px 18px; font-size: 13px; color: var(--text); opacity: 0; pointer-events: none;
-              transition: opacity .18s, transform .18s; }
-  .es-toast.on { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
-  .es-toast.erro { border-color: rgba(226,75,74,.5); color: #f09b9b; }
+  #av-form textarea, #av-form select { width: 100%; background: var(--bg);
+      border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font: inherit;
+      font-size: 14px; color: var(--text); outline: none; }
+  #av-form input { width: 100%; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px 12px; font: inherit; font-size: 14px; color: var(--text); outline: none; }
+  #av-form textarea:focus, #av-form input:focus, #av-form select:focus { border-color: var(--ambar); }
+  #av-form .ctrl { margin-bottom: 10px; }
 </style>
-
-<div class="es-modo" id="es-modo">
-  <button type="button" class="es-modo-btn on" data-modo="grade">Grade</button>
-  <button type="button" class="es-modo-btn" data-modo="padrao">Padrão</button>
+<div id="av-conteudo">
+  <div class="panel" id="av-form" hidden style="margin-bottom:14px">
+    <h2 style="font-size:15px;margin:0 0 10px">Publicar aviso</h2>
+    <div class="ctrl"><input id="av-titulo" maxlength="120" placeholder="Título do aviso"></div>
+    <div class="ctrl"><textarea id="av-mensagem" rows="3" maxlength="4000" placeholder="Escreva o recado…"></textarea></div>
+    <div class="ctrl">
+      <select id="av-nivel">
+        <option value="Todos">Todos os níveis</option>
+        <option value="Equipe">Equipe</option>
+        <option value="Maîtres">Maîtres</option>
+        <option value="Administração">Administração</option>
+      </select>
+    </div>
+    <button id="av-publicar" style="width:100%;padding:10px;font-weight:600;border:none;border-radius:8px;background:var(--ambar);color:#2b2620;cursor:pointer">Publicar aviso</button>
+    <p class="sub" id="av-form-msg" role="status" aria-live="polite" style="margin:10px 0 0"></p>
+  </div>
+  <div id="av-lista"></div>
 </div>
-
-<div id="es-violacoes"></div>
-<p class="sub" style="font-size:11.5px;margin:-4px 0 12px">Bloqueado mas precisa salvar mesmo assim? Escreva o motivo no campo
-"observação" da célula e clique em Salvar de novo — fica registrado como "Fora da CLT".</p>
-
-<div id="es-view-grade">
-  <div class="es-nav">
-    <button type="button" id="es-prev">&larr; Semana anterior</button>
-    <span class="lbl" id="es-periodo">carregando…</span>
-    <button type="button" id="es-next">Próxima semana &rarr;</button>
-  </div>
-  <div class="es-versoes" id="es-versoes">
-    <label for="es-versao-sel">Versão</label>
-    <select id="es-versao-sel"></select>
-    <span class="es-versao-status" id="es-versao-status"></span>
-    <button type="button" class="es-vbtn" id="es-versao-nova">+ Nova</button>
-    <button type="button" class="es-vbtn" id="es-versao-oficial">Tornar oficial</button>
-    <button type="button" class="es-vbtn" id="es-versao-excluir">Excluir</button>
-  </div>
-  <div class="es-grade"><table class="es-tab" id="es-grade-tab"><thead></thead><tbody></tbody></table></div>
-  <div class="es-acoes">
-    <input type="text" id="es-freela-nome" placeholder="Nome do freelancer" style="max-width:220px">
-    <select id="es-freela-sexo"><option value="F">F</option><option value="M" selected>M</option></select>
-    <button type="button" class="es-btn" id="es-freela-add">+ Adicionar pessoa só nesta semana</button>
-  </div>
-  <div class="es-acoes">
-    <button type="button" class="es-btn pri" id="es-salvar-tudo" disabled>Salvar alterações pontuais</button>
-    <span style="font-size:12px;color:var(--text-3)">Cada célula editada precisa passar na validação antes de salvar.</span>
-  </div>
-</div>
-
-<div id="es-view-padrao" style="display:none">
-  <p class="sub" style="margin-bottom:10px">Padrão fixo da equipe. "Aplicar a partir de" regenera a grade dali pra
-  frente — dias já editados pontualmente (ex.: freelancer num domingo) não são sobrescritos.</p>
-  <table class="es-padrao-tab" id="es-padrao-tab">
-    <thead><tr><th>Pessoa</th><th>Sexo</th><th>Turno base</th><th>Entrada</th><th>Saída</th><th>Folga fixa</th><th>Rodízio</th><th>Ativo</th></tr></thead>
-    <tbody></tbody>
-  </table>
-  <button type="button" class="es-btn" id="es-padrao-add">+ Adicionar pessoa</button>
-  <div class="es-acoes">
-    <label style="font-size:12.5px;color:var(--text-2)">Aplicar a partir de</label>
-    <input type="date" id="es-aplicar-desde">
-    <button type="button" class="es-btn pri" id="es-padrao-salvar">Salvar padrão e aplicar</button>
-  </div>
-</div>
-
-<div class="es-toast" id="es-toast"></div>
-
 <script>
-(function () {
-  var WORKER = "https://bento-portal-contagem.rodrigopcviana.workers.dev";
-  var DIAS_SEMANA = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
-  var TURNOS = ['Dia', 'Noite', 'Folga'];
+(function(){
+  var REG = window.BENTO_WORKER;
 
-  // "extras" = freelancers/pessoas fora do Padrão adicionados só pra dar uma
-  // coluna editável na Grade nesta sessão do navegador — não é gravado em
-  // lugar nenhum por si só; só existe de verdade quando uma célula da coluna
-  // é salva (POST /api/escala/dia, Origem=Pontual — o worker aceita
-  // qualquer "pessoa", não exige que esteja no Padrão). Pessoa que já tem
-  // dia salvo aparece sozinha via estado.dias, sem precisar disso.
-  var estado = { padrao: [], dias: [], regras: null, semanaInicio: null, dirty: {}, timerValidar: null, extras: [],
-                  versao: '', versoes: [], oficialId: '' };
-
-  function normNome(s) { return (s || '').trim().toLowerCase(); }
-
-  // Nome de freelancer é digitado na hora pelo coordenador — escapa antes de
-  // ir pro innerHTML do cabeçalho da grade (não é dado vindo do Notion/servidor).
-  function esc(s) {
-    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  function esc(t){ var d=document.createElement('div'); d.textContent=(t==null?'':String(t)); return d.innerHTML; }
+  var MESES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  function quando(iso){
+    if(!iso) return '';
+    var t = Date.parse(iso); if(isNaN(t)) return '';
+    var seg = Math.floor((Date.now()-t)/1000);
+    if(seg < 3600) return 'há '+Math.max(1,Math.floor(seg/60))+' min';
+    if(seg < 86400) return 'há '+Math.floor(seg/3600)+' h';
+    var d = new Date(iso); return d.getDate()+' '+MESES[d.getMonth()];
   }
 
-  function pessoasDaGrade() {
-    var vistos = {};
-    var lista = [];
-    function add(nome) {
-      var k = normNome(nome);
-      if (!k || vistos[k]) return;
-      vistos[k] = true;
-      lista.push(nome);
-    }
-    estado.padrao.filter(function (p) { return p.ativo; }).forEach(function (p) { add(p.pessoa); });
-    estado.dias.forEach(function (d) { add(d.pessoa); });
-    estado.extras.forEach(function (e) { add(e.nome); });
-    return lista;
-  }
-
-  function ehFreelancer(nome) {
-    var k = normNome(nome);
-    return !estado.padrao.some(function (p) { return p.ativo && normNome(p.pessoa) === k; });
-  }
-
-  // Sexo de quem não está no Padrão (freelancer) — decide a cadência de
-  // folga de domingo corretamente em vez de assumir 'M' às cegas.
-  function sexoDaPessoa(pessoa) {
-    var k = normNome(pessoa);
-    var noPadrao = estado.padrao.find(function (p) { return normNome(p.pessoa) === k; });
-    if (noPadrao) return noPadrao.sexo === 'F' ? 'F' : 'M';
-    var extra = estado.extras.find(function (e) { return normNome(e.nome) === k; });
-    if (extra) return extra.sexo === 'F' ? 'F' : 'M';
-    return 'M';
-  }
-
-  function token() { var s = window.sessaoBentoLer(); return s ? s.token : null; }
-
-  function toast(msg, erro) {
-    var el = document.getElementById('es-toast');
-    el.textContent = msg;
-    el.className = 'es-toast on' + (erro ? ' erro' : '');
-    setTimeout(function () { el.className = 'es-toast'; }, 3200);
-  }
-
-  function segundaDaSemana(d) {
-    var dt = new Date(d + 'T00:00:00');
-    var dow = (dt.getDay() + 6) % 7;
-    dt.setDate(dt.getDate() - dow);
-    return dt.toISOString().slice(0, 10);
-  }
-  function somaDias(d, n) {
-    var dt = new Date(d + 'T00:00:00');
-    dt.setDate(dt.getDate() + n);
-    return dt.toISOString().slice(0, 10);
-  }
-  function fmtBr(d) { var p = d.split('-'); return p[2] + '/' + p[1]; }
-
-  function chave(pessoa, data) { return pessoa + '|' + data; }
-
-  function diaAtual(pessoa, data) {
-    var k = chave(pessoa, data);
-    if (estado.dirty[k]) return estado.dirty[k];
-    for (var i = 0; i < estado.dias.length; i++) {
-      if (estado.dias[i].pessoa === pessoa && estado.dias[i].data === data) return estado.dias[i];
-    }
-    var diaSemana = DIAS_SEMANA[(new Date(data + 'T00:00:00').getDay() + 6) % 7];
-    return { pessoa: pessoa, sexo: sexoDaPessoa(pessoa), data: data, diaSemana: diaSemana, turno: 'Folga', entrada: '', saida: '', origem: 'Padrão', aprovadoDiretoria: false, observacao: '' };
-  }
-
-  function conjuntoMesclado() {
-    var porChave = {};
-    estado.dias.forEach(function (d) { porChave[chave(d.pessoa, d.data)] = d; });
-    Object.keys(estado.dirty).forEach(function (k) { porChave[k] = estado.dirty[k]; });
-    return Object.keys(porChave).map(function (k) { return porChave[k]; });
-  }
-
-  function renderViolacoes(violacoes) {
-    var el = document.getElementById('es-violacoes');
-    if (!violacoes || !violacoes.length) { el.innerHTML = ''; atualizaBotoes(false); return; }
-    var bloqueios = violacoes.filter(function (v) { return v.nivel === 'bloqueio'; });
-    var avisos = violacoes.filter(function (v) { return v.nivel === 'aviso'; });
-    var html = '';
-    if (bloqueios.length) {
-      html += '<div class="es-viol bloqueio"><strong>' + bloqueios.length + ' violação(ões) travando o salvamento</strong><ul>'
-        + bloqueios.map(function (v) { return '<li>' + v.mensagem + '</li>'; }).join('') + '</ul></div>';
-    }
-    if (avisos.length) {
-      html += '<div class="es-viol aviso"><strong>' + avisos.length + ' aviso(s)</strong><ul>'
-        + avisos.map(function (v) { return '<li>' + v.mensagem + '</li>'; }).join('') + '</ul></div>';
-    }
-    el.innerHTML = html;
-    atualizaBotoes(bloqueios.length > 0);
-  }
-
-  var travado = false;
-  function atualizaBotoes(temBloqueio) {
-    travado = temBloqueio;
-    document.getElementById('es-salvar-tudo').disabled = temBloqueio || !Object.keys(estado.dirty).length;
-    document.getElementById('es-padrao-salvar').disabled = temBloqueio;
-  }
-
-  function agendaValidacao() {
-    clearTimeout(estado.timerValidar);
-    estado.timerValidar = setTimeout(function () {
-      fetch(WORKER + '/api/escala/validar', {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Token': token() },
-        body: JSON.stringify({ dias: conjuntoMesclado() }),
-      }).then(function (r) { return r.json(); })
-        .then(function (d) { renderViolacoes(d.violacoes || []); })
-        .catch(function () {});
-    }, 500);
-  }
-
-  function celulaHtml(pessoa, data) {
-    var d = diaAtual(pessoa, data);
-    var k = chave(pessoa, data);
-    var dirty = !!estado.dirty[k];
-    var opcoesT = TURNOS.map(function (t) { return '<option value="' + t + '"' + (t === d.turno ? ' selected' : '') + '>' + t + '</option>'; }).join('');
-    return '<div class="es-cel' + (dirty ? ' dirty' : '') + '" data-pessoa="' + esc(pessoa) + '" data-data="' + data + '">'
-      + '<select class="es-turno">' + opcoesT + '</select>'
-      + '<div class="es-horas">'
-      + '<input type="time" class="es-entrada" value="' + (d.entrada || '') + '"' + (d.turno === 'Folga' ? ' disabled' : '') + '>'
-      + '<input type="time" class="es-saida" value="' + (d.saida || '') + '"' + (d.turno === 'Folga' ? ' disabled' : '') + '>'
-      + '</div>'
-      + '<label class="es-cel-extra"><input type="checkbox" class="es-aprovado"' + (d.aprovadoDiretoria ? ' checked' : '') + '> extra aprovada</label>'
-      + '<textarea class="es-cel-obs" placeholder="observação" rows="1">' + (d.observacao || '') + '</textarea>'
-      + '<button type="button" class="es-cel-salvar">Salvar</button>'
-      + '</div>';
-  }
-
-  function marcaDirty(pessoa, data, campo, valor) {
-    var k = chave(pessoa, data);
-    var base = estado.dirty[k] || Object.assign({}, diaAtual(pessoa, data));
-    base[campo] = valor;
-    if (campo === 'turno' && valor === 'Folga') { base.entrada = ''; base.saida = ''; }
-    estado.dirty[k] = base;
-    agendaValidacao();
-  }
-
-  function renderGrade() {
-    var pessoas = pessoasDaGrade();
-    var thead = document.querySelector('#es-grade-tab thead');
-    thead.innerHTML = '<tr><th>Dia</th>' + pessoas.map(function (p) {
-      if (!ehFreelancer(p)) return '<th>' + esc(p) + '</th>';
-      return '<th class="es-col-freela">' + esc(p)
-        + ' <span class="es-col-remover" data-extra="' + esc(p) + '" title="Tirar esta coluna (não apaga dado já salvo)">&times;</span></th>';
-    }).join('') + '</tr>';
-    thead.querySelectorAll('.es-col-remover').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var nome = btn.getAttribute('data-extra');
-        estado.extras = estado.extras.filter(function (e) { return normNome(e.nome) !== normNome(nome); });
-        renderGrade();
-      });
-    });
-    var hoje = new Date().toISOString().slice(0, 10);
-    var linhas = [];
-    for (var i = 0; i < 7; i++) {
-      var data = somaDias(estado.semanaInicio, i);
-      var diaSemana = DIAS_SEMANA[i];
-      var celulas = pessoas.map(function (p) { return '<td>' + celulaHtml(p, data) + '</td>'; }).join('');
-      linhas.push('<tr' + (data === hoje ? ' class="es-hoje"' : '') + '><td class="es-dia">' + diaSemana + '<br>' + fmtBr(data) + '</td>' + celulas + '</tr>');
-    }
-    document.querySelector('#es-grade-tab tbody').innerHTML = linhas.join('');
-    document.getElementById('es-periodo').textContent = fmtBr(estado.semanaInicio) + ' – ' + fmtBr(somaDias(estado.semanaInicio, 6));
-    ligaEventosCelulas();
-  }
-
-  function ligaEventosCelulas() {
-    document.querySelectorAll('#es-grade-tab .es-cel').forEach(function (cel) {
-      var pessoa = cel.getAttribute('data-pessoa');
-      var data = cel.getAttribute('data-data');
-      var turnoSel = cel.querySelector('.es-turno');
-      var entradaEl = cel.querySelector('.es-entrada');
-      var saidaEl = cel.querySelector('.es-saida');
-      var aprovadoEl = cel.querySelector('.es-aprovado');
-      var obsEl = cel.querySelector('.es-cel-obs');
-      turnoSel.addEventListener('change', function () {
-        var folga = turnoSel.value === 'Folga';
-        entradaEl.disabled = folga; saidaEl.disabled = folga;
-        cel.classList.add('dirty');
-        marcaDirty(pessoa, data, 'turno', turnoSel.value);
-      });
-      [entradaEl, saidaEl].forEach(function (el, idx) {
-        el.addEventListener('change', function () {
-          cel.classList.add('dirty');
-          marcaDirty(pessoa, data, idx === 0 ? 'entrada' : 'saida', el.value);
-        });
-      });
-      aprovadoEl.addEventListener('change', function () {
-        cel.classList.add('dirty');
-        marcaDirty(pessoa, data, 'aprovadoDiretoria', aprovadoEl.checked);
-      });
-      obsEl.addEventListener('change', function () {
-        cel.classList.add('dirty');
-        marcaDirty(pessoa, data, 'observacao', obsEl.value);
-      });
-      var salvarBtn = cel.querySelector('.es-cel-salvar');
-      salvarBtn.addEventListener('click', function () { salvaCelula(pessoa, data); });
-    });
-    document.getElementById('es-salvar-tudo').disabled = travado || !Object.keys(estado.dirty).length;
-  }
-
-  // Salvar fora da CLT com justificativa (E6, 2026-07-24, porta o que o
-  // Grupo IZ já entregou em 2026-07-23). Reusa a observação que a própria
-  // célula já tem (campo `.es-cel-obs`) como justificativa — sem UI nova:
-  // se a pessoa já escreveu por que a exceção existe, o 1º "Salvar"
-  // reenvia sozinho com forcar+justificativa (o backend carimba "Fora da
-  // CLT: <texto>"); sem observação, o toast pede pra escrever uma antes de
-  // tentar de novo. Nada muda pro caso comum, sem bloqueio.
-  function enviaEscalaDia(d, forcar) {
-    var corpo = Object.assign({}, d);
-    corpo.versao = estado.versao || '';
-    if (forcar) { corpo.forcar = true; corpo.justificativa = (d.observacao || '').trim(); }
-    return fetch(WORKER + '/api/escala/dia', {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Token': token() },
-      body: JSON.stringify(corpo),
-    }).then(function (r) { return r.json().then(function (j) { return { status: r.status, corpo: j }; }); });
-  }
-
-  function salvaCelula(pessoa, data) {
-    var k = chave(pessoa, data);
-    var d = estado.dirty[k];
-    if (!d) return;
-    enviaEscalaDia(d, false).then(function (res) {
-      if (res.status === 422 && res.corpo.podeForcar) {
-        renderViolacoes(res.corpo.violacoes || []);
-        if ((d.observacao || '').trim()) {
-          enviaEscalaDia(d, true).then(function (res2) {
-            if (res2.status === 422) { renderViolacoes(res2.corpo.violacoes || []); toast(res2.corpo.erro || 'Ainda bloqueado', true); return; }
-            if (!res2.corpo.ok) { toast('Falha ao salvar', true); return; }
-            delete estado.dirty[k];
-            toast('Salvo fora da CLT — motivo registrado na observação.');
-            carregaEscala();
-          }).catch(function () { toast('Sem conexão — tente de novo', true); });
-          return;
-        }
-        toast('Bloqueado — escreva uma observação explicando o motivo e clique em Salvar de novo pra confirmar fora da CLT', true);
-        return;
-      }
-      if (res.status === 422) { renderViolacoes(res.corpo.violacoes || []); toast('Bloqueado — veja as violações acima', true); return; }
-      if (!res.corpo.ok) { toast('Falha ao salvar', true); return; }
-      delete estado.dirty[k];
-      toast('Salvo.');
-      carregaEscala();
-    }).catch(function () { toast('Sem conexão — tente de novo', true); });
-  }
-
-  function salvaTodasPontuais() {
-    var chaves = Object.keys(estado.dirty);
-    if (!chaves.length) return;
-    var restantes = chaves.slice();
-    function proxima() {
-      if (!restantes.length) { toast('Alterações salvas.'); carregaEscala(); return; }
-      var k = restantes.shift();
-      var partes = k.split('|');
-      salvaCelulaEncadeada(partes[0], partes.slice(1).join('|'), proxima);
-    }
-    proxima();
-  }
-  function salvaCelulaEncadeada(pessoa, data, cont) {
-    var k = chave(pessoa, data);
-    var d = estado.dirty[k];
-    if (!d) { cont(); return; }
-    enviaEscalaDia(d, false).then(function (res) {
-      if (res.status === 422 && res.corpo.podeForcar && (d.observacao || '').trim()) {
-        enviaEscalaDia(d, true).then(function (res2) {
-          if (res2.status === 422) { renderViolacoes(res2.corpo.violacoes || []); toast('Bloqueado em ' + pessoa + ' (' + data + ') — pare e ajuste', true); return; }
-          delete estado.dirty[k];
-          cont();
-        }).catch(function () { toast('Sem conexão — tente de novo', true); });
-        return;
-      }
-      if (res.status === 422) {
-        renderViolacoes(res.corpo.violacoes || []);
-        toast(res.corpo.podeForcar
-          ? 'Bloqueado em ' + pessoa + ' (' + data + ') — escreva uma observação explicando o motivo pra salvar fora da CLT'
-          : 'Bloqueado em ' + pessoa + ' (' + data + ') — pare e ajuste', true);
-        return;
-      }
-      delete estado.dirty[k];
-      cont();
-    }).catch(function () { toast('Sem conexão — tente de novo', true); });
-  }
-
-  function renderPadrao() {
-    var tbody = document.querySelector('#es-padrao-tab tbody');
-    tbody.innerHTML = estado.padrao.map(function (p, i) {
-      return '<tr data-idx="' + i + '">'
-        + '<td><input class="ep-pessoa" value="' + (p.pessoa || '') + '"></td>'
-        + '<td><select class="ep-sexo"><option value="F"' + (p.sexo === 'F' ? ' selected' : '') + '>F</option><option value="M"' + (p.sexo === 'M' ? ' selected' : '') + '>M</option></select></td>'
-        + '<td><select class="ep-turno"><option value="Dia"' + (p.turnoBase === 'Dia' ? ' selected' : '') + '>Dia</option><option value="Noite"' + (p.turnoBase === 'Noite' ? ' selected' : '') + '>Noite</option></select></td>'
-        + '<td><input type="time" class="ep-entrada" value="' + (p.entradaBase || '') + '"></td>'
-        + '<td><input type="time" class="ep-saida" value="' + (p.saidaBase || '') + '"></td>'
-        + '<td><select class="ep-folga">' + DIAS_SEMANA.map(function (d) { return '<option value="' + d + '"' + (d === p.folgaFixa ? ' selected' : '') + '>' + d + '</option>'; }).join('') + '</select></td>'
-        + '<td><input class="ep-rodizio" value="' + (p.rodizio || '') + '"></td>'
-        + '<td style="text-align:center"><input type="checkbox" class="ep-ativo"' + (p.ativo ? ' checked' : '') + '></td>'
-        + '</tr>';
+  function render(avisos){
+    var lista = document.getElementById('av-lista');
+    if(!avisos.length){ lista.innerHTML='<p class="sub">Nenhum aviso publicado ainda.</p>'; return; }
+    lista.innerHTML = avisos.map(function(a){
+      return '<div class="panel" style="margin-bottom:10px">'
+        + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
+        +   '<b style="font-size:14px">'+esc(a.titulo)+'</b>'
+        +   '<span style="margin-left:auto;font-size:11px;color:var(--text-3)">'+esc(quando(a.quando))+'</span>'
+        + '</div>'
+        + '<p class="sub" style="margin:0 0 6px;white-space:pre-wrap">'+esc(a.mensagem)+'</p>'
+        + '<div style="font-size:11px;color:var(--text-3)">'+esc(a.nivel)+(a.autor?(' · '+esc(a.autor)):'')+'</div>'
+        + '</div>';
     }).join('');
   }
 
-  function lePadraoDaTela() {
-    var linhas = [];
-    document.querySelectorAll('#es-padrao-tab tbody tr').forEach(function (tr) {
-      linhas.push({
-        pessoa: tr.querySelector('.ep-pessoa').value.trim(),
-        sexo: tr.querySelector('.ep-sexo').value,
-        turnoBase: tr.querySelector('.ep-turno').value,
-        entradaBase: tr.querySelector('.ep-entrada').value,
-        saidaBase: tr.querySelector('.ep-saida').value,
-        folgaFixa: tr.querySelector('.ep-folga').value,
-        rodizio: tr.querySelector('.ep-rodizio').value,
-        ativo: tr.querySelector('.ep-ativo').checked,
-      });
+  function carrega(s){
+    var lista = document.getElementById('av-lista');
+    lista.innerHTML = '<p class="sub">Carregando avisos…</p>';
+    if(!REG){ lista.innerHTML='<p class="sub">Publicação de avisos indisponível.</p>'; return; }
+    fetch(REG+'/api/avisos', { headers:{ 'X-Token': s.token } })
+      .then(function(r){ if(r.status===401){ window.sessaoBentoLimpar(); window.irParaLoginBento(); return null; } return r.ok ? r.json() : {avisos:[]}; })
+      .then(function(d){ if(!d) return; render((d&&d.avisos)||[]); })
+      .catch(function(){ lista.innerHTML='<p class="sub">Não deu pra carregar agora.</p>'; });
+  }
+
+  function wirePublicar(s){
+    var b = document.getElementById('av-publicar'); if(!b) return;
+    b.addEventListener('click', function(){
+      var t = document.getElementById('av-titulo').value.trim();
+      var m = document.getElementById('av-mensagem').value.trim();
+      var fm = document.getElementById('av-form-msg');
+      if(!t || !m){ fm.textContent='Preencha título e mensagem.'; return; }
+      b.disabled = true; fm.textContent = 'Publicando…';
+      fetch(REG+'/api/aviso', {
+        method:'POST',
+        headers:{ 'X-Token': s.token, 'Content-Type':'application/json' },
+        body: JSON.stringify({ titulo:t, mensagem:m, nivel: document.getElementById('av-nivel').value })
+      }).then(function(r){ return r.json().catch(function(){ return {}; }).then(function(j){ return { ok:r.ok, j:j }; }); })
+        .then(function(res){ b.disabled=false;
+          if(res.ok){ fm.textContent='Aviso publicado.'; document.getElementById('av-titulo').value=''; document.getElementById('av-mensagem').value=''; carrega(s); }
+          else { fm.textContent = (res.j && res.j.erro) || 'Não deu pra publicar.'; }
+        }).catch(function(){ b.disabled=false; fm.textContent='Falha de conexão.'; });
     });
-    return linhas.filter(function (p) { return p.pessoa; });
   }
 
-  // Versões da semana (E6 metade 2, 2026-07-24, porta o versionamento do
-  // Grupo IZ). Cada semana pode ter rascunhos/alternativas; uma é a oficial.
-  // "Principal" (versaoId "") existe sempre — é os dias sem carimbo de versão.
-  // A versão selecionada (estado.versao) vale pra Grade, save de célula e
-  // aplicação de padrão; a barra de versões é escopada à semana atual.
-  function nomeVersaoAtual() {
-    var v = estado.versoes.find(function (x) { return (x.versaoId || '') === (estado.versao || ''); });
-    return v ? v.nome : 'Principal';
-  }
-  function renderVersaoStatus() {
-    var v = estado.versoes.find(function (x) { return (x.versaoId || '') === (estado.versao || ''); });
-    var el = document.getElementById('es-versao-status');
-    if (!v) { el.textContent = ''; }
-    else if (v.bloqueios) { el.innerHTML = '<span class="bloq">' + v.bloqueios + ' bloqueio(s) de CLT nesta semana</span>'; }
-    else { el.innerHTML = '<span class="ok">sem bloqueios</span>' + (v.avisos ? ' · ' + v.avisos + ' aviso(s)' : ''); }
-    var ehOficial = (estado.oficialId || '') === (estado.versao || '');
-    document.getElementById('es-versao-oficial').disabled = ehOficial;
-    document.getElementById('es-versao-excluir').disabled = !estado.versao || ehOficial;
-  }
-  function renderVersaoSelect() {
-    var sel = document.getElementById('es-versao-sel');
-    sel.innerHTML = estado.versoes.map(function (v) {
-      var vid = v.versaoId || '';
-      var marca = ((estado.oficialId || '') === vid) ? ' \u2713 oficial' : '';
-      var bloq = v.bloqueios ? ' \u2014 ' + v.bloqueios + ' bloqueio(s)' : '';
-      return '<option value="' + esc(vid) + '"' + (vid === (estado.versao || '') ? ' selected' : '') + '>'
-        + esc(v.nome) + marca + bloq + '</option>';
-    }).join('');
-    renderVersaoStatus();
-  }
-  function carregaVersoes() {
-    var semana = segundaDaSemana(estado.semanaInicio);
-    fetch(WORKER + '/api/escala/versoes?semana=' + semana, { headers: { 'X-Token': token() } })
-      .then(function (r) { return r.json(); })
-      .then(function (d) {
-        if (!d || !d.ok) { estado.versoes = [{ versaoId: '', nome: 'Principal', bloqueios: 0, avisos: 0 }]; estado.oficialId = ''; renderVersaoSelect(); return; }
-        estado.versoes = d.versoes || [];
-        estado.oficialId = d.oficialId || '';
-        if (!estado.versoes.some(function (v) { return (v.versaoId || '') === (estado.versao || ''); })) estado.versao = '';
-        renderVersaoSelect();
-      })
-      .catch(function () {});
-  }
-
-  document.getElementById('es-versao-sel').addEventListener('change', function () {
-    estado.versao = this.value || '';
-    estado.dirty = {};
-    renderVersaoStatus();
-    carregaEscala();
-  });
-  document.getElementById('es-versao-nova').addEventListener('click', function () {
-    var nome = window.prompt('Nome da nova versão (ex.: "Semana de Natal", "Opção B"):');
-    if (!nome || !nome.trim()) return;
-    var origem = 'branco';
-    if (window.confirm('Preencher a nova versão a partir do PADRÃO fixo?\n\nOK = padrão · Cancelar = escolher outra origem')) {
-      origem = 'padrao';
-    } else if (estado.versao && window.confirm('Duplicar a versão atual (' + nomeVersaoAtual() + ')?\n\nOK = duplicar · Cancelar = começar em branco')) {
-      origem = 'duplicar';
-    }
-    fetch(WORKER + '/api/escala/versao', {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Token': token() },
-      body: JSON.stringify({ semana: segundaDaSemana(estado.semanaInicio), nome: nome.trim(), origem: origem, copiarDe: estado.versao }),
-    }).then(function (r) { return r.json(); })
-      .then(function (res) {
-        if (!res || !res.ok) { toast((res && res.erro) || 'Falha ao criar versão', true); return; }
-        estado.versao = res.versaoId || '';
-        toast('Versão criada' + (res.dias ? ' (' + res.dias + ' dias)' : '') + '.');
-        carregaVersoes(); carregaEscala();
-      }).catch(function () { toast('Sem conexão — tente de novo', true); });
-  });
-  function enviaOficial(forcar, justificativa) {
-    var corpo = { semana: segundaDaSemana(estado.semanaInicio), versaoId: estado.versao };
-    if (forcar) { corpo.forcar = true; corpo.justificativa = justificativa; }
-    fetch(WORKER + '/api/escala/versao/oficial', {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Token': token() },
-      body: JSON.stringify(corpo),
-    }).then(function (r) { return r.json().then(function (j) { return { status: r.status, corpo: j }; }); })
-      .then(function (res) {
-        if (res.status === 422 && res.corpo.podeForcar) {
-          renderViolacoes(res.corpo.violacoes || []);
-          var motivo = window.prompt('Esta versão está fora da CLT. Explique o motivo pra torná-la oficial mesmo assim (ou cancele):');
-          if (motivo && motivo.trim()) { enviaOficial(true, motivo.trim()); }
-          else { toast('Versão bloqueada — veja as violações acima', true); }
-          return;
-        }
-        if (!res.corpo.ok) { toast(res.corpo.erro || 'Falha ao tornar oficial', true); return; }
-        toast('Versão marcada como oficial.');
-        carregaVersoes();
-      }).catch(function () { toast('Sem conexão — tente de novo', true); });
-  }
-  document.getElementById('es-versao-oficial').addEventListener('click', function () { enviaOficial(false, ''); });
-  document.getElementById('es-versao-excluir').addEventListener('click', function () {
-    if (!estado.versao) { toast('A Principal não pode ser excluída', true); return; }
-    if (!window.confirm('Excluir a versão "' + nomeVersaoAtual() + '" e todos os dias dela nesta semana? Não dá pra desfazer pela tela.')) return;
-    fetch(WORKER + '/api/escala/versao/excluir', {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Token': token() },
-      body: JSON.stringify({ semana: segundaDaSemana(estado.semanaInicio), versaoId: estado.versao }),
-    }).then(function (r) { return r.json().then(function (j) { return { status: r.status, corpo: j }; }); })
-      .then(function (res) {
-        if (!res.corpo.ok) { toast(res.corpo.erro || 'Falha ao excluir', true); return; }
-        estado.versao = '';
-        toast('Versão excluída.');
-        carregaVersoes(); carregaEscala();
-      }).catch(function () { toast('Sem conexão — tente de novo', true); });
-  });
-
-  function carregaEscala() {
-    var desde = somaDias(estado.semanaInicio, -7);
-    var ate = somaDias(estado.semanaInicio, 13);
-    fetch(WORKER + '/api/escala?desde=' + desde + '&ate=' + ate + '&versao=' + encodeURIComponent(estado.versao || ''), { headers: { 'X-Token': token() } })
-      .then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
-      .then(function (d) {
-        estado.padrao = d.padrao || []; estado.dias = d.dias || []; estado.regras = d.regras;
-        renderGrade(); renderPadrao();
-        agendaValidacao();
-      })
-      .catch(function () { toast('Falha ao carregar a escala', true); });
-  }
-
-  document.querySelectorAll('.es-modo-btn').forEach(function (b) {
-    b.addEventListener('click', function () {
-      document.querySelectorAll('.es-modo-btn').forEach(function (x) { x.classList.remove('on'); });
-      b.classList.add('on');
-      var modo = b.getAttribute('data-modo');
-      document.getElementById('es-view-grade').style.display = modo === 'grade' ? 'block' : 'none';
-      document.getElementById('es-view-padrao').style.display = modo === 'padrao' ? 'block' : 'none';
-    });
-  });
-
-  document.getElementById('es-prev').addEventListener('click', function () {
-    estado.semanaInicio = somaDias(estado.semanaInicio, -7);
-    estado.dirty = {}; estado.versao = '';
-    carregaVersoes(); carregaEscala();
-  });
-  document.getElementById('es-next').addEventListener('click', function () {
-    estado.semanaInicio = somaDias(estado.semanaInicio, 7);
-    estado.dirty = {}; estado.versao = '';
-    carregaVersoes(); carregaEscala();
-  });
-  document.getElementById('es-freela-add').addEventListener('click', function () {
-    var input = document.getElementById('es-freela-nome');
-    var sexoSel = document.getElementById('es-freela-sexo');
-    var nome = input.value.trim();
-    if (!nome) { toast('Digite o nome do freelancer', true); return; }
-    if (pessoasDaGrade().some(function (p) { return normNome(p) === normNome(nome); })) {
-      toast('Já tem uma coluna com esse nome', true); input.value = ''; return;
-    }
-    estado.extras.push({ nome: nome, sexo: sexoSel.value === 'F' ? 'F' : 'M' });
-    input.value = '';
-    renderGrade();
-  });
-  document.getElementById('es-salvar-tudo').addEventListener('click', salvaTodasPontuais);
-  document.getElementById('es-padrao-add').addEventListener('click', function () {
-    estado.padrao.push({ pessoa: '', sexo: 'M', turnoBase: 'Dia', entradaBase: '', saidaBase: '', folgaFixa: 'Segunda', rodizio: '', ativo: true });
-    renderPadrao();
-  });
-  // Salvar padrão fora da CLT (E6): ação mais rara e de maior alcance
-  // (regenera semanas inteiras), então pede a justificativa por prompt em
-  // vez de reusar um campo de observação por linha (o padrão não tem um).
-  function aplicaPadrao(padrao, aplicarDesde, forcar, justificativa) {
-    var corpo = { padrao: padrao, aplicarDesde: aplicarDesde, versao: estado.versao || '' };
-    if (forcar) { corpo.forcar = true; corpo.justificativa = justificativa; }
-    fetch(WORKER + '/api/escala/padrao', {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Token': token() },
-      body: JSON.stringify(corpo),
-    }).then(function (r) { return r.json().then(function (j) { return { status: r.status, corpo: j }; }); })
-      .then(function (res) {
-        if (res.status === 422 && res.corpo.podeForcar) {
-          renderViolacoes(res.corpo.violacoes || []);
-          var motivo = window.prompt('O padrão fica fora da CLT nesse horizonte. Explique o motivo pra aplicar mesmo assim (ou cancele pra ajustar):');
-          if (motivo && motivo.trim()) { aplicaPadrao(padrao, aplicarDesde, true, motivo.trim()); }
-          else { toast('Padrão bloqueado — veja as violações acima', true); }
-          return;
-        }
-        if (res.status === 422) { renderViolacoes(res.corpo.violacoes || []); toast('Padrão bloqueado — veja as violações acima', true); return; }
-        if (!res.corpo.ok) { toast('Falha ao salvar padrão', true); return; }
-        toast('Padrão aplicado — ' + (res.corpo.diasAtualizados || 0) + ' dia(s) atualizado(s).');
-        carregaEscala();
-      })
-      .catch(function () { toast('Sem conexão — tente de novo', true); });
-  }
-  document.getElementById('es-padrao-salvar').addEventListener('click', function () {
-    var padrao = lePadraoDaTela();
-    var aplicarDesde = document.getElementById('es-aplicar-desde').value;
-    if (!padrao.length || !aplicarDesde) { toast('Preencha ao menos uma pessoa e a data', true); return; }
-    aplicaPadrao(padrao, aplicarDesde, false, '');
-  });
-
-  var proximaSegunda = (function () {
-    var d = new Date(); var dow = (d.getDay() + 6) % 7; d.setDate(d.getDate() + (7 - dow) % 7 || 7);
-    return d.toISOString().slice(0, 10);
-  })();
-  document.getElementById('es-aplicar-desde').value = proximaSegunda;
-
-  estado.semanaInicio = segundaDaSemana(new Date().toISOString().slice(0, 10));
-  carregaVersoes();
-  carregaEscala();
+  var s = window.sessaoBentoLer();
+  if(!s) return; // guard de página já redirecionou pro login
+  if(s.nivel === 'admin'){ document.getElementById('av-form').hidden = false; wirePublicar(s); }
+  carrega(s);
 })();
 </script>
 
