@@ -1385,9 +1385,97 @@ direto para a coordenação.</p>
   <div class="sino-lista" id="sino-lista-nov" hidden></div>
 </div>
 
-<p class="nota">Portal do Bar · Bento · atualizado em 24/07/2026.
+<p class="nota">Portal do Bar · Bento · atualizado em 25/07/2026.
 Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à mão.</p>
 <script>if (window.FilaOffline) window.FilaOffline.iniciarSelo({"elId": "fila-selo", "destinos": {"registro": "maitres-registro.html", "turno": "maitres-turno.html"}});</script>
+
+<style>
+  .ver-nova { position: fixed; left: 12px; right: 12px; top: calc(10px + env(safe-area-inset-top, 0px));
+    z-index: 96; margin: 0 auto; max-width: 460px; display: none;
+    background: var(--card-2, #3b342a); border: 1px solid var(--ambar, #d5a05c); border-radius: 12px;
+    padding: 10px 12px; box-shadow: 0 8px 24px rgba(0,0,0,.45);
+    align-items: center; gap: 10px; }
+  .ver-nova.on { display: flex; }
+  .ver-nova svg { flex: none; color: var(--ambar, #d5a05c); }
+  .vn-txt { flex: 1; font-size: 12.5px; color: var(--text-2, #b3a68f); line-height: 1.4; }
+  .vn-txt b { color: var(--text, #f0e7d8); }
+  .vn-ok { flex: none; font-size: 12px; font-weight: 600; padding: 7px 12px;
+    border-radius: 999px; cursor: pointer; background: var(--ambar, #d5a05c); border: none;
+    color: #2b2620; }
+  .vn-x { flex: none; background: none; border: none; color: var(--text-2, #b3a68f);
+    font-size: 18px; line-height: 1; cursor: pointer; padding: 2px 4px; }
+</style>
+<div class="ver-nova" id="ver-nova" role="status" aria-live="polite">
+  <svg class="ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 3.5V9h-5.5"/></svg>
+  <div class="vn-txt"><b>Nova versão disponível.</b> Atualize pra ver o conteúdo mais recente.</div>
+  <button type="button" class="vn-ok" id="vn-ok">Atualizar</button>
+  <button type="button" class="vn-x" id="vn-x" aria-label="Dispensar">&times;</button>
+</div>
+<script>
+(function () {
+  var BUILD = '3d80ebd5717b';
+  var ALVO = 'versao.json';
+  var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
+  var ultimo = 0, mostrando = false;
+
+  function mostra(novo) {
+    if (mostrando) return;
+    if (localStorage.getItem('bento_build_dispensado') === novo) return;
+    mostrando = true;
+    var box = document.getElementById('ver-nova');
+    if (!box) return;
+    box.classList.add('on');
+    document.getElementById('vn-x').onclick = function () {
+      try { localStorage.setItem('bento_build_dispensado', novo); } catch (e) {}
+      box.classList.remove('on');
+    };
+    document.getElementById('vn-ok').onclick = atualiza;
+  }
+
+  // Limpa TODOS os caches do service worker e recarrega. Sem isso um reload
+  // comum ainda seria atendido pela casca cacheada (ícones, logo, fila-offline).
+  function atualiza() {
+    var feito = false;
+    var recarrega = function () { if (feito) return; feito = true; location.reload(); };
+    setTimeout(recarrega, 2500);   // rede travada não pode prender o usuário
+    var t = [];
+    try {
+      if (window.caches && caches.keys) {
+        t.push(caches.keys().then(function (ks) {
+          return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+        }));
+      }
+      if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
+        t.push(navigator.serviceWorker.getRegistration().then(function (r) { return r && r.update(); }));
+      }
+    } catch (e) {}
+    Promise.all(t).then(recarrega, recarrega);
+  }
+
+  function confere() {
+    if (mostrando) return;
+    var agora = Date.now();
+    if (agora - ultimo < MIN_ENTRE) return;
+    ultimo = agora;
+    fetch(ALVO + '?t=' + agora, { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { if (d && d.build && d.build !== BUILD) mostra(d.build); })
+      .catch(function () {});
+  }
+
+  // Expostos pra um eventual botão manual "Buscar atualização" (Meu perfil).
+  window.bentoAtualiza = atualiza;
+  window.bentoConfere = function () { ultimo = 0; confere(); };
+
+  setTimeout(confere, 4000);                       // não competir com o render
+  setInterval(function () { if (!document.hidden) confere(); }, 600000);
+  document.addEventListener('visibilitychange', function () {
+    // o caso que só isto alcança: app em standalone voltando do alternador.
+    if (!document.hidden) confere();
+  });
+})();
+</script>
+
 
 <script>
 if ('serviceWorker' in navigator) {
