@@ -616,8 +616,11 @@ window.sessaoBentoLer = function () {
     return s;
   } catch (e) { return null; }
 };
-window.sessaoBentoSalvar = function (nivel, token, exp) {
-  try { localStorage.setItem(window.SESSAO_BENTO_LS, JSON.stringify({ nivel: nivel, token: token, exp: exp })); } catch (e) {}
+// `pessoa` passou a ser guardada (2026-07-25): o worker já devolvia, mas a
+// sessão descartava — e sem ela a página de Acessos não sabe quem está
+// decidindo. Campo opcional: sessão de silo (sem pessoa) continua igual.
+window.sessaoBentoSalvar = function (nivel, token, exp, pessoa) {
+  try { localStorage.setItem(window.SESSAO_BENTO_LS, JSON.stringify({ nivel: nivel, token: token, exp: exp, pessoa: pessoa || null })); } catch (e) {}
 };
 window.sessaoBentoLimpar = function () {
   try { localStorage.removeItem(window.SESSAO_BENTO_LS); } catch (e) {}
@@ -630,8 +633,8 @@ window.loginSenhaBento = function (senha) {
     if (r.status === 401) return { ok: false, status: 401 };
     if (!r.ok) return { ok: false, status: r.status };
     return r.json().then(function (d) {
-      if (d.token) window.sessaoBentoSalvar(d.nivel, d.token, d.exp);
-      return { ok: true, nivel: d.nivel, token: d.token };
+      if (d.token) window.sessaoBentoSalvar(d.nivel, d.token, d.exp, d.pessoa);
+      return { ok: true, nivel: d.nivel, token: d.token, pessoa: d.pessoa || null };
     });
   }).catch(function () { return { ok: false, status: 0 }; });
 };
@@ -834,7 +837,7 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
 </div>
 <script>
 (function () {
-  var BUILD = '14e3efa75581';
+  var BUILD = 'ea8c81bb4ef7';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;

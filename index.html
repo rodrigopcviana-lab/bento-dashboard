@@ -616,8 +616,11 @@ window.sessaoBentoLer = function () {
     return s;
   } catch (e) { return null; }
 };
-window.sessaoBentoSalvar = function (nivel, token, exp) {
-  try { localStorage.setItem(window.SESSAO_BENTO_LS, JSON.stringify({ nivel: nivel, token: token, exp: exp })); } catch (e) {}
+// `pessoa` passou a ser guardada (2026-07-25): o worker já devolvia, mas a
+// sessão descartava — e sem ela a página de Acessos não sabe quem está
+// decidindo. Campo opcional: sessão de silo (sem pessoa) continua igual.
+window.sessaoBentoSalvar = function (nivel, token, exp, pessoa) {
+  try { localStorage.setItem(window.SESSAO_BENTO_LS, JSON.stringify({ nivel: nivel, token: token, exp: exp, pessoa: pessoa || null })); } catch (e) {}
 };
 window.sessaoBentoLimpar = function () {
   try { localStorage.removeItem(window.SESSAO_BENTO_LS); } catch (e) {}
@@ -630,8 +633,8 @@ window.loginSenhaBento = function (senha) {
     if (r.status === 401) return { ok: false, status: 401 };
     if (!r.ok) return { ok: false, status: r.status };
     return r.json().then(function (d) {
-      if (d.token) window.sessaoBentoSalvar(d.nivel, d.token, d.exp);
-      return { ok: true, nivel: d.nivel, token: d.token };
+      if (d.token) window.sessaoBentoSalvar(d.nivel, d.token, d.exp, d.pessoa);
+      return { ok: true, nivel: d.nivel, token: d.token, pessoa: d.pessoa || null };
     });
   }).catch(function () { return { ok: false, status: 0 }; });
 };
@@ -751,13 +754,16 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 <p id="pwa-ios" style="display:none;margin:0">No iPhone/iPad: toque em <strong>Compartilhar</strong> (o ícone de seta pra cima, embaixo) e depois em <strong>“Adicionar à Tela de Início”</strong>.</p>
 </div>
 
-<div class="panel" style="display:flex;align-items:center;gap:13px;margin-top:8px">
+<div class="panel" style="margin-top:8px">
+<div style="display:flex;align-items:center;gap:13px">
 <div style="flex:1;min-width:0">
 <h2 style="margin-bottom:2px">Sem senha ainda?</h2>
-<p style="margin:0">Fale com a coordenação</p>
+<p style="margin:0">Peça a sua pelo próprio site</p>
 </div>
-<a class="wa" style="margin:0;flex:none" href="https://wa.me/556281483511?text=Ol%C3%A1%20Rodrigo!%20Preciso%20da%20senha%20de%20acesso%20ao%20Portal%20do%20Bento.%20">
-WhatsApp</a>
+<a class="wa" style="margin:0;flex:none;background:var(--ambar);color:#2b2620" href="pedir-acesso.html">Pedir acesso</a>
+</div>
+<p style="margin:11px 0 0;padding-top:11px;border-top:1px solid var(--border);font-size:13px;color:var(--text-3)">
+Prefere falar com alguém? <a href="https://wa.me/556281483511?text=Ol%C3%A1%20Rodrigo!%20Preciso%20da%20senha%20de%20acesso%20ao%20Portal%20do%20Bento.%20">Chamar no WhatsApp</a></p>
 </div>
 </div>
 
@@ -899,7 +905,7 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
 </div>
 <script>
 (function () {
-  var BUILD = '14e3efa75581';
+  var BUILD = 'ea8c81bb4ef7';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
