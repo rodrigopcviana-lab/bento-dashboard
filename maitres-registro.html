@@ -776,6 +776,34 @@ direto para a coordenação.</p>
   .rr-sucesso .btns { display: flex; flex-direction: column; gap: 10px; }
   .rr-btn2 { padding: 13px; border-radius: 999px; border: 1px solid var(--border); background: var(--card);
              color: var(--text); font-size: 14px; cursor: pointer; text-decoration: none; text-align: center; }
+  /* Motor de aconselhamento — folha antes de subir (clone independente do IZ) */
+  .rr-acons { position: fixed; inset: 0; z-index: 70; display: none;
+              align-items: flex-end; justify-content: center; background: rgba(0,0,0,.55); }
+  .rr-acons.on { display: flex; }
+  .rr-acons-cx { width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto;
+                 background: var(--bg); border: 1px solid var(--border);
+                 border-radius: 18px 18px 0 0; padding: 22px 18px 26px; }
+  @media (min-width: 560px) { .rr-acons { align-items: center; }
+    .rr-acons-cx { border-radius: 18px; } }
+  .rr-acons-tit { font-size: 17px; font-weight: 700; margin: 0 0 4px; color: var(--text); }
+  .rr-acons-sub { font-size: 13px; color: var(--text-3); margin: 0 0 16px; line-height: 1.4; }
+  .rr-acons-passos { list-style: none; padding: 0; margin: 0 0 18px; display: grid; gap: 10px; }
+  .rr-acons-passo { display: flex; gap: 11px; padding: 12px 13px; border-radius: 12px;
+                    border: 1px solid var(--border); background: var(--card); }
+  .rr-acons-num { flex: none; width: 22px; height: 22px; border-radius: 50%;
+                  background: color-mix(in srgb, var(--ambar) 18%, transparent); color: var(--ambar);
+                  font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .rr-acons-tx { font-size: 14px; color: var(--text); line-height: 1.42; }
+  .rr-acons-sobe { padding: 13px 14px; border-radius: 12px; margin: 0 0 18px;
+                   border: 1px solid var(--border); background: var(--card);
+                   font-size: 14px; color: var(--text-2); line-height: 1.45; }
+  .rr-acons-btns { display: grid; gap: 10px; }
+  .rr-acons-enviar { padding: 14px; border-radius: 999px; border: none; background: var(--ambar);
+                     color: #2b2117; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .rr-acons-resolvi { padding: 13px; border-radius: 999px; border: 1px solid var(--verde);
+                      background: transparent; color: var(--verde); font-size: 14px; font-weight: 600; cursor: pointer; }
+  .rr-acons-nota { font-size: 11.5px; color: var(--text-3); text-align: center; margin: 12px 0 0; line-height: 1.4; }
+  .rr-acons-load { text-align: center; color: var(--text-3); padding: 22px 0; font-size: 14px; }
   /* Foto e áudio — botões GRANDES com estado sempre visível (espelho da F3) */
   .rr-midia { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .rr-midia-btn { display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 9px;
@@ -873,6 +901,10 @@ direto para a coordenação.</p>
 </form>
 
 <div id="rr-sucesso" class="rr-sucesso" style="display:none"></div>
+
+<div class="rr-acons" id="rr-acons" role="dialog" aria-modal="true" aria-labelledby="rr-acons-tit">
+  <div class="rr-acons-cx" id="rr-acons-cx"></div>
+</div>
 
 <script>
 (function () {
@@ -1336,6 +1368,92 @@ direto para a coordenação.</p>
       '</div>';
   }
 
+  // --- Motor de aconselhamento na origem (clone independente do Portal IZ) ---
+  // Ao Enviar (com descrição), o motor intercepta UMA vez e mostra 2-3 coisas
+  // que a pessoa pode tentar sozinha antes de a demanda subir. NUNCA bloqueia —
+  // sempre há "Enviar mesmo assim". Auth pela CHAVE do formulário (não token).
+  // Sem telemetria (o Bento não tem D1): "Resolvi" só fecha, não grava nada.
+  var acOv = document.getElementById('rr-acons');
+  var acCx = document.getElementById('rr-acons-cx');
+  function fechaAcons() { acOv.classList.remove('on'); }
+
+  function enviaDeVerdade(item) {
+    elBannerAlerta.innerHTML = '';
+    if (anexos.length) {
+      enviarComAnexos(item);
+    } else {
+      chaveEmTela = item.chave_registro;
+      elEnviar.disabled = true;
+      elMsg.textContent = 'Enviando…';
+      filaRegistro.enfileirar(item);
+      setTimeout(function () { elEnviar.disabled = false; }, 600);
+    }
+  }
+
+  function pintaAcons(r, item) {
+    var passos = (r && Array.isArray(r.passos)) ? r.passos : [];
+    var sobe = !!(r && r.sobe);
+    var h = '';
+    if (sobe) {
+      h += '<p class="rr-acons-tit" id="rr-acons-tit">Isso é mesmo pra cima</p>';
+      h += '<p class="rr-acons-sub">Pelo que você descreveu, essa demanda precisa mesmo da gerência ou da coordenação. Pode enviar.</p>';
+      if (passos.length) h += '<div class="rr-acons-sobe">' + esc(passos[0]) + '</div>';
+    } else {
+      h += '<p class="rr-acons-tit" id="rr-acons-tit">Dá pra resolver antes de subir?</p>';
+      h += '<p class="rr-acons-sub">Antes de mandar pra gerência/coordenação, veja se algo aqui resolve ainda neste turno. Se não, é só enviar mesmo assim.</p>';
+      h += '<ul class="rr-acons-passos">';
+      passos.forEach(function (p, i) {
+        h += '<li class="rr-acons-passo"><span class="rr-acons-num">' + (i + 1) + '</span>' +
+             '<span class="rr-acons-tx">' + esc(p) + '</span></li>';
+      });
+      h += '</ul>';
+    }
+    h += '<div class="rr-acons-btns">';
+    if (!sobe) h += '<button type="button" class="rr-acons-resolvi" id="rr-acons-resolvi">Resolvi, não vou abrir</button>';
+    h += '<button type="button" class="rr-acons-enviar" id="rr-acons-enviar">' +
+         (sobe ? 'Enviar para a coordenação' : 'Enviar mesmo assim') + '</button>';
+    h += '</div>';
+    h += '<p class="rr-acons-nota">Sugestões de um assistente — não é ordem, e nada é enviado sozinho.</p>';
+    acCx.innerHTML = h;
+    var bEnv = document.getElementById('rr-acons-enviar');
+    if (bEnv) bEnv.onclick = function () { fechaAcons(); enviaDeVerdade(item); };
+    var bRes = document.getElementById('rr-acons-resolvi');
+    if (bRes) bRes.onclick = function () {
+      fechaAcons();
+      elMsg.textContent = '';
+      elBannerAlerta.innerHTML = '<div class="rr-banner pend">Boa — resolvido sem abrir demanda. ' +
+        'Se precisar, é só descrever de novo e enviar.</div>';
+    };
+  }
+
+  function abreAconselho(item) {
+    acCx.innerHTML = '<p class="rr-acons-load">Vendo se dá pra resolver antes de subir…</p>';
+    acOv.classList.add('on');
+    var feito = false;
+    var t = setTimeout(function () { if (!feito) { feito = true; fechaAcons(); enviaDeVerdade(item); } }, 9000);
+    fetch(CFG.worker + '/api/registro/aconselhar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chave: CHAVE, tipo: item.tipo, categoria: item.categoria, descricao: item.descricao })
+    })
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .then(function (r) {
+        if (feito) return; feito = true; clearTimeout(t);
+        var passos = (r && Array.isArray(r.passos)) ? r.passos : [];
+        if (!passos.length) { fechaAcons(); enviaDeVerdade(item); return; }
+        pintaAcons(r, item);
+      })
+      .catch(function () {
+        if (feito) return; feito = true; clearTimeout(t);
+        fechaAcons(); enviaDeVerdade(item); // IA/worker fora → não atrapalha o envio
+      });
+  }
+
+  // fechar tocando fora ou no Esc = cancelar (não envia)
+  acOv.addEventListener('click', function (ev) { if (ev.target === acOv) fechaAcons(); });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && acOv.classList.contains('on')) fechaAcons();
+  });
+
   form.onsubmit = function (ev) {
     ev.preventDefault();
     var falta = primeiroPendente();
@@ -1357,16 +1475,13 @@ direto para a coordenação.</p>
       descricao: elDescricao.value.trim(), registrado_por: nomeAtual()
     };
 
-    elBannerAlerta.innerHTML = '';
-    if (anexos.length) {
-      enviarComAnexos(item);
-    } else {
-      chaveEmTela = item.chave_registro;
-      elEnviar.disabled = true;
-      elMsg.textContent = 'Enviando…';
-      filaRegistro.enfileirar(item);
-      setTimeout(function () { elEnviar.disabled = false; }, 600);
+    // Motor: aconselha antes de subir (só se há descrição — sem texto não há o
+    // que aconselhar). Anexo não pula o conselho; a mídia segue no envio real.
+    if (item.descricao) {
+      abreAconselho(item);
+      return;
     }
+    enviaDeVerdade(item);
   };
 })();
 </script>
@@ -1413,7 +1528,7 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
 </div>
 <script>
 (function () {
-  var BUILD = '3d80ebd5717b';
+  var BUILD = '__BUILD_ID__';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
