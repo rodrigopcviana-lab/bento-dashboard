@@ -323,8 +323,8 @@
      sinaliza "isto está vivo", não é enfeite gratuito (mesma linguagem de
      status usada em .status-ok). Papel vai na mesma linha, à direita —
      tira uma linha inteira que só repetia o que a pill do topo já diz. */
-  .mh-topbar { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--text-2);
-               margin-bottom: 10px; }
+  .mh-topbar { display: flex; align-items: center; flex-wrap: wrap; row-gap: 6px; gap: 8px;
+               font-size: 11.5px; color: var(--text-2); margin-bottom: 10px; }
   .mh-pulso { width: 6px; height: 6px; border-radius: 50%; background: var(--verde, #9fdcae); flex: none;
               box-shadow: 0 0 0 0 rgba(159,220,174,.55); animation: mhPulso 2.4s infinite; }
   @keyframes mhPulso {
@@ -341,6 +341,14 @@
               text-transform: uppercase; color: var(--text-2); border: 1px solid rgba(213,160,92,.35);
               border-radius: 999px; padding: 5px 12px; flex: none; }
   .mh-papel svg { color: var(--ambar); flex: none; }
+  /* O chip do papel vira BOTÃO de trocar acesso (2026-07-25, pedido do
+     Rodrigo): ele já dizia qual acesso está em uso, então é o lugar natural
+     pra trocá-lo — em vez de um segundo controle competindo na mesma linha. */
+  a.mh-papel { text-decoration: none; }
+  a.mh-papel:hover, a.mh-papel:focus-visible { border-color: rgba(213,160,92,.7);
+              background: var(--ambar-bg); color: var(--text); }
+  .mh-papel .mh-sep { width: 1px; height: 11px; background: rgba(213,160,92,.4); flex: none; }
+  .mh-papel .mh-tr { color: var(--ambar-2); }
   /* Foco do dia (config/rotinas_bento.json) — promovido do fundo das
      páginas de turno pro topo do Mural: é a única coisa que muda todo dia
      e antes só quem já tinha aberto o checklist via. */
@@ -412,6 +420,19 @@
                 text-decoration: none; }
   .nivel-pill b { color: var(--ambar-2); font-weight: 600; }
   .nivel-pill:hover { color: var(--text-2); }
+  /* "Trocar acesso" no topo de TODA página (2026-07-25, pedido do Rodrigo).
+     Antes só existia dentro de meu-perfil.html — quem precisava entrar com
+     outro papel tinha que adivinhar que o caminho era pelo Perfil. Fica ao
+     lado da pill de Perfil, com cara de botão (borda) pra ser achável sem
+     virar o elemento mais chamativo da linha. */
+  .nivel-pill.trocar { color: var(--text-2); border: 1px solid var(--border-2);
+                       border-radius: 999px; padding: 3px 9px; }
+  .nivel-pill.trocar svg { color: var(--ambar); flex: none; }
+  .nivel-pill.trocar:hover { color: var(--ambar-2); border-color: rgba(213,160,92,.6);
+                             background: var(--ambar-bg); }
+  /* Em tela estreita a linha do topo já carrega busca + sino + selo de fila:
+     encolhe pra só "Trocar" (o cadeado mantém o sentido). */
+  @media (max-width: 430px) { .nivel-pill.trocar .tr-ex { display: none; } }
   /* Selo global de pendências (fila offline) — aparece em QUALQUER página
      gerada quando há item preso no aparelho; toque tenta sincronizar na
      hora ou leva pra página que drena aquela fila. Escondido por padrão
@@ -632,7 +653,7 @@ window.exigirNivel = function (niveisOk, slug) {
   if (!s) { window.irParaLoginBento(); return { ok: false, redirecionou: true }; }
   document.body.innerHTML = '<div class="capa-wrap capa-centro"><p class="capa-sub">'
     + 'Seu acesso atual não abre esta página. '
-    + '<a href="index.html">Trocar acesso</a>.</p></div>';
+    + '<a href="index.html?trocar=1">Trocar acesso</a>.</p></div>';
   return { ok: false, nivelAtual: s.nivel };
 };
 // Injeta um fragmento vindo de /api/protegido/<chave> (vendas/ranking/
@@ -653,7 +674,7 @@ window.carregaProtegido = function (chave, containerId) {
   if (!s || !el) return;
   fetch(window.BENTO_WORKER + '/api/protegido/' + chave, { headers: { 'X-Token': s.token } })
     .then(function (r) {
-      if (r.status === 401) { el.innerHTML = '<div class="panel"><p>Sua sessão não abre este conteúdo. <a href="index.html">Trocar acesso</a>.</p></div>'; return null; }
+      if (r.status === 401) { el.innerHTML = '<div class="panel"><p>Sua sessão não abre este conteúdo. <a href="index.html?trocar=1">Trocar acesso</a>.</p></div>'; return null; }
       if (!r.ok) { el.innerHTML = '<div class="panel"><p>Falha ao carregar — tente de novo.</p></div>'; return null; }
       return r.json();
     })
@@ -678,7 +699,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 <script src="fila-offline.js"></script>
 <script>window.exigirNivel(["admin"], "cocktails-ranking");</script>
 <header class="brand"><img class="logo" src="logo-bento.png" alt="Bento Restaurante">
-<div class="topo-linha"><a class="nivel-pill" href="admin-meu-perfil.html">Meu perfil</a>
+<div class="topo-linha"><a class="nivel-pill" href="admin-meu-perfil.html">Meu perfil</a><a class="nivel-pill trocar" href="index.html?trocar=1" title="Entrar com outro acesso"><svg class="ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Trocar<span class="tr-ex">acesso</span></a>
 <button class="lupa-busca" id="lupa-busca" type="button" aria-label="Buscar receita" title="Buscar receita (/)">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 <circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4.5 4.5"/></svg>
@@ -795,7 +816,7 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
 </div>
 <script>
 (function () {
-  var BUILD = '3d80ebd5717b';
+  var BUILD = '14e3efa75581';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
