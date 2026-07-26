@@ -779,7 +779,7 @@ senhas antigas.</p>
   var msg = document.getElementById('ac-msg');
   var dados = null, escolhas = {};
   var s = window.sessaoBentoLer ? window.sessaoBentoLer() : null;
-  if (!s) return;
+  if (!s) { msg.textContent = 'Entre com a senha da administração para ver esta página.'; return; }
 
   function esc(t) { var d = document.createElement('div'); d.textContent = t == null ? '' : t; return d.innerHTML; }
   function quando(ms) {
@@ -866,7 +866,9 @@ senhas antigas.</p>
       (a.status === 'ativo'
         ? '<button type="button" class="ac-bt" data-acao="nova_senha" data-id="' + esc(a.id) + '">Nova senha</button>' +
           '<button type="button" class="ac-bt" data-acao="desativar" data-id="' + esc(a.id) + '">Desativar</button>'
-        : '<button type="button" class="ac-bt" data-acao="reativar" data-id="' + esc(a.id) + '">Reativar</button>') +
+        : (a.status === 'desativado'
+            ? '<button type="button" class="ac-bt" data-acao="reativar" data-id="' + esc(a.id) + '">Reativar</button>'
+            : '')) +
       '</div></div><div class="ac-nova" id="ac-nova-' + esc(a.id) + '"></div></div>';
   }
 
@@ -900,12 +902,12 @@ senhas antigas.</p>
       .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
       .then(function (res) {
         if (!res.ok) { alert(res.d.mensagem || res.d.erro || 'Não deu certo.'); bt.disabled = false; return; }
-        var nova = res.d.senha;
+        var nova = res.d.senha, reaproveitou = res.d.reaproveitou;
         return carrega().then(function () {
-          if (nova) {
-            var alvo = document.getElementById('ac-nova-' + id);
-            if (alvo) alvo.textContent = 'Senha desta pessoa: ' + nova;
-          }
+          var alvo = document.getElementById('ac-nova-' + id);
+          if (!alvo) return;
+          if (nova) alvo.textContent = 'Senha desta pessoa: ' + nova;
+          else if (reaproveitou) alvo.textContent = 'Reativado — a senha anterior voltou a valer. Use "Mostrar senhas" pra vê-la, ou "Nova senha" pra trocar.';
         });
       })
       .catch(function () { alert('Sem conexão.'); bt.disabled = false; });
@@ -945,7 +947,7 @@ senhas antigas.</p>
 </script>
 
 
-<p class="nota">Portal do Bar · Bento · atualizado em 25/07/2026.
+<p class="nota">Portal do Bar · Bento · atualizado em 26/07/2026.
 Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à mão.</p>
 
 
@@ -973,7 +975,7 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
 </div>
 <script>
 (function () {
-  var BUILD = 'fac4addd9db6';
+  var BUILD = 'b3eea1bc9527';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
