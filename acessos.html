@@ -702,9 +702,75 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 <script src="fila-offline.js"></script>
 <script>window.exigirNivel(["admin"], "acessos");</script>
 <header class="brand"><img class="logo" src="logo-bento.png" alt="Bento Restaurante">
-<div class="topo-linha"><a class="nivel-pill" href="index.html?trocar=1">Página inicial <b>(Trocar acesso)</b></a><button type="button" class="fila-selo" id="fila-selo"></button></div>
+<div class="topo-linha"><a class="nivel-pill" href="admin-meu-perfil.html">Meu perfil</a><a class="nivel-pill trocar" href="index.html?trocar=1" title="Entrar com outro acesso"><svg class="ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Trocar<span class="tr-ex">acesso</span></a>
+<button class="lupa-busca" id="lupa-busca" type="button" aria-label="Buscar receita" title="Buscar receita (/)">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4.5 4.5"/></svg>
+</button>
+<div id="busca-global-ov" role="dialog" aria-modal="true" aria-label="Buscar receita">
+<div class="bg-caixa">
+<div class="bg-topo">
+<input id="bg-input" type="search" placeholder="Nome do drink…" autocomplete="off">
+<button class="bg-fechar" id="bg-fechar" type="button" aria-label="Fechar busca">&times;</button>
+</div>
+<div class="bg-res" id="bg-res"><p class="bg-dica">Digite ao menos 2 letras.</p></div>
+</div>
+</div>
+<button class="sino-btn" id="sino-btn" type="button" title="Notificações" aria-label="Notificações" aria-expanded="false" hidden><svg class="ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="sino-badge" id="sino-badge" hidden>0</span></button><button type="button" class="fila-selo" id="fila-selo"></button></div>
 </header>
+<a class="voltar" href="admin-mural.html">&larr; Mural</a>
 
+<style>
+  .prm-toggle-btn { width: 100%; display: flex; align-items: center; justify-content: space-between;
+                     gap: 8px; padding: 9px 13px; border-radius: 11px; border: 1px solid var(--border);
+                     background: var(--card); color: var(--text); font-size: 13px; font-weight: 600;
+                     cursor: pointer; margin-bottom: 8px; }
+  .prm-toggle-btn .prm-toggle-ic { display: flex; align-items: center; color: var(--acc); transition: transform .18s; }
+  .prm-toggle-btn .prm-toggle-ic svg { width: 15px; height: 15px; display: block; }
+  .prm-toggle-btn.aberto .prm-toggle-ic { transform: rotate(180deg); }
+  .pr-mini { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin: 0 0 16px; }
+  .pr-mini[hidden] { display: none; }
+  a.prm-card { position: relative; display: flex; flex-direction: column; align-items: center;
+               justify-content: center; text-align: center; gap: 5px; border-radius: 11px; padding: 8px 6px;
+               text-decoration: none; color: var(--text); min-height: 52px; min-width: 0; border: 1.5px solid;
+               overflow: hidden; transition: filter .15s; }
+  a.prm-card:hover { filter: brightness(1.12); }
+  a.prm-card::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; }
+  .prm-card.prm-oc { background: linear-gradient(135deg,#33221d,#241713); border-color: #e07a52; }
+  .prm-card.prm-oc::before { background: #f28a63; }
+  .prm-card.prm-so { background: linear-gradient(135deg,#152a22,#111d17); border-color: #4fbf92; }
+  .prm-card.prm-so::before { background: #7fe6bd; }
+  .prm-card.prm-dose { background: linear-gradient(135deg,#16222c,#121a21); border-color: #6fa8dc; }
+  .prm-card.prm-dose::before { background: #8ec0ea; }
+  a.prm-card .prm-chip { width: 24px; height: 24px; border-radius: 7px; display: flex;
+                          align-items: center; justify-content: center; flex: none; }
+  a.prm-card .prm-chip svg { width: 13px; height: 13px; display: block; flex: none; }
+  .prm-card.prm-oc .prm-chip { background: rgba(226,75,74,.16); color: #f0a58f; }
+  .prm-card.prm-so .prm-chip { background: rgba(80,170,110,.16); color: #9fdcae; }
+  .prm-card.prm-dose .prm-chip { background: rgba(111,168,220,.18); color: #8ec0ea; }
+  .prm-card .prm-t { font-size: 11.5px; font-weight: 600; }
+</style>
+<button type="button" class="prm-toggle-btn" id="prm-toggle-btn" aria-expanded="false" aria-controls="pr-mini-conteudo">
+  <span>Painel Rápido</span>
+  <span class="prm-toggle-ic"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span>
+</button>
+<div class="pr-mini" id="pr-mini-conteudo" hidden>
+  <a class="prm-card prm-oc" href="admin-registro.html?tipo=ocorrencia">
+    <span class="prm-chip"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4"/><path d="M12 16h.01"/><path d="M10.36 3.6 2.26 17.5a1.9 1.9 0 0 0 1.64 2.5h16.2a1.9 1.9 0 0 0 1.64-2.5L13.64 3.6a1.9 1.9 0 0 0-3.28 0z"/></svg></span><span class="prm-t">Ocorrência</span></a>
+  <a class="prm-card prm-so" href="admin-registro.html?tipo=solicitacao">
+    <span class="prm-chip"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 3h6v4H9z"/><path d="M9 12h6M9 16h4"/></svg></span><span class="prm-t">Solicitação</span></a>
+  <a class="prm-card prm-dose" href="admin-dose.html"><span class="prm-chip"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3h4v3l2 3v10a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2V9l2-3z"/><path d="M9 13h6"/></svg></span><span class="prm-t">Registro de Dose</span></a>
+</div>
+<script>(function(){
+  var btn = document.getElementById('prm-toggle-btn');
+  var conteudo = document.getElementById('pr-mini-conteudo');
+  btn.onclick = function () {
+    var abrir = conteudo.hidden;
+    conteudo.hidden = !abrir;
+    btn.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+    btn.classList.toggle('aberto', abrir);
+  };
+})();</script>
 
 
 <div class="panel">
@@ -947,9 +1013,22 @@ senhas antigas.</p>
 </script>
 
 
+<div class="sino-pop" id="sino-pop" role="dialog" aria-label="Notificações" hidden>
+  <div class="sino-cab">
+    <h3>Notificações</h3>
+    <button class="sino-lidas" id="sino-lidas" type="button">Marcar todas como lidas</button>
+  </div>
+  <div class="sino-abas">
+    <button class="sino-aba on" id="sino-aba-rec" data-aba="rec" type="button">Recebidas <span class="sino-n" id="sino-n-rec" hidden></span></button>
+    <button class="sino-aba" id="sino-aba-nov" data-aba="nov" type="button">Novidades do site <span class="sino-n" id="sino-n-nov" hidden></span></button>
+  </div>
+  <div class="sino-lista" id="sino-lista-rec"><div class="sino-vazio">Carregando…</div></div>
+  <div class="sino-lista" id="sino-lista-nov" hidden></div>
+</div>
+
 <p class="nota">Portal do Bar · Bento · atualizado em 26/07/2026.
 Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à mão.</p>
-
+<script>if (window.FilaOffline) window.FilaOffline.iniciarSelo({"elId": "fila-selo", "destinos": {"registro": "admin-registro.html", "turno": "admin-turno.html"}});</script>
 
 <style>
   .ver-nova { position: fixed; left: 12px; right: 12px; top: calc(10px + env(safe-area-inset-top, 0px));
@@ -975,7 +1054,7 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
 </div>
 <script>
 (function () {
-  var BUILD = 'b3eea1bc9527';
+  var BUILD = '44dbc1db1821';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
@@ -1070,6 +1149,240 @@ if ('serviceWorker' in navigator) {
 </script>
 
 
+<script>
+(function () {
+  var COCKTAILS_HREF = "admin-cocktails.html";
+  var btn = document.getElementById('lupa-busca');
+  var ov = document.getElementById('busca-global-ov');
+  var input = document.getElementById('bg-input');
+  var res = document.getElementById('bg-res');
+  var fechar = document.getElementById('bg-fechar');
+  if (!btn || !ov) return;
+  var idx = null, carregando = false;
 
+  function semAcento(s) { return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+
+  function carrega() {
+    if (idx || carregando) return;
+    carregando = true;
+    fetch('receitas_idx.json').then(function (r) { return r.json(); })
+      .then(function (d) { idx = d; if (input.value.trim().length >= 2) aplica(); })
+      .catch(function () { idx = []; res.innerHTML = '<p class="bg-vazio">Índice indisponível — ' +
+        '<a href="' + COCKTAILS_HREF + '">abrir fichas técnicas</a>.</p>'; });
+  }
+
+  function marca(nome, q) {
+    var i = semAcento(nome).indexOf(q);
+    if (i < 0) return nome;
+    return nome.slice(0, i) + '<mark>' + nome.slice(i, i + q.length) + '</mark>' + nome.slice(i + q.length);
+  }
+
+  function aplica() {
+    var q = semAcento(input.value.trim());
+    if (q.length < 2) { res.innerHTML = '<p class="bg-dica">Digite ao menos 2 letras.</p>'; return; }
+    if (!idx) { res.innerHTML = '<p class="bg-dica">Carregando…</p>'; return; }
+    var achados = idx.filter(function (it) { return semAcento(it.n).indexOf(q) >= 0; }).slice(0, 8);
+    if (!achados.length) {
+      res.innerHTML = '<p class="bg-vazio">Nada com "' + input.value.trim() +
+        '" — <a href="' + COCKTAILS_HREF + '">ver todas as fichas &rarr;</a></p>';
+      return;
+    }
+    res.innerHTML = '';
+    achados.forEach(function (it) {
+      var a = document.createElement('a');
+      a.className = 'bg-item'; a.href = COCKTAILS_HREF + '#ficha-' + it.s;
+      a.innerHTML = '<span class="nome">' + marca(it.n, q) + '</span>';
+      res.appendChild(a);
+    });
+  }
+
+  function abre() {
+    ov.classList.add('aberto');
+    document.body.style.overflow = 'hidden';
+    carrega();
+    setTimeout(function () { input.focus(); }, 30);
+  }
+  function fecha() {
+    ov.classList.remove('aberto');
+    document.body.style.overflow = '';
+  }
+  btn.addEventListener('click', abre);
+  fechar.addEventListener('click', fecha);
+  ov.addEventListener('click', function (e) { if (e.target === ov) fecha(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === '/' && !ov.classList.contains('aberto') &&
+        document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+      e.preventDefault(); abre();
+    } else if (e.key === 'Escape' && ov.classList.contains('aberto')) {
+      fecha();
+    }
+  });
+  input.addEventListener('input', aplica);
+})();
+</script>
+
+<script>
+
+(function(){
+  var REG = window.BENTO_WORKER;
+  var btn = document.getElementById('sino-btn');
+  var pop = document.getElementById('sino-pop');
+  if(!btn || !pop) return;
+  var s = window.sessaoBentoLer();
+  if(!s) return;               // deslogado: sino fica escondido
+  btn.hidden = false;
+
+  var recebidas = [], novidades = [], carregou = false;
+
+  function esc(t){ var d=document.createElement('div'); d.textContent=(t==null?'':String(t)); return d.innerHTML; }
+  function idR(x){ return x.chave || (x.tipo+':'+(x.quando||'')); }
+  function idN(x){ return (x.data||'')+'|'+(x.titulo||''); }
+  function vKey(){ return 'bento_sino_visto_'+(s.pessoa||s.nivel||'x'); }
+  function lerV(){ try{ return JSON.parse(localStorage.getItem(vKey())||'{}'); }catch(e){ return {}; } }
+  function salvarV(v){ try{ localStorage.setItem(vKey(), JSON.stringify(v)); }catch(e){} }
+
+  function tempo(iso){
+    if(!iso) return '';
+    var t = Date.parse(iso); if(isNaN(t)) return '';
+    var seg = Math.floor((Date.now()-t)/1000);
+    if(seg < 60) return 'agora';
+    if(seg < 3600) return 'há '+Math.floor(seg/60)+' min';
+    if(seg < 86400) return 'há '+Math.floor(seg/3600)+' h';
+    var dias = Math.floor(seg/86400);
+    if(dias === 1) return 'ontem';
+    if(dias < 7) return 'há '+dias+' dias';
+    return dataCurta(iso);
+  }
+  var MESES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  function dataCurta(iso){
+    var d = new Date(iso); if(isNaN(d.getTime())){ var m=String(iso).slice(0,10).split('-'); if(m.length===3) return (+m[2])+' '+MESES[(+m[1])-1]; return ''; }
+    return d.getDate()+' '+MESES[d.getMonth()];
+  }
+  function dataHoraCheia(iso){
+    if(!iso) return '';
+    var d = new Date(iso); if(isNaN(d.getTime())) return '';
+    return d.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+  }
+
+  var ICO = {
+    demanda:'<path d="M5 4h14v16l-7-3-7 3z"/>',
+    resposta:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+    aviso:'<path d="M3 11l18-7-7 18-2-8z"/>',
+    acesso:'<circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M18 8v6M15 11h6"/>'
+  };
+  function svg(tp){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+(ICO[tp]||ICO.aviso)+'</svg>'; }
+  function tag(tp){ return tp==='demanda'?'Demanda':(tp==='resposta'?'Resposta':(tp==='acesso'?'Acesso':'Aviso')); }
+
+  function renderRec(){
+    var wrap = document.getElementById('sino-lista-rec');
+    if(!recebidas.length){ wrap.innerHTML='<div class="sino-vazio">Nada por aqui ainda.</div>'; return; }
+    var v = lerV();
+    wrap.innerHTML = recebidas.map(function(x){
+      var novo = !v['r:'+idR(x)];
+      return '<a class="sino-item'+(novo?' novo':'')+' tp-'+esc(x.tipo)+'" href="'+esc(x.url||'#')+'">'
+        + '<span class="sino-ic">'+svg(x.tipo)+'</span>'
+        + '<span class="sino-tx">'
+        +   '<span class="sino-t"><span class="sino-tag">'+esc(tag(x.tipo))+'</span>'+esc(x.titulo)+'</span>'
+        +   '<span class="sino-d">'+esc(x.descricao)+'</span>'
+        +   '<span class="sino-m" title="'+esc(dataHoraCheia(x.quando))+'">'+esc(tempo(x.quando))+'</span>'
+        + '</span></a>';
+    }).join('');
+  }
+  function renderNov(){
+    var wrap = document.getElementById('sino-lista-nov');
+    if(!novidades.length){ wrap.innerHTML='<div class="sino-vazio">Sem novidades por enquanto.</div>'; return; }
+    wrap.innerHTML = novidades.map(function(x){
+      return '<div class="sino-nov"><div class="sino-nc"><span class="sino-marco"></span>'
+        + '<h4>'+esc(x.titulo)+'</h4><span class="sino-data">'+esc(dataCurta(x.data))+'</span></div>'
+        + '<p>'+esc(x.descricao)+'</p></div>';
+    }).join('');
+  }
+  function chip(id, n){ var e=document.getElementById(id); if(!e) return; if(n>0){ e.textContent=(n>99?'99+':n); e.hidden=false; } else e.hidden=true; }
+  function atualiza(){
+    var v = lerV();
+    var nR = recebidas.filter(function(x){ return !v['r:'+idR(x)]; }).length;
+    var nN = novidades.filter(function(x){ return !v['n:'+idN(x)]; }).length;
+    var tot = nR + nN;
+    var b = document.getElementById('sino-badge');
+    if(tot>0){ b.textContent=(tot>99?'99+':tot); b.hidden=false; btn.classList.add('tem'); }
+    else { b.hidden=true; btn.classList.remove('tem'); }
+    chip('sino-n-rec', nR); chip('sino-n-nov', nN);
+  }
+
+  function visivel(niv){
+    if(!niv || niv==='todos') return true;
+    if(Array.isArray(niv)) return niv.indexOf(s.nivel)>=0 || niv.indexOf('todos')>=0;
+    return niv===s.nivel;
+  }
+  // Pedidos de acesso esperando: sem isto, um pedido que não é da equipe de
+  // bar fica parado até alguém lembrar de abrir a página de Acessos — e é
+  // essa fila que faz a aprovação existir. Só a administração busca.
+  function itensAcesso(d){
+    if(!d || !d.itens || !d.itens.length) return [];
+    return d.itens.map(function(x){
+      return {
+        tipo:'acesso',
+        chave:'acesso:'+x.id,
+        titulo:'Pedido de acesso: '+x.nome,
+        descricao:'quer entrar no Portal'+(x.cargo ? ' como '+x.cargo : ''),
+        quando:x.criado_em ? new Date(x.criado_em).toISOString() : null,
+        url:'acessos.html'
+      };
+    });
+  }
+  function carregar(){
+    carregou = true;
+    var pAcesso = (s.nivel === 'admin')
+      ? fetch(window.BENTO_WORKER+'/api/acessos/pendentes', { headers:{ 'X-Token': s.token } })
+          .then(function(r){ return r.ok ? r.json() : null; })
+          .then(itensAcesso).catch(function(){ return []; })
+      : Promise.resolve([]);
+    if(REG){
+      Promise.all([
+        fetch(REG+'/api/notificacoes', { headers:{ 'X-Token': s.token } })
+          .then(function(r){ return r.ok ? r.json() : {itens:[]}; })
+          .then(function(d){ return (d&&d.itens)||[]; })
+          .catch(function(){ return []; }),
+        pAcesso
+      ]).then(function(res){ recebidas = (res[1]||[]).concat(res[0]); renderRec(); atualiza(); });
+    } else {
+      pAcesso.then(function(a){ recebidas = a||[]; renderRec(); atualiza(); });
+    }
+    fetch('changelog.json', { cache:'no-cache' })
+      .then(function(r){ return r.ok ? r.json() : {itens:[]}; })
+      .then(function(d){ novidades = ((d&&d.itens)||[]).filter(function(x){ return visivel(x.niveis); }); renderNov(); atualiza(); })
+      .catch(function(){});
+  }
+
+  function troca(a){
+    document.getElementById('sino-aba-rec').classList.toggle('on', a==='rec');
+    document.getElementById('sino-aba-nov').classList.toggle('on', a==='nov');
+    document.getElementById('sino-lista-rec').hidden = (a!=='rec');
+    document.getElementById('sino-lista-nov').hidden = (a!=='nov');
+    var v = lerV();
+    if(a==='rec') recebidas.forEach(function(x){ v['r:'+idR(x)]=1; });
+    else novidades.forEach(function(x){ v['n:'+idN(x)]=1; });
+    salvarV(v);
+    setTimeout(function(){ if(a==='rec') renderRec(); atualiza(); }, 1400);
+  }
+  document.getElementById('sino-aba-rec').addEventListener('click', function(){ troca('rec'); });
+  document.getElementById('sino-aba-nov').addEventListener('click', function(){ troca('nov'); });
+  document.getElementById('sino-lidas').addEventListener('click', function(){
+    var v = lerV();
+    recebidas.forEach(function(x){ v['r:'+idR(x)]=1; });
+    novidades.forEach(function(x){ v['n:'+idN(x)]=1; });
+    salvarV(v); renderRec(); atualiza();
+  });
+
+  function abre(){ pop.hidden=false; btn.setAttribute('aria-expanded','true'); if(!carregou) carregar(); }
+  function fecha(){ pop.hidden=true; btn.setAttribute('aria-expanded','false'); }
+  btn.addEventListener('click', function(e){ e.stopPropagation(); if(pop.hidden) abre(); else fecha(); });
+  document.addEventListener('click', function(e){ if(!pop.hidden && !pop.contains(e.target) && !btn.contains(e.target)) fecha(); });
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape' && !pop.hidden) fecha(); });
+
+  carregar();  // carga silenciosa pra o badge aparecer sem abrir
+})();
+
+</script>
 </body>
 </html>
