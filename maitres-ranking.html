@@ -824,7 +824,7 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
 </div>
 <script>
 (function () {
-  var BUILD = 'ea8c81bb4ef7';
+  var BUILD = 'fac4addd9db6';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
@@ -1037,10 +1037,11 @@ if ('serviceWorker' in navigator) {
   var ICO = {
     demanda:'<path d="M5 4h14v16l-7-3-7 3z"/>',
     resposta:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
-    aviso:'<path d="M3 11l18-7-7 18-2-8z"/>'
+    aviso:'<path d="M3 11l18-7-7 18-2-8z"/>',
+    acesso:'<circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M18 8v6M15 11h6"/>'
   };
   function svg(tp){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+(ICO[tp]||ICO.aviso)+'</svg>'; }
-  function tag(tp){ return tp==='demanda'?'Demanda':(tp==='resposta'?'Resposta':'Aviso'); }
+  function tag(tp){ return tp==='demanda'?'Demanda':(tp==='resposta'?'Resposta':(tp==='acesso'?'Acesso':'Aviso')); }
 
   function renderRec(){
     var wrap = document.getElementById('sino-lista-rec');
@@ -1083,14 +1084,40 @@ if ('serviceWorker' in navigator) {
     if(Array.isArray(niv)) return niv.indexOf(s.nivel)>=0 || niv.indexOf('todos')>=0;
     return niv===s.nivel;
   }
+  // Pedidos de acesso esperando: sem isto, um pedido que não é da equipe de
+  // bar fica parado até alguém lembrar de abrir a página de Acessos — e é
+  // essa fila que faz a aprovação existir. Só a administração busca.
+  function itensAcesso(d){
+    if(!d || !d.itens || !d.itens.length) return [];
+    return d.itens.map(function(x){
+      return {
+        tipo:'acesso',
+        chave:'acesso:'+x.id,
+        titulo:'Pedido de acesso: '+x.nome,
+        descricao:'quer entrar no Portal'+(x.cargo ? ' como '+x.cargo : ''),
+        quando:x.criado_em ? new Date(x.criado_em).toISOString() : null,
+        url:'acessos.html'
+      };
+    });
+  }
   function carregar(){
     carregou = true;
+    var pAcesso = (s.nivel === 'admin')
+      ? fetch(window.BENTO_WORKER+'/api/acessos/pendentes', { headers:{ 'X-Token': s.token } })
+          .then(function(r){ return r.ok ? r.json() : null; })
+          .then(itensAcesso).catch(function(){ return []; })
+      : Promise.resolve([]);
     if(REG){
-      fetch(REG+'/api/notificacoes', { headers:{ 'X-Token': s.token } })
-        .then(function(r){ return r.ok ? r.json() : {itens:[]}; })
-        .then(function(d){ recebidas = (d&&d.itens)||[]; renderRec(); atualiza(); })
-        .catch(function(){ recebidas=[]; renderRec(); atualiza(); });
-    } else { recebidas=[]; renderRec(); }
+      Promise.all([
+        fetch(REG+'/api/notificacoes', { headers:{ 'X-Token': s.token } })
+          .then(function(r){ return r.ok ? r.json() : {itens:[]}; })
+          .then(function(d){ return (d&&d.itens)||[]; })
+          .catch(function(){ return []; }),
+        pAcesso
+      ]).then(function(res){ recebidas = (res[1]||[]).concat(res[0]); renderRec(); atualiza(); });
+    } else {
+      pAcesso.then(function(a){ recebidas = a||[]; renderRec(); atualiza(); });
+    }
     fetch('changelog.json', { cache:'no-cache' })
       .then(function(r){ return r.ok ? r.json() : {itens:[]}; })
       .then(function(d){ novidades = ((d&&d.itens)||[]).filter(function(x){ return visivel(x.niveis); }); renderNov(); atualiza(); })

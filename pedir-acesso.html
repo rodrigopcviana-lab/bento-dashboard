@@ -766,37 +766,57 @@ hora; as demais funções passam pela administração.</p>
   function esc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
   function revisa() { btn.disabled = !(nome.trim().length >= 3 && funcao) || enviando; }
 
-  function campoLivre(aviso) {
+  function campoLivre(aviso, comVolta) {
     area.innerHTML = (aviso ? '<p class="pa-nota" style="margin:0 0 6px">' + esc(aviso) + '</p>' : '') +
-      '<input class="pa-campo" id="pa-nome-input" placeholder="Nome completo" autocomplete="name">';
+      '<input class="pa-campo" id="pa-nome-input" placeholder="Nome completo" autocomplete="name">' +
+      (comVolta === false ? '' :
+        '<p class="pa-nota"><button type="button" class="pa-link" id="pa-volta">Voltar para a lista</button></p>');
     var i = document.getElementById('pa-nome-input');
     i.value = nome;
     i.oninput = function () { nome = i.value; revisa(); };
+    var volta = document.getElementById('pa-volta');
+    if (volta) volta.onclick = function () {
+      nome = '';
+      if (roster && roster.length) lista(roster);
+      revisa();
+    };
   }
 
   function lista(nomes) {
-    if (!nomes.length) { campoLivre('Todo mundo da escala já tem acesso. Se você é novo por aqui, digite seu nome.'); return; }
+    if (!nomes.length) { campoLivre('Todo mundo da escala já tem acesso. Se você é novo por aqui, digite seu nome.', false); return; }
     var o = '<option value="">Escolha seu nome…</option>';
     nomes.forEach(function (n) { o += '<option value="' + esc(n) + '">' + esc(n) + '</option>'; });
+    // "Meu nome não está na lista" vive DENTRO do select (2026-07-25): antes
+    // era um link miúdo embaixo e ninguém achava — o Rodrigo testou e concluiu
+    // que só dava pra escolher bartender já cadastrado. A pessoa já está
+    // mexendo na lista; a saída tem que estar ali dentro.
+    o += '<option value="__outro">Meu nome não está na lista…</option>';
     area.innerHTML = '<select class="pa-campo" id="pa-nome-sel">' + o + '</select>' +
-      '<p class="pa-nota">Não achou seu nome? <button type="button" class="pa-link" id="pa-outro">Digitar meu nome</button></p>';
+      '<p class="pa-nota">Não é da lista? Escolha a última opção para digitar seu nome.</p>';
     var sel = document.getElementById('pa-nome-sel');
-    sel.onchange = function () { nome = sel.value; revisa(); };
-    document.getElementById('pa-outro').onclick = function () {
-      nome = ''; campoLivre('Nomes fora da escala passam pela administração antes de liberar.'); revisa();
+    sel.onchange = function () {
+      if (sel.value === '__outro') {
+        nome = '';
+        campoLivre('Nomes fora da escala passam pela administração antes de liberar.');
+        var i = document.getElementById('pa-nome-input');
+        if (i) i.focus();
+        revisa();
+        return;
+      }
+      nome = sel.value; revisa();
     };
   }
 
   area.innerHTML = '<p class="pa-nota" style="margin:0">Carregando…</p>';
-  if (!W) { campoLivre('Digite seu nome completo.'); }
+  if (!W) { campoLivre('Digite seu nome completo.', false); }
   else {
     fetch(W + '/api/acesso/roster')
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {
-        if (!d || !Array.isArray(d.nomes)) { campoLivre('Digite seu nome completo.'); return; }
+        if (!d || !Array.isArray(d.nomes)) { campoLivre('Digite seu nome completo.', false); return; }
         roster = d.nomes; lista(d.nomes);
       })
-      .catch(function () { campoLivre('Sem conexão com a lista — digite seu nome completo.'); });
+      .catch(function () { campoLivre('Sem conexão com a lista — digite seu nome completo.', false); });
   }
 
   document.getElementById('pa-funcoes').onclick = function (ev) {
@@ -868,7 +888,7 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
 </div>
 <script>
 (function () {
-  var BUILD = 'ea8c81bb4ef7';
+  var BUILD = 'fac4addd9db6';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
