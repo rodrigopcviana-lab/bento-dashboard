@@ -79,6 +79,27 @@
   .status { font-size: 13px; margin-top: 10px; min-height: 18px; }
   .status.ok { color: #9fdcae; }
   .status.erro { color: #f09b9b; }
+
+  .sist-panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+                padding: 16px 18px; margin-top: 14px; display: none; }
+  .sist-panel h3 { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif; font-size: 16px;
+                   font-weight: 500; color: var(--ambar-2); margin-bottom: 2px; }
+  .sist-sub { font-size: 12px; color: var(--text-3); margin-bottom: 12px; }
+  .sist-msg { font-size: 13px; color: var(--text-2); line-height: 1.5; }
+  .sist-cont { display: flex; gap: 8px; margin-bottom: 12px; }
+  .sist-caixa { flex: 1; background: var(--card-2); border-radius: 8px; padding: 8px 10px; }
+  .sist-caixa .sist-num { display: block; font-size: 20px; font-variant-numeric: tabular-nums; }
+  .sist-caixa .sist-lbl { display: block; font-size: 11px; color: var(--text-3); }
+  .sist-caixa.sist-ok .sist-num { color: #9fdcae; }
+  .sist-caixa.sist-erro .sist-num { color: #f09b9b; }
+  .sist-caixa.sist-neutro .sist-num { color: var(--text-2); }
+  .sist-tabela { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .sist-tabela th { text-align: left; font-size: 11px; font-weight: 400; color: var(--text-3); padding: 4px 0; }
+  .sist-tabela th.num, .sist-tabela td.num { text-align: right; }
+  .sist-tabela td { padding: 7px 0; border-top: 1px dashed var(--border); }
+  .sist-tabela td.sist-ok { color: #9fdcae; }
+  .sist-tabela td.sist-erro { color: #f09b9b; }
+  .sist-tabela td.sist-neutro { color: var(--text-3); }
   .nivel-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-3);
                 text-decoration: none; }
   .nivel-pill b { color: var(--ambar-2); font-weight: 600; }
@@ -223,7 +244,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 </div>
 <script>
 (function () {
-  var BUILD = '44dbc1db1821';
+  var BUILD = '032f89421603';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
@@ -340,6 +361,8 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
   <p class="status" data-status-for="insumos"></p>
 </form>
 
+<div class="sist-panel" id="sist-conferencia"></div>
+
 <datalist id="nomes-equipe">
   <option value="Gabriel"></option>
   <option value="Vitória"></option>
@@ -442,6 +465,87 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
     } catch (e) { /* rascunho corrompido, ignora */ }
   }
 
+  // --- Coluna Sistema: painel de conferência pós-salvar (PLANO_COLUNA_SISTEMA_CONTAGEM.md) ---
+  // Só monta pra contagem de TERÇA (auditoria semanal) — os demais dias nem
+  // consultam a rota. Data pura não passa por `new Date(iso)` cru (vira meia-
+  // noite UTC e desloca um dia em UTC-3); a âncora explícita com T00:00:00Z
+  // resolve o dia da semana sem esse deslocamento.
+  function ehTerca(dataISO) {
+    return new Date(dataISO + 'T00:00:00Z').getUTCDay() === 2;
+  }
+
+  function formataDataHora(iso) {
+    try {
+      var d = new Date(iso);
+      return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0')
+        + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    } catch (e) { return iso; }
+  }
+
+  function contadorBox(label, valor, tom) {
+    return el('div', { class: 'sist-caixa sist-' + tom }, [
+      el('span', { class: 'sist-num' }, [document.createTextNode(String(valor))]),
+      el('span', { class: 'sist-lbl' }, [document.createTextNode(label)]),
+    ]);
+  }
+
+  function montaTabelaComparativa(itens) {
+    var tabela = el('table', { class: 'sist-tabela' });
+    tabela.appendChild(el('tr', {}, [
+      el('th', {}, [document.createTextNode('Produto')]),
+      el('th', { class: 'num' }, [document.createTextNode('Contado')]),
+      el('th', { class: 'num' }, [document.createTextNode('Sistema')]),
+      el('th', { class: 'num' }, [document.createTextNode('Dif.')]),
+    ]));
+    itens.forEach(function (item) {
+      var temDif = item.diferenca !== null && item.diferenca !== undefined;
+      var difTxt = !temDif ? '—' : (item.diferenca > 0 ? '+' + item.diferenca : String(item.diferenca));
+      var difClasse = !temDif ? 'sist-neutro' : (item.diferenca === 0 ? 'sist-ok' : 'sist-erro');
+      tabela.appendChild(el('tr', {}, [
+        el('td', {}, [document.createTextNode(item.produto)]),
+        el('td', { class: 'num' }, [document.createTextNode(String(item.contado))]),
+        el('td', { class: 'num' }, [document.createTextNode(item.sistema === null || item.sistema === undefined ? '—' : String(item.sistema))]),
+        el('td', { class: 'num ' + difClasse }, [document.createTextNode(difTxt)]),
+      ]));
+    });
+    return tabela;
+  }
+
+  function carregaConferenciaSistema(dataSalva) {
+    var container = document.getElementById('sist-conferencia');
+    if (!container || !ehTerca(dataSalva)) return;
+    fetch(WORKER_URL + '/api/contagem/sistema?data=' + dataSalva, { headers: { 'X-Chave': CHAVE } })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        container.innerHTML = '';
+        if (!d || !d.ok) return;
+        if (!d.tem_leitura) {
+          container.appendChild(el('p', { class: 'sist-msg' }, [document.createTextNode(
+            'A foto do sistema ainda não chegou para esta semana — a conferência aparece assim que ela for confirmada.'
+          )]));
+          container.style.display = 'block';
+          return;
+        }
+        if (!d.liberado) {
+          container.appendChild(el('p', { class: 'sist-msg' }, [document.createTextNode(
+            'Leitura do sistema recebida, mas não achamos a contagem deste dia ainda salva — atualize a página.'
+          )]));
+          container.style.display = 'block';
+          return;
+        }
+        container.appendChild(el('h3', {}, [document.createTextNode('Conferência com o sistema')]));
+        container.appendChild(el('p', { class: 'sist-sub' }, [document.createTextNode('Lido em ' + formataDataHora(d.lida_em) + '.')]));
+        container.appendChild(el('div', { class: 'sist-cont' }, [
+          contadorBox('Batem', d.contadores.batem, 'ok'),
+          contadorBox('Divergem', d.contadores.divergem, 'erro'),
+          contadorBox('Sem leitura', d.contadores.sem_leitura, 'neutro'),
+        ]));
+        container.appendChild(montaTabelaComparativa(d.itens));
+        container.style.display = 'block';
+      })
+      .catch(function () { /* conferência é um extra — falha aqui não afeta a contagem já salva */ });
+  }
+
   function hoje() {
     var d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -485,6 +589,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
             status.textContent = 'Contagem salva no Notion — ' + r.json.criados + ' itens.';
             status.className = 'status ok';
             localStorage.removeItem(chaveRascunho(tipo));
+            if (tipo === 'insumos') carregaConferenciaSistema(fd.get('data'));
           } else {
             status.textContent = 'Deu erro salvando (' + (r.json.erro || (r.json.falhas || []).length + ' item(ns) falharam') + '). O rascunho continua salvo — pode tentar de novo.';
             status.className = 'status erro';
