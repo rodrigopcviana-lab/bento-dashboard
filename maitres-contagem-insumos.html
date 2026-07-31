@@ -244,7 +244,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 </div>
 <script>
 (function () {
-  var BUILD = '51c5d832f9e4';
+  var BUILD = 'c821264b058b';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
@@ -396,6 +396,23 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
     ['Refrigerantes', 'Schweppes Lata']
   ];
 
+/* CONTAGEM-FIX v1 */
+  // Nome do campo derivado do NOME do produto (antes era o índice: inserir um
+  // item no meio da lista fazia o rascunho cair no produto errado, calado).
+  function campoDe(nome) {
+    return 'i_' + String(nome).toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+  }
+  // Zero é uma AFIRMACAO sobre o estoque; vazio é "nao contei". O envio
+  // precisa distinguir os dois, entao le o campo cru em vez de || 0.
+  function leCampo(fd, nome) {
+    var v = (fd.get(campoDe(nome)) || '').trim();
+    if (v === '') return null;
+    var n = parseInt(v, 10);
+    return isNaN(n) ? null : n;
+  }
+
   function el(tag, attrs, children) {
     var e = document.createElement(tag);
     for (var k in attrs) e.setAttribute(k, attrs[k]);
@@ -438,7 +455,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
         grupo = el('div', { class: 'grupo' }, [el('h3', {}, [document.createTextNode(categoria)])]);
         host.appendChild(grupo);
       }
-      grupo.appendChild(linhaComStepper(produto, 'produto_' + i, null));
+      grupo.appendChild(linhaComStepper(produto, campoDe(produto), null));
     });
   }
 
@@ -450,15 +467,30 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
   function salvarRascunho(form, tipo) {
     var dados = {};
     new FormData(form).forEach(function (v, k) { dados[k] = v; });
+    // A data NUNCA entra no rascunho: restaurá-la fazia quem contava hoje
+    // salvar com a data de outro dia (o campo é preenchido com hoje() antes
+    // de restaurar, e o rascunho sobrescrevia).
+    delete dados.data;
+    dados._salvo_em = Date.now();
     localStorage.setItem(chaveRascunho(tipo), JSON.stringify(dados));
   }
+
+  var RASCUNHO_VALIDADE_MS = 12 * 3600 * 1000;
 
   function restaurarRascunho(form, tipo) {
     var raw = localStorage.getItem(chaveRascunho(tipo));
     if (!raw) return;
     try {
       var dados = JSON.parse(raw);
+      // Contagem não atravessa o dia: rascunho velho reaparecendo
+      // pré-preenchido era contagem da semana passada a um clique de virar
+      // contagem de hoje.
+      if (!dados._salvo_em || (Date.now() - dados._salvo_em) > RASCUNHO_VALIDADE_MS) {
+        localStorage.removeItem(chaveRascunho(tipo));
+        return;
+      }
       Object.keys(dados).forEach(function (k) {
+        if (k === 'data' || k === '_salvo_em') return;
         var campo = form.elements.namedItem(k);
         if (campo) campo.value = dados[k];
       });
@@ -546,6 +578,47 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
       .catch(function () { /* conferência é um extra — falha aqui não afeta a contagem já salva */ });
   }
 
+/* CONTAGEM-FIX v1 */
+  // Contador ao vivo: sem ele a pessoa não tem como saber que deixou item em
+  // branco numa lista longa — e antes o branco virava zero em silêncio.
+  function montaProgresso(form, total) {
+    var box = document.createElement('p');
+    box.className = 'ct-progresso';
+    box.style.cssText = 'font-size:12.5px;color:var(--text-3);margin:10px 0 6px;text-align:right';
+    // ANTES do botão de enviar, não no fim do form: no fim ele caía DEPOIS do
+    // botão, ou seja, fora do campo de visão de quem está prestes a salvar --
+    // que é exatamente a hora de saber que ficaram itens em branco.
+    var botao = form.querySelector('.enviar');
+    if (botao && botao.parentNode) botao.parentNode.insertBefore(box, botao);
+    else form.appendChild(box);
+    function atualiza() {
+      var n = 0;
+      form.querySelectorAll('input[type=number]').forEach(function (i) {
+        if ((i.value || '').trim() !== '') n++;
+      });
+      box.textContent = n + ' de ' + total + ' contados'
+        + (n < total ? ' — os ' + (total - n) + ' em branco não serão enviados' : '');
+      box.style.color = n < total ? 'var(--ambar-2)' : '#9fdcae';
+    }
+    form.addEventListener('input', atualiza);
+    atualiza();
+    return atualiza;
+  }
+
+  function avisaDataNaoHoje(form) {
+    var input = form.querySelector('input[name="data"]');
+    var av = document.createElement('p');
+    av.style.cssText = 'font-size:12.5px;color:var(--ambar-2);margin:6px 0 0;display:none';
+    input.parentNode.appendChild(av);
+    function checa() {
+      var fora = input.value && input.value !== hoje();
+      av.textContent = fora ? 'Atenção: esta contagem será salva em ' + input.value + ', não hoje.' : '';
+      av.style.display = fora ? 'block' : 'none';
+    }
+    input.addEventListener('change', checa);
+    checa();
+  }
+
   function hoje() {
     var d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -559,6 +632,9 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 
     restaurarRascunho(form, tipo);
     form.addEventListener('input', function () { salvarRascunho(form, tipo); });
+    /* CONTAGEM-FIX v1 */
+    avisaDataNaoHoje(form);
+    montaProgresso(form, form.querySelectorAll('input[type=number]').length);
 
     form.addEventListener('submit', function (ev) {
       ev.preventDefault();
@@ -569,6 +645,38 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
       }
       var fd = new FormData(form);
       var itens = montarItens(fd);
+/* CONTAGEM-FIX v1 */
+      // B1: item em branco NÃO vai como zero — some do envio. Zero só vai se
+      // alguém digitou zero.
+      var emBranco = itens.filter(function (x) { return x.contagem === null; });
+      itens = itens.filter(function (x) { return x.contagem !== null; });
+      if (!itens.length) {
+        status.textContent = 'Nenhum item foi contado ainda — preencha ao menos um.';
+        status.className = 'status erro';
+        var vazio = form.querySelector('input[type=number]');
+        if (vazio) vazio.focus();
+        return;
+      }
+      if (emBranco.length && !confirm(
+            emBranco.length + ' item(ns) ficaram em branco e NÃO serão enviados '
+            + '(em branco não é zero). Salvar assim mesmo?')) {
+        var alvo = null;
+        form.querySelectorAll('input[type=number]').forEach(function (i) {
+          if (!alvo && (i.value || '').trim() === '') alvo = i;
+        });
+        if (alvo) { alvo.focus(); alvo.scrollIntoView({ block: 'center' }); }
+        return;
+      }
+      // B2 (mitigação): o worker faz INSERT puro, sem upsert — reenviar cria
+      // linhas duplicadas no Notion e a conferência soma as duas. Este
+      // aparelho lembra o que já salvou. NÃO cobre outra pessoa/outro
+      // aparelho: o conserto de verdade é upsert por data+produto no worker.
+      var selo = 'bento_contagem_salva_' + tipo + '_' + fd.get('data');
+      if (localStorage.getItem(selo) && !confirm(
+            'Já existe uma contagem de ' + tipo + ' salva para ' + fd.get('data')
+            + ' neste aparelho. Salvar de novo CRIA linhas duplicadas no Notion. Continuar?')) {
+        return;
+      }
       var submitBtn = form.querySelector('.enviar');
       submitBtn.disabled = true;
       status.textContent = 'Enviando…';
@@ -589,6 +697,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
             status.textContent = 'Contagem salva no Notion — ' + r.json.criados + ' itens.';
             status.className = 'status ok';
             localStorage.removeItem(chaveRascunho(tipo));
+            try { localStorage.setItem('bento_contagem_salva_' + tipo + '_' + fd.get('data'), '1'); } catch (e) {}
             if (tipo === 'insumos') carregaConferenciaSistema(fd.get('data'));
           } else {
             status.textContent = 'Deu erro salvando (' + (r.json.erro || (r.json.falhas || []).length + ' item(ns) falharam') + '). O rascunho continua salvo — pode tentar de novo.';
@@ -605,7 +714,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 
   configurarForm('insumos', function (fd) {
     return INSUMOS.map(function (par, i) {
-      return { categoria: par[0], produto: par[1], contagem: parseInt(fd.get('produto_' + i), 10) || 0 };
+      return { categoria: par[0], produto: par[1], contagem: leCampo(fd, par[1]) };
     });
   });
 })();

@@ -819,6 +819,7 @@ senhas antigas.</p>
 
 <div id="ac-app" style="display:none">
   <div class="ac-bts">
+    <button type="button" class="ac-bt sim" id="ac-criar">Criar acesso</button>
     <button type="button" class="ac-bt" id="ac-revelar">Mostrar senhas</button>
     <button type="button" class="ac-bt" id="ac-recarregar">Atualizar</button>
   </div>
@@ -831,6 +832,20 @@ senhas antigas.</p>
       <button type="button" class="ac-bt" id="ac-rev-nao">Cancelar</button>
     </div>
     <p id="ac-rev-msg" role="status" aria-live="polite"></p>
+  </div>
+
+  <div id="ac-criar-box" class="ac-linha" style="display:none">
+    <div class="ac-sec" style="margin-top:0">CRIAR ACESSO</div>
+    <input type="text" id="ac-criar-nome" placeholder="Nome completo" autocomplete="off"
+      style="width:100%;box-sizing:border-box;font:inherit;padding:11px 13px;border-radius:10px;border:1px solid var(--border);background:var(--card-2);color:var(--text)">
+    <div style="font-size:11px;letter-spacing:.1em;color:var(--text-3);margin:10px 0 4px">NÍVEL</div>
+    <div id="ac-criar-nivel" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+    <div class="ac-bts" style="margin-top:12px">
+      <button type="button" class="ac-bt sim" id="ac-criar-ok">Criar e gerar senha</button>
+      <button type="button" class="ac-bt" id="ac-criar-cancel">Cancelar</button>
+    </div>
+    <p id="ac-criar-msg" role="status" aria-live="polite"></p>
+    <div class="ac-nova" id="ac-criar-res"></div>
   </div>
 
   <div class="ac-kpis" id="ac-kpis"></div>
@@ -1013,6 +1028,51 @@ senhas antigas.</p>
       .catch(function () { m.textContent = 'Sem conexão.'; });
   };
 
+  // --- Criar acesso do zero (dono) — POST /api/acesso/criar --------------
+  var criarNivel = null;
+  function renderCriarNivel() {
+    document.getElementById('ac-criar-nivel').innerHTML = (dados.niveis || []).map(function (n) {
+      return '<button type="button" class="ac-mini ac-cmini' + (criarNivel === n ? ' on' : '') +
+        '" data-v="' + esc(n) + '">' + esc(n) + '</button>';
+    }).join('');
+  }
+  document.getElementById('ac-criar').onclick = function () {
+    var box = document.getElementById('ac-criar-box');
+    var abrir = box.style.display === 'none';
+    box.style.display = abrir ? 'block' : 'none';
+    if (abrir && dados) { renderCriarNivel(); document.getElementById('ac-criar-nome').focus(); }
+  };
+  document.getElementById('ac-criar-cancel').onclick = function () {
+    document.getElementById('ac-criar-box').style.display = 'none';
+  };
+  document.getElementById('ac-criar-nivel').addEventListener('click', function (ev) {
+    var b = ev.target.closest('.ac-cmini'); if (!b) return;
+    criarNivel = b.dataset.v; renderCriarNivel();
+  });
+  document.getElementById('ac-criar-ok').onclick = function () {
+    var nome = document.getElementById('ac-criar-nome').value.trim();
+    var m = document.getElementById('ac-criar-msg');
+    if (nome.length < 3) { m.textContent = 'Digite o nome completo.'; return; }
+    if (!criarNivel) { m.textContent = 'Escolha o nível.'; return; }
+    var btn = this; btn.disabled = true; m.textContent = 'Criando…';
+    fetch(W + '/api/acesso/criar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Token': s.token },
+      body: JSON.stringify({ nome: nome, nivel: criarNivel })
+    })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+      .then(function (res) {
+        btn.disabled = false;
+        if (!res.ok) { m.textContent = res.d.mensagem || res.d.erro || 'Não deu certo.'; return; }
+        m.textContent = '';
+        document.getElementById('ac-criar-nome').value = ''; criarNivel = null;
+        return carrega().then(function () {
+          var r = document.getElementById('ac-criar-res');
+          if (r) r.textContent = 'Criado! Senha de ' + res.d.nome + ': ' + res.d.senha + ' — anote, aparece uma vez só.';
+        });
+      })
+      .catch(function () { btn.disabled = false; m.textContent = 'Sem conexão.'; });
+  };
+
   carrega();
 })();
 </script>
@@ -1059,7 +1119,7 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
 </div>
 <script>
 (function () {
-  var BUILD = '51c5d832f9e4';
+  var BUILD = 'c821264b058b';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
