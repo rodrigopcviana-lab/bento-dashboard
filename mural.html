@@ -755,17 +755,17 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
               overflow: hidden; transition: filter .15s; }
   a.pr-card:hover { filter: brightness(1.12); }
   a.pr-card::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; }
-  .pr-card.pr-ocorrencia { background: linear-gradient(135deg,#3b2620,#2a1e18); border-color: #e07a52; }
-  .pr-card.pr-ocorrencia::before { background: #f28a63; }
-  .pr-card.pr-solicitacao { background: linear-gradient(135deg,#1d3329,#16241d); border-color: #4fbf92; }
-  .pr-card.pr-solicitacao::before { background: #7fe6bd; }
+  .pr-card.pr-demanda { background: linear-gradient(135deg,#3b2620,#2a1e18); border-color: #e07a52; }
+  .pr-card.pr-demanda::before { background: #f28a63; }
+  .pr-card.pr-quebra { background: linear-gradient(135deg,#1d3329,#16241d); border-color: #4fbf92; }
+  .pr-card.pr-quebra::before { background: #7fe6bd; }
   .pr-card.pr-dose { background: linear-gradient(135deg,#1c2a38,#151f28); border-color: #6fa8dc; }
   .pr-card.pr-dose::before { background: #8ec0ea; }
   a.pr-card .pr-chip { width: 38px; height: 38px; border-radius: 11px; display: flex;
                         align-items: center; justify-content: center; flex: none; }
   a.pr-card .pr-chip svg { width: 20px; height: 20px; display: block; flex: none; }
-  .pr-card.pr-ocorrencia .pr-chip { background: rgba(226,75,74,.16); color: #f0a58f; }
-  .pr-card.pr-solicitacao .pr-chip { background: rgba(80,170,110,.18); color: #9fdcae; }
+  .pr-card.pr-demanda .pr-chip { background: rgba(226,75,74,.16); color: #f0a58f; }
+  .pr-card.pr-quebra .pr-chip { background: rgba(80,170,110,.18); color: #9fdcae; }
   .pr-card.pr-dose .pr-chip { background: rgba(111,168,220,.18); color: #8ec0ea; }
   .pr-card.pr-nota { background: linear-gradient(135deg,#33301f,#242216); border-color: var(--ambar); }
   .pr-card.pr-nota::before { background: var(--ambar-2); }
@@ -778,13 +778,13 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 </style>
 <div class="pr-toggle-wrap">
   <div class="pr-linha pr-r1">
-    <a class="pr-card pr-ocorrencia" href="registro.html?tipo=ocorrencia">
+    <a class="pr-card pr-demanda" href="registro.html">
       <span class="pr-chip"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4"/><path d="M12 16h.01"/><path d="M10.36 3.6 2.26 17.5a1.9 1.9 0 0 0 1.64 2.5h16.2a1.9 1.9 0 0 0 1.64-2.5L13.64 3.6a1.9 1.9 0 0 0-3.28 0z"/></svg></span>
-      <span class="pr-tt"><span class="t">Ocorrência</span></span>
+      <span class="pr-tt"><span class="t">Nova demanda</span></span>
     </a>
-    <a class="pr-card pr-solicitacao" href="registro.html?tipo=solicitacao">
-      <span class="pr-chip"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 3h6v4H9z"/><path d="M9 12h6M9 16h4"/></svg></span>
-      <span class="pr-tt"><span class="t">Solicitação</span></span>
+    <a class="pr-card pr-quebra" href="quebras.html">
+      <span class="pr-chip"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4h10l-1.15 15.1a2 2 0 0 1-2 1.9h-3.7a2 2 0 0 1-2-1.9L7 4z"/><path d="M9.7 8.4l3.1 2.2-2.2 2.1 2.7 2.3"/></svg></span>
+      <span class="pr-tt"><span class="t">Quebras</span></span>
     </a>
     
   </div>
@@ -900,14 +900,38 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
                margin: 22px 0 9px; display: flex; align-items: center; gap: 8px; }
   .bg-secs-h .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--ambar); flex: none; }
   .bg-btns { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  /* A grade é de 2 colunas e o nº de gavetas varia por papel (4 sem a de
+     Produtos, 5 com ela). Nº ímpar deixaria a última meia-largura e órfã à
+     esquerda — o mesmo defeito de grade fixa já visto no Mural do IZ. Com
+     :last-child:nth-child(odd) ela ocupa a linha inteira. */
+  .bg-btn:last-child:nth-child(odd) { grid-column: 1 / -1; }
+  /* min-width:0 — sem isso o botão vira min-content (medido: trilha de 182px
+     num container de 339 dividido em 2), a grade estoura e o Mural rolava de
+     lado ~10px em 375px. Bug antigo, achado ao medir a página real na largura
+     do celular; a gaveta nova só o aumentou pra 12px. */
   .bg-btn { display: flex; align-items: center; gap: 11px; padding: 14px 15px; border-radius: 14px;
             border: 1px solid var(--border); background: var(--card); color: var(--text); cursor: pointer;
-            font-family: inherit; text-align: left; transition: border-color .15s; }
+            font-family: inherit; text-align: left; transition: border-color .15s; min-width: 0; }
   .bg-btn:hover { border-color: var(--ambar); }
   .bg-ic { width: 38px; height: 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex: none; }
   .bg-ic svg { width: 20px; height: 20px; }
-  .bg-nm { flex: 1; font-size: 14.5px; font-weight: 500; }
+  .bg-nm { flex: 1; min-width: 0; font-size: 14.5px; font-weight: 500; }
   .bg-ct { font-size: 12px; color: var(--text-3); border: 1px solid var(--border); border-radius: 999px; padding: 2px 9px; flex: none; }
+  /* Com min-width:0 o texto passa a caber, mas em 375px "Operação"/"Produtos"/
+     "Pessoas" quebravam em 2 linhas (rótulo de 17px virava 33px, botões da
+     mesma fileira com alturas diferentes). O que cede é o cromo — ícone e
+     respiro —, nunca o nome da área. Medido a 375px: volta a UMA linha.
+     Este bloco fica DEPOIS das regras base de propósito: media query não soma
+     especificidade, então antes delas o font-size: 14.5px ganhava por ordem de
+     origem e o ajuste não valia nada (foi o que aconteceu na 1ª tentativa). */
+  @media (max-width: 430px) {
+    .bg-btn { gap: 8px; padding: 13px 10px; }
+    .bg-ic { width: 32px; height: 32px; border-radius: 9px; }
+    .bg-ic svg { width: 17px; height: 17px; }
+    .bg-ct { padding: 2px 7px; }
+    /* "Operação" é o rótulo mais largo: precisava de 64px e sobravam 60. */
+    .bg-nm { font-size: 13.5px; }
+  }
   .bg-ov { position: fixed; inset: 0; z-index: 80; display: none; align-items: flex-end; justify-content: center; background: rgba(0,0,0,.55); }
   .bg-ov.on { display: flex; }
   .bg-sheet { width: 100%; max-width: 620px; max-height: 84vh; overflow-y: auto; background: var(--bg);
@@ -925,7 +949,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
   <div class="bg-sheet">
     <div class="bg-sheet-top"><span class="bg-sheet-tt" id="bg-sheet-tt"></span>
       <button class="bg-x" id="bg-x" type="button" aria-label="Fechar"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>
-    <div id="bg-panels"><div class="bg-panel" data-area="bar" hidden><div class="area-grid"><a class="qa" href="cocktails.html"><span class="chip" style="background:var(--ambar-bg);color:var(--ambar)"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-8 9z"/><path d="M12 14v6M8 20h8"/></svg></span><span class="qtt"><span class="t">Fichas técnicas</span><span class="d">Receitas, método, copo e guarnição — com busca.</span></span></a><a class="qa" href="treinamentos.html"><span class="chip" style="background:var(--ambar-bg);color:var(--ambar)"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span><span class="qtt"><span class="t">Treinamentos</span><span class="d">Agenda de treinos e material de estudo.</span></span></a><a class="qa" href="validades.html"><span class="chip" style="background:var(--ambar-bg);color:var(--ambar)"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4"/><path d="M12 16h.01"/><path d="M10.36 3.6 2.26 17.5a1.9 1.9 0 0 0 1.64 2.5h16.2a1.9 1.9 0 0 0 1.64-2.5L13.64 3.6a1.9 1.9 0 0 0-3.28 0z"/></svg></span><span class="qtt"><span class="t">Validades &amp; etiquetas</span><span class="d">Prazos de xaropes, sucos e pré-batches, e regras de rotulagem.</span></span></a><a class="qa" href="cocktails-ranking.html"><span class="chip" style="background:var(--ambar-bg);color:var(--ambar)"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-8 9z"/><path d="M12 14v6M8 20h8"/></svg></span><span class="qtt"><span class="t">Ranking de Coquetelaria</span><span class="d">Quem mais serviu este mês, contra a meta — sem valores.</span></span></a></div></div><div class="bg-panel" data-area="operacao" hidden><div class="area-grid"><a class="qa" href="contagem.html"><span class="chip" style="background:rgba(80,170,110,.18);color:#9fdcae"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 3h6v4H9z"/><path d="M9 12h6M9 16h4"/></svg></span><span class="qtt"><span class="t">Contagem semanal</span><span class="d">Insumos, produções e copos/taças — direto pro histórico do Notion.</span></span></a><a class="qa" href="quebras.html"><span class="chip" style="background:rgba(80,170,110,.18);color:#9fdcae"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4"/><path d="M12 16h.01"/><path d="M10.36 3.6 2.26 17.5a1.9 1.9 0 0 0 1.64 2.5h16.2a1.9 1.9 0 0 0 1.64-2.5L13.64 3.6a1.9 1.9 0 0 0-3.28 0z"/></svg></span><span class="qtt"><span class="t">Reportar quebra</span><span class="d">Quebrou um copo ou taça? Reporte em segundos.</span></span></a></div></div><div class="bg-panel" data-area="pessoas" hidden><div class="area-grid"><a class="qa" href="regras.html?nivel=equipe"><span class="chip" style="background:rgba(80,130,160,.18);color:#93b5c9"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 3h6v4H9z"/><path d="M9 12h6M9 16h4"/></svg></span><span class="qtt"><span class="t">Escala &amp; BH</span><span class="d">Regras CLT, banco de horas, trocas e férias.</span></span></a><a class="qa" href="visitas.html"><span class="chip" style="background:rgba(80,130,160,.18);color:#93b5c9"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M16 3v4M8 3v4M4 11h16"/></svg></span><span class="qtt"><span class="t">Visitas</span><span class="d">Quando a coordenação vem — data e pauta.</span></span></a><a class="qa" href="avisos.html"><span class="chip" style="background:rgba(80,130,160,.18);color:#93b5c9"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span><span class="qtt"><span class="t">Avisos</span><span class="d">Recados da Administração — os mesmos que aparecem no sino do topo.</span></span></a></div></div></div>
+    <div id="bg-panels"><div class="bg-panel" data-area="bar" hidden><div class="area-grid"><a class="qa" href="cocktails.html"><span class="chip" style="background:var(--ambar-bg);color:var(--ambar)"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-8 9z"/><path d="M12 14v6M8 20h8"/></svg></span><span class="qtt"><span class="t">Fichas técnicas</span><span class="d">Receitas, método, copo e guarnição — com busca.</span></span></a><a class="qa" href="treinamentos.html"><span class="chip" style="background:var(--ambar-bg);color:var(--ambar)"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span><span class="qtt"><span class="t">Treinamentos</span><span class="d">Agenda de treinos e material de estudo.</span></span></a><a class="qa" href="validades.html"><span class="chip" style="background:var(--ambar-bg);color:var(--ambar)"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4"/><path d="M12 16h.01"/><path d="M10.36 3.6 2.26 17.5a1.9 1.9 0 0 0 1.64 2.5h16.2a1.9 1.9 0 0 0 1.64-2.5L13.64 3.6a1.9 1.9 0 0 0-3.28 0z"/></svg></span><span class="qtt"><span class="t">Validades &amp; etiquetas</span><span class="d">Prazos de xaropes, sucos e pré-batches, e regras de rotulagem.</span></span></a><a class="qa" href="cocktails-ranking.html"><span class="chip" style="background:var(--ambar-bg);color:var(--ambar)"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-8 9z"/><path d="M12 14v6M8 20h8"/></svg></span><span class="qtt"><span class="t">Ranking de Coquetelaria</span><span class="d">Quem mais serviu este mês, contra a meta — sem valores.</span></span></a></div></div><div class="bg-panel" data-area="operacao" hidden><div class="area-grid"><a class="qa" href="contagem.html"><span class="chip" style="background:rgba(80,170,110,.18);color:#9fdcae"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 3h6v4H9z"/><path d="M9 12h6M9 16h4"/></svg></span><span class="qtt"><span class="t">Contagem semanal</span><span class="d">Insumos, produções e copos/taças — direto pro histórico do Notion.</span></span></a><a class="qa" href="quebras.html"><span class="chip" style="background:rgba(80,170,110,.18);color:#9fdcae"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4h10l-1.15 15.1a2 2 0 0 1-2 1.9h-3.7a2 2 0 0 1-2-1.9L7 4z"/><path d="M9.7 8.4l3.1 2.2-2.2 2.1 2.7 2.3"/></svg></span><span class="qtt"><span class="t">Reportar quebra</span><span class="d">Quebrou um copo, taça ou louça? Reporte em segundos.</span></span></a></div></div><div class="bg-panel" data-area="pessoas" hidden><div class="area-grid"><a class="qa" href="regras.html?nivel=equipe"><span class="chip" style="background:rgba(80,130,160,.18);color:#93b5c9"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 3h6v4H9z"/><path d="M9 12h6M9 16h4"/></svg></span><span class="qtt"><span class="t">Escala &amp; BH</span><span class="d">Regras CLT, banco de horas, trocas e férias.</span></span></a><a class="qa" href="visitas.html"><span class="chip" style="background:rgba(80,130,160,.18);color:#93b5c9"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M16 3v4M8 3v4M4 11h16"/></svg></span><span class="qtt"><span class="t">Visitas</span><span class="d">Quando a coordenação vem — data e pauta.</span></span></a><a class="qa" href="avisos.html"><span class="chip" style="background:rgba(80,130,160,.18);color:#93b5c9"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span><span class="qtt"><span class="t">Avisos</span><span class="d">Recados da Administração — os mesmos que aparecem no sino do topo.</span></span></a></div></div></div>
   </div>
 </div>
 <script>
@@ -1028,7 +1052,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
   <div class="sino-lista" id="sino-lista-nov" hidden></div>
 </div>
 
-<p class="nota">Portal do Bar · Bento · atualizado em 31/07/2026.
+<p class="nota">Portal do Bar · Bento · atualizado em 03/08/2026.
 Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à mão.</p>
 <script>if (window.FilaOffline) window.FilaOffline.iniciarSelo({"elId": "fila-selo", "destinos": {"registro": "registro.html", "turno": "turno.html"}});</script>
 
@@ -1056,7 +1080,7 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
 </div>
 <script>
 (function () {
-  var BUILD = 'c821264b058b';
+  var BUILD = '0667cd1c4db0';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;

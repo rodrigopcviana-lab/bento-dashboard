@@ -213,7 +213,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 </div>
 <script>
 (function () {
-  var BUILD = 'c821264b058b';
+  var BUILD = '0667cd1c4db0';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
@@ -309,12 +309,12 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
   .prm-card .prm-t { font-size: 12.5px; font-weight: 600; }
 </style>
 <div class="pr-mini">
-  <a class="prm-card prm-oc" href="maitres-registro.html?tipo=ocorrencia"><span class="prm-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 16h.01"/><path d="M10.36 3.6 2.26 17.5a1.9 1.9 0 0 0 1.64 2.5h16.2a1.9 1.9 0 0 0 1.64-2.5L13.64 3.6a1.9 1.9 0 0 0-3.28 0z"/></svg></span><span class="prm-t">Ocorrência</span></a>
-  <a class="prm-card prm-so" href="maitres-registro.html?tipo=solicitacao"><span class="prm-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 3h6v4H9z"/><path d="M9 12h6M9 16h4"/></svg></span><span class="prm-t">Solicitação</span></a>
+  <a class="prm-card prm-oc" href="maitres-registro.html"><span class="prm-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 16h.01"/><path d="M10.36 3.6 2.26 17.5a1.9 1.9 0 0 0 1.64 2.5h16.2a1.9 1.9 0 0 0 1.64-2.5L13.64 3.6a1.9 1.9 0 0 0-3.28 0z"/></svg></span><span class="prm-t">Nova demanda</span></a>
+  <a class="prm-card prm-so" href="maitres-quebras.html"><span class="prm-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10l-1.15 15.1a2 2 0 0 1-2 1.9h-3.7a2 2 0 0 1-2-1.9L7 4z"/><path d="M9.7 8.4l3.1 2.2-2.2 2.1 2.7 2.3"/></svg></span><span class="prm-t">Quebras</span></a>
 </div>
 
 <h1>Reportar quebra</h1>
-<p class="sub">Quebrou um copo ou taça? Reporte na hora — leva 10 segundos e já entra direto no histórico.</p>
+<p class="sub">Quebrou um copo, taça ou louça? Reporte na hora — leva 10 segundos e já entra direto no histórico.</p>
 
 <form id="form-quebra" class="panel" novalidate>
   <div class="top-fields">
@@ -328,6 +328,10 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 
   <label class="campo-full">Qual item quebrou?
     <select name="item" required></select>
+  </label>
+
+  <label class="campo-full" id="campo-item-outro" style="display:none">Qual item? (louça, prato, travessa…)
+    <input type="text" name="item_outro" placeholder="Ex: prato raso" autocomplete="off">
   </label>
 
   <label class="campo-full">Quantos quebraram?
@@ -405,6 +409,28 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
   preencherSelect(itemSelect, ITENS, 'Escolha o item…');
   preencherSelect(motivoSelect, MOTIVOS, 'Escolha o motivo…');
 
+  // "Outro item" (2026-08-03, pedido do Rodrigo): a lista acima é toda de
+  // vidro; louça (prato, bowl, travessa, xícara) não tem inventário cadastrado
+  // em lugar nenhum do projeto, então em vez de inventar nomes o formulário
+  // abre um campo livre. Fica SEMPRE por último, depois dos itens conhecidos —
+  // é a saída de emergência, não uma opção de igual peso. Consequência aceita:
+  // o histórico pode receber grafias variadas do mesmo item.
+  var ITEM_OUTRO = 'Outro item';
+  var itemOutroCampo = document.getElementById('campo-item-outro');
+  var itemOutroInput = form.querySelector('input[name="item_outro"]');
+  (function () {
+    var opt = document.createElement('option');
+    opt.value = ITEM_OUTRO;
+    opt.textContent = 'Outro item (louça, prato…)';
+    itemSelect.appendChild(opt);
+  })();
+  itemSelect.addEventListener('change', function () {
+    var ehOutro = itemSelect.value === ITEM_OUTRO;
+    itemOutroCampo.style.display = ehOutro ? '' : 'none';
+    itemOutroInput.required = ehOutro;
+    if (ehOutro) itemOutroInput.focus();
+  });
+
   motivoSelect.addEventListener('change', function () {
     var ehOutro = motivoSelect.value === 'Outro';
     detalheCampo.style.display = ehOutro ? '' : 'none';
@@ -444,6 +470,11 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
       status.className = 'status erro';
       return;
     }
+    if (itemSelect.value === ITEM_OUTRO && !itemOutroInput.value.trim()) {
+      status.textContent = 'Escreva qual item quebrou.';
+      status.className = 'status erro';
+      return;
+    }
     if (motivoSelect.value === 'Outro' && !detalheInput.value.trim()) {
       status.textContent = 'Descreva o que aconteceu quando o motivo for "Outro".';
       status.className = 'status erro';
@@ -462,7 +493,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
         data: dataInput.value,
         responsavel: respInput.value,
         chave: CHAVE,
-        item: itemSelect.value,
+        item: itemSelect.value === ITEM_OUTRO ? itemOutroInput.value.trim() : itemSelect.value,
         quantidade: parseInt(qtdInput.value, 10) || 1,
         motivo: motivoSelect.value,
         detalhe: detalheInput.value
