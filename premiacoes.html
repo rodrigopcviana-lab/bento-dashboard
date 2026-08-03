@@ -317,14 +317,21 @@
      — saudação por horário + nome (quando há senha individual salva) +
      papel, sem o box recolhível antigo. Grade com breakpoints de desktop
      (3-4 colunas) — antes travada em 2 colunas em qualquer largura. */
-  .mural-hero { padding: 2px 2px 6px; margin-bottom: 2px; }
-  /* Barra compacta (2026-07-17): dia + relógio AO VIVO (JS, tick a cada
-     minuto) substituem a linha estática ".mh-data" de antes — pulso verde
-     sinaliza "isto está vivo", não é enfeite gratuito (mesma linguagem de
-     status usada em .status-ok). Papel vai na mesma linha, à direita —
-     tira uma linha inteira que só repetia o que a pill do topo já diz. */
-  .mh-topbar { display: flex; align-items: center; flex-wrap: wrap; row-gap: 6px; gap: 8px;
-               font-size: 11.5px; color: var(--text-2); margin-bottom: 10px; }
+  /* Etapa 2 da reforma do Mural (2026-08-03, PLANO de compactação de
+     pixels): o hero virou UMA faixa de uma linha só (antes eram duas —
+     .mh-topbar com dia+relógio+papel, e um .mh-oi separado com a saudação
+     em serif 23px + um .mh-sub decorativo embaixo, ~123px de altura). A
+     MESMA informação continua: saudação, data curta, relógio e o chip de
+     papel/Trocar na faixa principal. **Correção (2026-08-03, "compactar não
+     é reduzir"): o corte inicial tinha derrubado o .mh-sub (contexto do
+     horário — "Antes do almoço" etc.) de vez.** Ele volta como uma SEGUNDA
+     linha discreta (10.5px) abaixo da faixa — não como o parágrafo antigo
+     de 123px, só o texto, sem padding próprio — porque sobrou régua (folga
+     de 55-128px medida pelo harness) e a regra do projeto é que compactar
+     nunca é sinônimo de apagar informação. */
+  .mural-hero { padding: 6px 2px; margin-bottom: 8px; min-height: 44px; box-sizing: border-box; }
+  .mh-topbar { display: flex; align-items: center; flex-wrap: wrap; row-gap: 4px; gap: 7px;
+               font-size: 11.5px; color: var(--text-2); }
   .mh-pulso { width: 6px; height: 6px; border-radius: 50%; background: var(--verde, #9fdcae); flex: none;
               box-shadow: 0 0 0 0 rgba(159,220,174,.55); animation: mhPulso 2.4s infinite; }
   @keyframes mhPulso {
@@ -333,13 +340,21 @@
   }
   .mh-relogio { font-variant-numeric: tabular-nums; color: var(--text); font-weight: 700; }
   .mh-topbar .mh-papel { margin-left: auto; }
+  .mh-dot { color: var(--text-3); }
+  /* Saudação inline (era .mh-oi em serif 23px de linha própria) — mesmo
+     texto (Bom dia/Boa tarde/Boa noite[, Nome]), agora do tamanho da linha
+     que abriga tudo o mais. */
   .mh-oi { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
-           font-size: 23px; font-weight: 400; margin-bottom: 2px; line-height: 1.2; }
+           font-size: 13px; font-weight: 600; color: var(--text); }
   .mh-oi .nome { font-style: italic; color: var(--ambar-2); }
-  .mh-sub { font-size: 12.5px; color: var(--text-3); margin-bottom: 14px; }
-  .mh-papel { display: inline-flex; align-items: center; gap: 7px; font-size: 10px; letter-spacing: .1em;
+  /* Segunda linha discreta da faixa — contexto do horário ("Antes do
+     almoço" etc.), restaurado em 2026-08-03 (ver comentário grande da
+     Etapa 2 acima). Só texto, sem padding/margem própria além do
+     espaçamento da faixa — nunca um parágrafo de destaque. */
+  .mh-sub { font-size: 10.5px; color: var(--text-3); line-height: 1.3; margin-top: 1px; }
+  .mh-papel { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; letter-spacing: .06em;
               text-transform: uppercase; color: var(--text-2); border: 1px solid rgba(213,160,92,.35);
-              border-radius: 999px; padding: 5px 12px; flex: none; }
+              border-radius: 999px; padding: 4px 10px; flex: none; max-width: 100%; }
   .mh-papel svg { color: var(--ambar); flex: none; }
   /* O chip do papel vira BOTÃO de trocar acesso (2026-07-25, pedido do
      Rodrigo): ele já dizia qual acesso está em uso, então é o lugar natural
@@ -348,7 +363,19 @@
   a.mh-papel:hover, a.mh-papel:focus-visible { border-color: rgba(213,160,92,.7);
               background: var(--ambar-bg); color: var(--text); }
   .mh-papel .mh-sep { width: 1px; height: 11px; background: rgba(213,160,92,.4); flex: none; }
-  .mh-papel .mh-tr { color: var(--ambar-2); }
+  .mh-papel .mh-tr { color: var(--ambar-2); flex: none; }
+  /* Tela bem estreita (iPhone SE/mini, 375px): "Boa noite, Fulano" + data +
+     relógio + chip de papel completo não cabem numa linha só nem em fonte
+     11.5px. A etapa anterior escondia o NOME do papel inteiro abaixo de
+     380px (display:none em .mh-nm) — corrigido em 2026-08-03: o chip existe
+     justamente pra dizer qual acesso está em uso, então sumir com o nome
+     tira a única informação que ele carrega. Em vez de esconder, o nome
+     ENCOLHE (max-width + ellipsis) — "Administração" vira "Administr…" mas
+     nunca desaparece; o Trocar continua sempre inteiro e clicável. */
+  @media (max-width: 380px) {
+    .mh-nm { max-width: 78px; overflow: hidden; text-overflow: ellipsis;
+             white-space: nowrap; display: inline-block; }
+  }
   /* Foco do dia (config/rotinas_bento.json) — promovido do fundo das
      páginas de turno pro topo do Mural: é a única coisa que muda todo dia
      e antes só quem já tinha aberto o checklist via. */
@@ -746,7 +773,7 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
 </div>
 <script>
 (function () {
-  var BUILD = '0667cd1c4db0';
+  var BUILD = '00b7c6eca955';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;

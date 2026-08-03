@@ -317,14 +317,21 @@
      — saudação por horário + nome (quando há senha individual salva) +
      papel, sem o box recolhível antigo. Grade com breakpoints de desktop
      (3-4 colunas) — antes travada em 2 colunas em qualquer largura. */
-  .mural-hero { padding: 2px 2px 6px; margin-bottom: 2px; }
-  /* Barra compacta (2026-07-17): dia + relógio AO VIVO (JS, tick a cada
-     minuto) substituem a linha estática ".mh-data" de antes — pulso verde
-     sinaliza "isto está vivo", não é enfeite gratuito (mesma linguagem de
-     status usada em .status-ok). Papel vai na mesma linha, à direita —
-     tira uma linha inteira que só repetia o que a pill do topo já diz. */
-  .mh-topbar { display: flex; align-items: center; flex-wrap: wrap; row-gap: 6px; gap: 8px;
-               font-size: 11.5px; color: var(--text-2); margin-bottom: 10px; }
+  /* Etapa 2 da reforma do Mural (2026-08-03, PLANO de compactação de
+     pixels): o hero virou UMA faixa de uma linha só (antes eram duas —
+     .mh-topbar com dia+relógio+papel, e um .mh-oi separado com a saudação
+     em serif 23px + um .mh-sub decorativo embaixo, ~123px de altura). A
+     MESMA informação continua: saudação, data curta, relógio e o chip de
+     papel/Trocar na faixa principal. **Correção (2026-08-03, "compactar não
+     é reduzir"): o corte inicial tinha derrubado o .mh-sub (contexto do
+     horário — "Antes do almoço" etc.) de vez.** Ele volta como uma SEGUNDA
+     linha discreta (10.5px) abaixo da faixa — não como o parágrafo antigo
+     de 123px, só o texto, sem padding próprio — porque sobrou régua (folga
+     de 55-128px medida pelo harness) e a regra do projeto é que compactar
+     nunca é sinônimo de apagar informação. */
+  .mural-hero { padding: 6px 2px; margin-bottom: 8px; min-height: 44px; box-sizing: border-box; }
+  .mh-topbar { display: flex; align-items: center; flex-wrap: wrap; row-gap: 4px; gap: 7px;
+               font-size: 11.5px; color: var(--text-2); }
   .mh-pulso { width: 6px; height: 6px; border-radius: 50%; background: var(--verde, #9fdcae); flex: none;
               box-shadow: 0 0 0 0 rgba(159,220,174,.55); animation: mhPulso 2.4s infinite; }
   @keyframes mhPulso {
@@ -333,13 +340,21 @@
   }
   .mh-relogio { font-variant-numeric: tabular-nums; color: var(--text); font-weight: 700; }
   .mh-topbar .mh-papel { margin-left: auto; }
+  .mh-dot { color: var(--text-3); }
+  /* Saudação inline (era .mh-oi em serif 23px de linha própria) — mesmo
+     texto (Bom dia/Boa tarde/Boa noite[, Nome]), agora do tamanho da linha
+     que abriga tudo o mais. */
   .mh-oi { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
-           font-size: 23px; font-weight: 400; margin-bottom: 2px; line-height: 1.2; }
+           font-size: 13px; font-weight: 600; color: var(--text); }
   .mh-oi .nome { font-style: italic; color: var(--ambar-2); }
-  .mh-sub { font-size: 12.5px; color: var(--text-3); margin-bottom: 14px; }
-  .mh-papel { display: inline-flex; align-items: center; gap: 7px; font-size: 10px; letter-spacing: .1em;
+  /* Segunda linha discreta da faixa — contexto do horário ("Antes do
+     almoço" etc.), restaurado em 2026-08-03 (ver comentário grande da
+     Etapa 2 acima). Só texto, sem padding/margem própria além do
+     espaçamento da faixa — nunca um parágrafo de destaque. */
+  .mh-sub { font-size: 10.5px; color: var(--text-3); line-height: 1.3; margin-top: 1px; }
+  .mh-papel { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; letter-spacing: .06em;
               text-transform: uppercase; color: var(--text-2); border: 1px solid rgba(213,160,92,.35);
-              border-radius: 999px; padding: 5px 12px; flex: none; }
+              border-radius: 999px; padding: 4px 10px; flex: none; max-width: 100%; }
   .mh-papel svg { color: var(--ambar); flex: none; }
   /* O chip do papel vira BOTÃO de trocar acesso (2026-07-25, pedido do
      Rodrigo): ele já dizia qual acesso está em uso, então é o lugar natural
@@ -348,7 +363,19 @@
   a.mh-papel:hover, a.mh-papel:focus-visible { border-color: rgba(213,160,92,.7);
               background: var(--ambar-bg); color: var(--text); }
   .mh-papel .mh-sep { width: 1px; height: 11px; background: rgba(213,160,92,.4); flex: none; }
-  .mh-papel .mh-tr { color: var(--ambar-2); }
+  .mh-papel .mh-tr { color: var(--ambar-2); flex: none; }
+  /* Tela bem estreita (iPhone SE/mini, 375px): "Boa noite, Fulano" + data +
+     relógio + chip de papel completo não cabem numa linha só nem em fonte
+     11.5px. A etapa anterior escondia o NOME do papel inteiro abaixo de
+     380px (display:none em .mh-nm) — corrigido em 2026-08-03: o chip existe
+     justamente pra dizer qual acesso está em uso, então sumir com o nome
+     tira a única informação que ele carrega. Em vez de esconder, o nome
+     ENCOLHE (max-width + ellipsis) — "Administração" vira "Administr…" mas
+     nunca desaparece; o Trocar continua sempre inteiro e clicável. */
+  @media (max-width: 380px) {
+    .mh-nm { max-width: 78px; overflow: hidden; text-overflow: ellipsis;
+             white-space: nowrap; display: inline-block; }
+  }
   /* Foco do dia (config/rotinas_bento.json) — promovido do fundo das
      páginas de turno pro topo do Mural: é a única coisa que muda todo dia
      e antes só quem já tinha aberto o checklist via. */
@@ -722,37 +749,67 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 
 
 <style>
-  header.brand { padding: 8px 0 10px; }
-  .brand .logo { height: 32px; }
-  .hoje-h { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
-             font-size: 15px; margin: 20px 0 9px; display: flex; align-items: center; gap: 8px; }
-  .hoje-h .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--ambar); flex: none; }
-  .hoje-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 9px;
-                margin-bottom: 4px; }
-  a.hg { border: 1px solid var(--border); border-radius: 13px; background: var(--card);
-          padding: 12px 13px; text-decoration: none; color: inherit; display: block;
-          transition: border-color .15s; }
-  a.hg:hover { border-color: var(--ambar); }
-  a.hg .n { display: block; font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
-             font-size: 25px; line-height: 1.1; color: var(--ambar-2); font-variant-numeric: tabular-nums; }
-  a.hg .r { display: block; font-size: 11.5px; color: var(--text-2); margin-top: 3px; }
-  a.hg .s { display: block; font-size: 10.5px; color: var(--text-3); margin-top: 2px; }
+  /* Cabeçalho compacto SÓ no Mural (Etapa 2, 2026-08-03) — escopado a este
+     <style> embutido no corpo, então não vaza pras outras ~65 páginas que
+     usam a mesma header.brand/.sino-btn/.nivel-pill sem este bloco. Logo
+     32→26, menos padding, e a linha de pill/busca/sino/selo (topo_linha,
+     compartilhada com todo o site) encolhe só aqui: sino 34→26, pill
+     "Trocar" com menos respiro. */
+  header.brand { padding: 4px 0 6px; gap: 2px; }
+  .brand .logo { height: 26px; }
+  .topo-linha { margin-top: 2px; gap: 5px; }
+  .sino-btn { width: 26px; height: 26px; }
+  .sino-btn svg { width: 14px; height: 14px; }
+  /* Revisão adversarial 2026-08-03, achado #3: o encolhimento 34→26 (sino) e
+     21→19 (pill "Trocar") derrubou a área de TOQUE junto com o tamanho
+     visual — a régua de layout desta reforma depende do tamanho visual
+     menor, mas 26px de alvo de toque é abaixo do mínimo recomendado. O
+     `::after` recupera a área sem mexer em 1px de layout (ele não ocupa
+     espaço no fluxo, só estende a zona clicável); `.sino-btn` já é
+     `position: relative` na regra base (ver linha ~1629), e `.nivel-pill.
+     trocar` ganha `position: relative` aqui, escopado a este <style> do
+     Mural, só pra ancorar o próprio `::after` -- não muda a aparência dele
+     nas outras ~65 páginas, onde essa regra não chega. */
+  .sino-btn::after { content: ""; position: absolute; inset: -9px; }
+  .nivel-pill.trocar { padding: 2px 7px; position: relative; }
+  .nivel-pill.trocar::after { content: ""; position: absolute; inset: -9px; }
+  #fila-selo { padding: 3px 8px; }
 </style>
+<div class="mural-hero">
+<div class="mh-topbar">
+<span class="mh-pulso" aria-hidden="true"></span>
+<span class="mh-oi" id="mural-saudacao" data-saud="Olá">Olá</span>
+<span class="mh-dot" aria-hidden="true">·</span>
+<span id="mural-data"></span>
+<span class="mh-dot" aria-hidden="true">·</span>
+<span class="mh-relogio" id="mural-relogio"></span>
+<a class="mh-papel" href="index.html?trocar=1" title="Entrar com outro acesso"><svg class="ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-8 9z"/><path d="M12 14v6M8 20h8"/></svg><span class="mh-nm">Equipe de Bar</span><span class="mh-sep" aria-hidden="true"></span><svg class="ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span class="mh-tr">Trocar</span></a>
+</div>
+<span class="mh-sub" id="mural-sub"></span>
+</div>
+
 
 <style>
-  .pr-toggle-wrap { margin-bottom: 18px; }
-  .pr-linha { display: grid; gap: 10px; }
-  .pr-linha + .pr-linha { margin-top: 10px; }
+  .pr-toggle-wrap { margin-bottom: 9px; }
+  .pr-linha { display: grid; gap: 8px; }
+  .pr-linha + .pr-linha { margin-top: 8px; }
   .pr-r1 { grid-template-columns: repeat(2, 1fr); }
   .pr-r2 { grid-template-columns: repeat(3, 1fr); }
   .pr-card.pr-central { background: linear-gradient(135deg,#33301f,#242216); border-color: var(--ambar); }
   .pr-card.pr-central::before { background: var(--ambar-2); }
   .pr-card.pr-central .pr-chip { background: var(--ambar-bg); color: var(--ambar-2); }
   .painel-rapido { display: grid; gap: 10px; }
-  a.pr-card { position: relative; display: flex; flex-direction: column; align-items: center;
-              justify-content: center; text-align: center; gap: 8px; border-radius: 15px; padding: 14px 8px;
-              text-decoration: none; color: var(--text); min-height: 84px; min-width: 0; border: 1.5px solid;
-              overflow: hidden; transition: filter .15s; }
+  /* Etapa 2 da reforma do Mural (2026-08-03): o card virou LINHA (chip à
+     esquerda, texto à direita) em vez de coluna (chip em cima, texto
+     embaixo). Mesmo conteúdo, mesmo texto por extenso — a mudança é só de
+     arranjo, pra caber em 68px mesmo quando o rótulo (ex.: "Central de
+     Demandas") precisa de 2 linhas: em coluna, uma 2ª linha de texto soma
+     a uma pilha que já tinha o chip acima; em linha, o chip fica ao lado,
+     então uma 2ª linha de texto cresce o card bem menos. */
+  a.pr-card { position: relative; display: flex; flex-direction: row; align-items: center;
+              justify-content: flex-start; text-align: left; gap: 9px; border-radius: 13px; padding: 10px 11px;
+              text-decoration: none; color: var(--text); min-height: 68px; min-width: 0; border: 1.5px solid;
+              overflow: hidden; transition: filter .15s; box-sizing: border-box; }
   a.pr-card:hover { filter: brightness(1.12); }
   a.pr-card::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; }
   .pr-card.pr-demanda { background: linear-gradient(135deg,#3b2620,#2a1e18); border-color: #e07a52; }
@@ -761,9 +818,9 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
   .pr-card.pr-quebra::before { background: #7fe6bd; }
   .pr-card.pr-dose { background: linear-gradient(135deg,#1c2a38,#151f28); border-color: #6fa8dc; }
   .pr-card.pr-dose::before { background: #8ec0ea; }
-  a.pr-card .pr-chip { width: 38px; height: 38px; border-radius: 11px; display: flex;
+  a.pr-card .pr-chip { width: 26px; height: 26px; border-radius: 8px; display: flex;
                         align-items: center; justify-content: center; flex: none; }
-  a.pr-card .pr-chip svg { width: 20px; height: 20px; display: block; flex: none; }
+  a.pr-card .pr-chip svg { width: 14px; height: 14px; display: block; flex: none; }
   .pr-card.pr-demanda .pr-chip { background: rgba(226,75,74,.16); color: #f0a58f; }
   .pr-card.pr-quebra .pr-chip { background: rgba(80,170,110,.18); color: #9fdcae; }
   .pr-card.pr-dose .pr-chip { background: rgba(111,168,220,.18); color: #8ec0ea; }
@@ -773,7 +830,31 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
   .pr-card.pr-ficha { background: linear-gradient(135deg,#2d2438,#201a29); border-color: #9b8ec4; }
   .pr-card.pr-ficha::before { background: #b6a9dd; }
   .pr-card.pr-ficha .pr-chip { background: rgba(155,142,196,.18); color: #b6a9dd; }
-  .pr-card .pr-tt .t { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif; font-size: 13px; line-height: 1.25; }
+  .pr-card .pr-tt { flex: 1; min-width: 0; }
+  /* Crachá do card (revisão adversarial 2026-08-03, achado #1 -- BLOQUEADOR):
+     era `position: absolute` no canto, "de propósito" pra não mudar a altura
+     do card -- mas o texto do card não reservava calha nenhuma, então em
+     "Central de Demandas" (que quebra em 3 linhas a 375/390px) a 1ª linha
+     passava POR BAIXO do crachá (medido: 4px de sobreposição horizontal, 14px
+     vertical, com o crachá forçado visível). Virou irmão em FLUXO dentro do
+     `.pr-card` (que já é `display: flex; flex-direction: row`): a ordem no
+     DOM é chip → .pr-tt → .pr-bdg (ver comentário em `central_card`/
+     `ficha_card`), `.pr-tt` continua `flex: 1` então ele cede exatamente a
+     largura que o crachá precisa, em vez de um `padding-right` chutado que
+     precisaria cobrir tanto "12" quanto "120". A altura do card não muda
+     pelo mesmo motivo de antes: o crachá (18px) cabe dentro da altura da
+     linha, que já é ditada pelo chip (26px) + padding do card. */
+  a.pr-card .pr-bdg { flex: none; display: flex; align-items: center;
+                       justify-content: center; min-width: 18px; height: 18px; padding: 0 5px;
+                       border-radius: 999px; border: 1px solid transparent; font-size: 11px;
+                       font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+  /* O `[hidden]` nativo PERDE pro `display: flex` que vem da regra de classe
+     acima (lição de CSS registrada no CLAUDE.md, já mordida 3x no portal IZ):
+     sem esta linha o crachá de demandas nasceria visível e vazio. */
+  a.pr-card .pr-bdg[hidden] { display: none; }
+  
+  .pr-card.pr-ficha .pr-bdg { background: rgba(155,142,196,.18); color: #b6a9dd; border-color: #9b8ec4; }
+  .pr-card .pr-tt .t { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif; font-size: 12px; line-height: 1.2; }
   @media (max-width: 420px) { .painel-rapido { gap: 7px; } }
 </style>
 <div class="pr-toggle-wrap">
@@ -792,6 +873,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
     <a class="pr-card pr-ficha" href="cocktails.html">
       <span class="pr-chip"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-8 9z"/><path d="M12 14v6M8 20h8"/></svg></span>
       <span class="pr-tt"><span class="t">Ficha técnica</span></span>
+      <span class="pr-bdg" aria-label="40 receitas no banco">40</span>
     </a>
     <a class="pr-card pr-nota" href="notas.html">
       <span class="pr-chip"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg></span>
@@ -805,17 +887,6 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 </div>
 
 
-<div class="mural-hero">
-<div class="mh-topbar">
-<span class="mh-pulso" aria-hidden="true"></span>
-<span id="mural-data"></span> · <span class="mh-relogio" id="mural-relogio"></span>
-<a class="mh-papel" href="index.html?trocar=1" title="Entrar com outro acesso"><svg class="ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-8 9z"/><path d="M12 14v6M8 20h8"/></svg>Equipe de Bar<span class="mh-sep" aria-hidden="true"></span><svg class="ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span class="mh-tr">Trocar</span></a>
-</div>
-<p class="mh-oi" id="mural-saudacao" data-saud="Olá">Olá</p>
-<p class="mh-sub" id="mural-sub"></p>
-</div>
-
-<div class="mh-foco"><span class="fk">Foco do dia</span><p>Turno tranquilo — capricho no básico: bancada limpa, etiquetas em dia, gelo cheio.</p></div>
 <div class="mh-turno">
 <span class="mh-turno-chip" id="mh-turno-ic"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>
 <span class="mh-turno-txt"><span class="t">Turno</span>
@@ -825,29 +896,88 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 <a href="turno.html"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>Fechamento</a>
 </span></div>
 
-
+<div class="home-areas">
 <style>
-  .hj-strip { border: 1px solid var(--border); border-radius: 16px; background: var(--card); padding: 5px 3px; }
-  .hj-grid { display: grid; grid-template-columns: repeat(2, 1fr); }
-  .hj-cell { display: flex; align-items: center; gap: 11px; padding: 13px 16px; position: relative;
-             text-decoration: none; color: var(--text); }
-  .hj-cell:hover { background: rgba(213,160,92,.06); border-radius: 12px; }
-  .hj-cell + .hj-cell::before { content: ""; position: absolute; left: 0; top: 18%; height: 64%; width: 1px; background: var(--border); }
-  .hj-ic { color: var(--text-3); display: flex; }
-  .hj-txt { display: flex; flex-direction: column; }
-  .hj-txt .n { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif; font-size: 22px; font-weight: 700; color: var(--ambar-2); line-height: 1; }
-  .hj-txt .lab { font-size: 11.5px; color: var(--text-3); margin-top: 3px; }
+  .bg-secs-h { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif; font-size: 15px;
+               margin: 10px 0 8px; display: flex; align-items: center; gap: 8px; }
+  .bg-secs-h .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--ambar); flex: none; }
+  .bg-btns { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  /* A grade é de 2 colunas e o nº de gavetas varia por papel (4 sem a de
+     Produtos, 5 com ela). Nº ímpar deixaria a última meia-largura e órfã à
+     esquerda — o mesmo defeito de grade fixa já visto no Mural do IZ. Com
+     :last-child:nth-child(odd) ela ocupa a linha inteira. */
+  .bg-btn:last-child:nth-child(odd) { grid-column: 1 / -1; }
+  /* min-width:0 — sem isso o botão vira min-content (medido: trilha de 182px
+     num container de 339 dividido em 2), a grade estoura e o Mural rolava de
+     lado ~10px em 375px. Bug antigo, achado ao medir a página real na largura
+     do celular; a gaveta nova só o aumentou pra 12px. */
+  .bg-btn { display: flex; align-items: center; gap: 11px; padding: 14px 15px; border-radius: 14px;
+            border: 1px solid var(--border); background: var(--card); color: var(--text); cursor: pointer;
+            font-family: inherit; text-align: left; transition: border-color .15s; min-width: 0; }
+  .bg-btn:hover { border-color: var(--ambar); }
+  .bg-ic { width: 38px; height: 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .bg-ic svg { width: 20px; height: 20px; }
+  .bg-nm { flex: 1; min-width: 0; font-size: 14.5px; font-weight: 500; }
+  .bg-ct { font-size: 12px; color: var(--text-3); border: 1px solid var(--border); border-radius: 999px; padding: 2px 9px; flex: none; }
+  /* Com min-width:0 o texto passa a caber, mas em 375px "Operação"/"Produtos"/
+     "Pessoas" quebravam em 2 linhas (rótulo de 17px virava 33px, botões da
+     mesma fileira com alturas diferentes). O que cede é o cromo — ícone e
+     respiro —, nunca o nome da área. Medido a 375px: volta a UMA linha.
+     Este bloco fica DEPOIS das regras base de propósito: media query não soma
+     especificidade, então antes delas o font-size: 14.5px ganhava por ordem de
+     origem e o ajuste não valia nada (foi o que aconteceu na 1ª tentativa). */
+  @media (max-width: 430px) {
+    /* Etapa 2 (2026-08-03): 60px → 48px de altura. Ícone 32→24 e menos
+       padding — nunca o nome da área, que segue numa linha só (mesma
+       lição registrada acima: "Operação" é o rótulo mais largo). */
+    .bg-btn { gap: 7px; padding: 9px 9px; }
+    .bg-ic { width: 24px; height: 24px; border-radius: 7px; }
+    .bg-ic svg { width: 14px; height: 14px; }
+    .bg-ct { padding: 1px 6px; font-size: 11px; }
+    /* "Operação" é o rótulo mais largo: precisava de 64px e sobravam 60. */
+    .bg-nm { font-size: 13px; }
+  }
+  .bg-ov { position: fixed; inset: 0; z-index: 80; display: none; align-items: flex-end; justify-content: center; background: rgba(0,0,0,.55); }
+  .bg-ov.on { display: flex; }
+  .bg-sheet { width: 100%; max-width: 620px; max-height: 84vh; overflow-y: auto; background: var(--bg);
+              border: 1px solid var(--border); border-radius: 18px 18px 0 0; padding: 4px 16px 22px; }
+  @media (min-width: 620px) { .bg-ov { align-items: center; } .bg-sheet { border-radius: 18px; } }
+  .bg-sheet-top { display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0;
+                  background: var(--bg); padding: 14px 0 10px; }
+  .bg-sheet-tt { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif; font-size: 17px; }
+  .bg-x { background: none; border: 1px solid var(--border); border-radius: 999px; color: var(--text-2);
+          width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
 </style>
-<div class="hoje-h"><span class="dot"></span>Hoje no Bento</div>
-<div class="hj-strip"><div class="hj-grid">
+<div class="bg-secs-h"><span class="dot"></span>Áreas do portal</div>
+<div class="bg-btns"><button class="bg-btn" type="button" data-area="bar" data-nome="Bar"><span class="bg-ic" style="background:var(--ambar-bg);color:var(--ambar)"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-8 9z"/><path d="M12 14v6M8 20h8"/></svg></span><span class="bg-nm">Bar</span><span class="bg-ct">4</span></button><button class="bg-btn" type="button" data-area="operacao" data-nome="Operação"><span class="bg-ic" style="background:rgba(80,170,110,.18);color:#9fdcae"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 3h6v4H9z"/><path d="M9 12h6M9 16h4"/></svg></span><span class="bg-nm">Operação</span><span class="bg-ct">2</span></button><button class="bg-btn" type="button" data-area="pessoas" data-nome="Pessoas"><span class="bg-ic" style="background:rgba(80,130,160,.18);color:#93b5c9"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="bg-nm">Pessoas</span><span class="bg-ct">3</span></button></div>
+<div class="bg-ov" id="bg-ov">
+  <div class="bg-sheet">
+    <div class="bg-sheet-top"><span class="bg-sheet-tt" id="bg-sheet-tt"></span>
+      <button class="bg-x" id="bg-x" type="button" aria-label="Fechar"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>
+    <div id="bg-panels"><div class="bg-panel" data-area="bar" hidden><div class="area-grid"><a class="qa" href="cocktails.html"><span class="chip" style="background:var(--ambar-bg);color:var(--ambar)"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-8 9z"/><path d="M12 14v6M8 20h8"/></svg></span><span class="qtt"><span class="t">Fichas técnicas</span><span class="d">Receitas, método, copo e guarnição — com busca.</span></span></a><a class="qa" href="treinamentos.html"><span class="chip" style="background:var(--ambar-bg);color:var(--ambar)"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span><span class="qtt"><span class="t">Treinamentos</span><span class="d">Agenda de treinos e material de estudo.</span></span></a><a class="qa" href="validades.html"><span class="chip" style="background:var(--ambar-bg);color:var(--ambar)"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4"/><path d="M12 16h.01"/><path d="M10.36 3.6 2.26 17.5a1.9 1.9 0 0 0 1.64 2.5h16.2a1.9 1.9 0 0 0 1.64-2.5L13.64 3.6a1.9 1.9 0 0 0-3.28 0z"/></svg></span><span class="qtt"><span class="t">Validades &amp; etiquetas</span><span class="d">Prazos de xaropes, sucos e pré-batches, e regras de rotulagem.</span></span></a><a class="qa" href="cocktails-ranking.html"><span class="chip" style="background:var(--ambar-bg);color:var(--ambar)"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-8 9z"/><path d="M12 14v6M8 20h8"/></svg></span><span class="qtt"><span class="t">Ranking de Coquetelaria</span><span class="d">Quem mais serviu este mês, contra a meta — sem valores.</span></span></a></div></div><div class="bg-panel" data-area="operacao" hidden><div class="area-grid"><a class="qa" href="contagem.html"><span class="chip" style="background:rgba(80,170,110,.18);color:#9fdcae"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 3h6v4H9z"/><path d="M9 12h6M9 16h4"/></svg></span><span class="qtt"><span class="t">Contagem semanal</span><span class="d">Insumos, produções e copos/taças — direto pro histórico do Notion.</span></span></a><a class="qa" href="quebras.html"><span class="chip" style="background:rgba(80,170,110,.18);color:#9fdcae"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4h10l-1.15 15.1a2 2 0 0 1-2 1.9h-3.7a2 2 0 0 1-2-1.9L7 4z"/><path d="M9.7 8.4l3.1 2.2-2.2 2.1 2.7 2.3"/></svg></span><span class="qtt"><span class="t">Reportar quebra</span><span class="d">Quebrou um copo, taça ou louça? Reporte em segundos.</span></span></a></div></div><div class="bg-panel" data-area="pessoas" hidden><div class="area-grid"><a class="qa" href="regras.html?nivel=equipe"><span class="chip" style="background:rgba(80,130,160,.18);color:#93b5c9"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 3h6v4H9z"/><path d="M9 12h6M9 16h4"/></svg></span><span class="qtt"><span class="t">Escala &amp; BH</span><span class="d">Regras CLT, banco de horas, trocas e férias.</span></span></a><a class="qa" href="visitas.html"><span class="chip" style="background:rgba(80,130,160,.18);color:#93b5c9"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M16 3v4M8 3v4M4 11h16"/></svg></span><span class="qtt"><span class="t">Visitas</span><span class="d">Quando a coordenação vem — data e pauta.</span></span></a><a class="qa" href="avisos.html"><span class="chip" style="background:rgba(80,130,160,.18);color:#93b5c9"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span><span class="qtt"><span class="t">Avisos</span><span class="d">Recados da Administração — os mesmos que aparecem no sino do topo.</span></span></a></div></div></div>
+  </div>
+</div>
+<script>
+(function () {
+  var ov = document.getElementById('bg-ov'), tt = document.getElementById('bg-sheet-tt');
+  var panels = document.querySelectorAll('.bg-panel');
+  function abre(area, nome) {
+    tt.textContent = nome;
+    panels.forEach(function (pn) { pn.hidden = pn.dataset.area !== area; });
+    ov.classList.add('on');
+  }
+  function fecha() { ov.classList.remove('on'); }
+  document.querySelectorAll('.bg-btn').forEach(function (b) {
+    b.addEventListener('click', function () { abre(b.dataset.area, b.dataset.nome); });
+  });
+  document.getElementById('bg-x').addEventListener('click', fecha);
+  ov.addEventListener('click', function (ev) { if (ev.target === ov) fecha(); });
+  document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && ov.classList.contains('on')) fecha(); });
+})();
+</script>
+</div>
 
-<a class="hj-cell" href="cocktails.html"><span class="hj-ic"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-8 9z"/><path d="M12 14v6M8 20h8"/></svg></span>
-<span class="hj-txt"><span class="n">40</span><span class="lab">Receitas no banco</span></span></a>
-<a class="hj-cell" href="turno.html"><span class="hj-ic"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg></span>
-<span class="hj-txt"><span class="n" style="font-size:15px">Turno</span><span class="lab">abrir ou fechar</span></span></a>
-</div></div>
-
-
+<div class="mh-foco"><span class="fk">Foco do dia</span><p>Turno tranquilo — capricho no básico: bancada limpa, etiquetas em dia, gelo cheio.</p></div>
 
 
 <style>
@@ -894,84 +1024,6 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 </script>
 
 
-<div class="home-areas">
-<style>
-  .bg-secs-h { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif; font-size: 15px;
-               margin: 22px 0 9px; display: flex; align-items: center; gap: 8px; }
-  .bg-secs-h .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--ambar); flex: none; }
-  .bg-btns { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-  /* A grade é de 2 colunas e o nº de gavetas varia por papel (4 sem a de
-     Produtos, 5 com ela). Nº ímpar deixaria a última meia-largura e órfã à
-     esquerda — o mesmo defeito de grade fixa já visto no Mural do IZ. Com
-     :last-child:nth-child(odd) ela ocupa a linha inteira. */
-  .bg-btn:last-child:nth-child(odd) { grid-column: 1 / -1; }
-  /* min-width:0 — sem isso o botão vira min-content (medido: trilha de 182px
-     num container de 339 dividido em 2), a grade estoura e o Mural rolava de
-     lado ~10px em 375px. Bug antigo, achado ao medir a página real na largura
-     do celular; a gaveta nova só o aumentou pra 12px. */
-  .bg-btn { display: flex; align-items: center; gap: 11px; padding: 14px 15px; border-radius: 14px;
-            border: 1px solid var(--border); background: var(--card); color: var(--text); cursor: pointer;
-            font-family: inherit; text-align: left; transition: border-color .15s; min-width: 0; }
-  .bg-btn:hover { border-color: var(--ambar); }
-  .bg-ic { width: 38px; height: 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex: none; }
-  .bg-ic svg { width: 20px; height: 20px; }
-  .bg-nm { flex: 1; min-width: 0; font-size: 14.5px; font-weight: 500; }
-  .bg-ct { font-size: 12px; color: var(--text-3); border: 1px solid var(--border); border-radius: 999px; padding: 2px 9px; flex: none; }
-  /* Com min-width:0 o texto passa a caber, mas em 375px "Operação"/"Produtos"/
-     "Pessoas" quebravam em 2 linhas (rótulo de 17px virava 33px, botões da
-     mesma fileira com alturas diferentes). O que cede é o cromo — ícone e
-     respiro —, nunca o nome da área. Medido a 375px: volta a UMA linha.
-     Este bloco fica DEPOIS das regras base de propósito: media query não soma
-     especificidade, então antes delas o font-size: 14.5px ganhava por ordem de
-     origem e o ajuste não valia nada (foi o que aconteceu na 1ª tentativa). */
-  @media (max-width: 430px) {
-    .bg-btn { gap: 8px; padding: 13px 10px; }
-    .bg-ic { width: 32px; height: 32px; border-radius: 9px; }
-    .bg-ic svg { width: 17px; height: 17px; }
-    .bg-ct { padding: 2px 7px; }
-    /* "Operação" é o rótulo mais largo: precisava de 64px e sobravam 60. */
-    .bg-nm { font-size: 13.5px; }
-  }
-  .bg-ov { position: fixed; inset: 0; z-index: 80; display: none; align-items: flex-end; justify-content: center; background: rgba(0,0,0,.55); }
-  .bg-ov.on { display: flex; }
-  .bg-sheet { width: 100%; max-width: 620px; max-height: 84vh; overflow-y: auto; background: var(--bg);
-              border: 1px solid var(--border); border-radius: 18px 18px 0 0; padding: 4px 16px 22px; }
-  @media (min-width: 620px) { .bg-ov { align-items: center; } .bg-sheet { border-radius: 18px; } }
-  .bg-sheet-top { display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0;
-                  background: var(--bg); padding: 14px 0 10px; }
-  .bg-sheet-tt { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif; font-size: 17px; }
-  .bg-x { background: none; border: 1px solid var(--border); border-radius: 999px; color: var(--text-2);
-          width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-</style>
-<div class="bg-secs-h"><span class="dot"></span>Áreas do portal</div>
-<div class="bg-btns"><button class="bg-btn" type="button" data-area="bar" data-nome="Bar"><span class="bg-ic" style="background:var(--ambar-bg);color:var(--ambar)"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-8 9z"/><path d="M12 14v6M8 20h8"/></svg></span><span class="bg-nm">Bar</span><span class="bg-ct">4</span></button><button class="bg-btn" type="button" data-area="operacao" data-nome="Operação"><span class="bg-ic" style="background:rgba(80,170,110,.18);color:#9fdcae"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 3h6v4H9z"/><path d="M9 12h6M9 16h4"/></svg></span><span class="bg-nm">Operação</span><span class="bg-ct">2</span></button><button class="bg-btn" type="button" data-area="pessoas" data-nome="Pessoas"><span class="bg-ic" style="background:rgba(80,130,160,.18);color:#93b5c9"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="bg-nm">Pessoas</span><span class="bg-ct">3</span></button></div>
-<div class="bg-ov" id="bg-ov">
-  <div class="bg-sheet">
-    <div class="bg-sheet-top"><span class="bg-sheet-tt" id="bg-sheet-tt"></span>
-      <button class="bg-x" id="bg-x" type="button" aria-label="Fechar"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>
-    <div id="bg-panels"><div class="bg-panel" data-area="bar" hidden><div class="area-grid"><a class="qa" href="cocktails.html"><span class="chip" style="background:var(--ambar-bg);color:var(--ambar)"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-8 9z"/><path d="M12 14v6M8 20h8"/></svg></span><span class="qtt"><span class="t">Fichas técnicas</span><span class="d">Receitas, método, copo e guarnição — com busca.</span></span></a><a class="qa" href="treinamentos.html"><span class="chip" style="background:var(--ambar-bg);color:var(--ambar)"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span><span class="qtt"><span class="t">Treinamentos</span><span class="d">Agenda de treinos e material de estudo.</span></span></a><a class="qa" href="validades.html"><span class="chip" style="background:var(--ambar-bg);color:var(--ambar)"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4"/><path d="M12 16h.01"/><path d="M10.36 3.6 2.26 17.5a1.9 1.9 0 0 0 1.64 2.5h16.2a1.9 1.9 0 0 0 1.64-2.5L13.64 3.6a1.9 1.9 0 0 0-3.28 0z"/></svg></span><span class="qtt"><span class="t">Validades &amp; etiquetas</span><span class="d">Prazos de xaropes, sucos e pré-batches, e regras de rotulagem.</span></span></a><a class="qa" href="cocktails-ranking.html"><span class="chip" style="background:var(--ambar-bg);color:var(--ambar)"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-8 9z"/><path d="M12 14v6M8 20h8"/></svg></span><span class="qtt"><span class="t">Ranking de Coquetelaria</span><span class="d">Quem mais serviu este mês, contra a meta — sem valores.</span></span></a></div></div><div class="bg-panel" data-area="operacao" hidden><div class="area-grid"><a class="qa" href="contagem.html"><span class="chip" style="background:rgba(80,170,110,.18);color:#9fdcae"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 3h6v4H9z"/><path d="M9 12h6M9 16h4"/></svg></span><span class="qtt"><span class="t">Contagem semanal</span><span class="d">Insumos, produções e copos/taças — direto pro histórico do Notion.</span></span></a><a class="qa" href="quebras.html"><span class="chip" style="background:rgba(80,170,110,.18);color:#9fdcae"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4h10l-1.15 15.1a2 2 0 0 1-2 1.9h-3.7a2 2 0 0 1-2-1.9L7 4z"/><path d="M9.7 8.4l3.1 2.2-2.2 2.1 2.7 2.3"/></svg></span><span class="qtt"><span class="t">Reportar quebra</span><span class="d">Quebrou um copo, taça ou louça? Reporte em segundos.</span></span></a></div></div><div class="bg-panel" data-area="pessoas" hidden><div class="area-grid"><a class="qa" href="regras.html?nivel=equipe"><span class="chip" style="background:rgba(80,130,160,.18);color:#93b5c9"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 3h6v4H9z"/><path d="M9 12h6M9 16h4"/></svg></span><span class="qtt"><span class="t">Escala &amp; BH</span><span class="d">Regras CLT, banco de horas, trocas e férias.</span></span></a><a class="qa" href="visitas.html"><span class="chip" style="background:rgba(80,130,160,.18);color:#93b5c9"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M16 3v4M8 3v4M4 11h16"/></svg></span><span class="qtt"><span class="t">Visitas</span><span class="d">Quando a coordenação vem — data e pauta.</span></span></a><a class="qa" href="avisos.html"><span class="chip" style="background:rgba(80,130,160,.18);color:#93b5c9"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span><span class="qtt"><span class="t">Avisos</span><span class="d">Recados da Administração — os mesmos que aparecem no sino do topo.</span></span></a></div></div></div>
-  </div>
-</div>
-<script>
-(function () {
-  var ov = document.getElementById('bg-ov'), tt = document.getElementById('bg-sheet-tt');
-  var panels = document.querySelectorAll('.bg-panel');
-  function abre(area, nome) {
-    tt.textContent = nome;
-    panels.forEach(function (pn) { pn.hidden = pn.dataset.area !== area; });
-    ov.classList.add('on');
-  }
-  function fecha() { ov.classList.remove('on'); }
-  document.querySelectorAll('.bg-btn').forEach(function (b) {
-    b.addEventListener('click', function () { abre(b.dataset.area, b.dataset.nome); });
-  });
-  document.getElementById('bg-x').addEventListener('click', fecha);
-  ov.addEventListener('click', function (ev) { if (ev.target === ov) fecha(); });
-  document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && ov.classList.contains('on')) fecha(); });
-})();
-</script>
-</div>
-
 <div class="home-foot">
 <a class="wa" href="https://wa.me/556281483511?text=Ol%C3%A1%20Rodrigo!%20Vim%20pelo%20Portal%20do%20Bento.%20">Falar com a coordenação</a>
 <span class="casas">Bento · Anápolis</span>
@@ -979,9 +1031,11 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 
 <script>
 (function () {
-  var dias = ['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
-  var meses = ['janeiro','fevereiro','março','abril','maio','junho','julho',
-               'agosto','setembro','outubro','novembro','dezembro'];
+  // Data CURTA (Etapa 2, 2026-08-03) — "seg, 3 ago" no lugar de "segunda,
+  // 3 de agosto": mesma informação (dia da semana + dia + mês), formato
+  // compacto pra caber na faixa de uma linha só.
+  var diasAbrev = ['dom','seg','ter','qua','qui','sex','sáb'];
+  var mesesAbrev = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
   var SOL = "<svg class=\"ic\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4\"/></svg>", LUA = "<svg class=\"ic\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z\"/></svg>";
   var dataEl = document.getElementById('mural-data');
   var relEl = document.getElementById('mural-relogio');
@@ -990,7 +1044,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
   var icEl = document.getElementById('mh-turno-ic');
   function tick() {
     var d = new Date(), h = d.getHours();
-    if (dataEl) dataEl.textContent = dias[d.getDay()] + ', ' + d.getDate() + ' de ' + meses[d.getMonth()];
+    if (dataEl) dataEl.textContent = diasAbrev[d.getDay()] + ', ' + d.getDate() + ' ' + mesesAbrev[d.getMonth()];
     if (relEl) relEl.textContent = String(h).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
     var saud = (h < 5 || h >= 18) ? 'Boa noite' : (h < 12 ? 'Bom dia' : 'Boa tarde');
     if (oiEl) { oiEl.dataset.saud = saud; if (!oiEl.querySelector('.nome')) oiEl.textContent = saud; }
@@ -1039,6 +1093,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 
 
 
+
 <div class="sino-pop" id="sino-pop" role="dialog" aria-label="Notificações" hidden>
   <div class="sino-cab">
     <h3>Notificações</h3>
@@ -1080,7 +1135,7 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
 </div>
 <script>
 (function () {
-  var BUILD = '0667cd1c4db0';
+  var BUILD = '00b7c6eca955';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
