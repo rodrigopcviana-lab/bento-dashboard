@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#2b2620">
 <link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black"><meta name="apple-mobile-web-app-title" content="Bento">
-<title>Escala &amp; BH · Portal do Bar | Bento</title>
+<title>Histórico de movimentos · Portal do Bar | Bento</title>
 <style>
   /* Cross-document view transition (2026-07-11): navegadores que já suportam
      (Safari 18+/iOS 18+, Chrome) fazem um cross-fade suave entre páginas do
@@ -733,112 +733,503 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 </script>
 
 <script src="fila-offline.js"></script>
-
+<script>window.exigirNivel(["maitres"], "transferencias-historico");</script>
 <header class="brand"><img class="logo" src="logo-bento.png" alt="Bento Restaurante">
-<div class="topo-linha"><a class="nivel-pill" href="index.html">Página inicial <b>(Trocar acesso)</b></a><button type="button" class="fila-selo" id="fila-selo"></button></div>
+<div class="topo-linha"><a class="nivel-pill" href="maitres-meu-perfil.html">Meu perfil</a><a class="nivel-pill trocar" href="index.html?trocar=1" title="Entrar com outro acesso"><svg class="ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Trocar<span class="tr-ex">acesso</span></a>
+<button class="lupa-busca" id="lupa-busca" type="button" aria-label="Buscar receita" title="Buscar receita (/)">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4.5 4.5"/></svg>
+</button>
+<div id="busca-global-ov" role="dialog" aria-modal="true" aria-label="Buscar receita">
+<div class="bg-caixa">
+<div class="bg-topo">
+<input id="bg-input" type="search" placeholder="Nome do drink…" autocomplete="off">
+<button class="bg-fechar" id="bg-fechar" type="button" aria-label="Fechar busca">&times;</button>
+</div>
+<div class="bg-res" id="bg-res"><p class="bg-dica">Digite ao menos 2 letras.</p></div>
+</div>
+</div>
+<button class="sino-btn" id="sino-btn" type="button" title="Notificações" aria-label="Notificações" aria-expanded="false" hidden><svg class="ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="sino-badge" id="sino-badge" hidden>0</span></button><button type="button" class="fila-selo" id="fila-selo"></button></div>
 </header>
+<a class="voltar" href="maitres-mural.html">&larr; Mural</a>
+
+<style>
+  .prm-toggle-btn { width: 100%; display: flex; align-items: center; justify-content: space-between;
+                     gap: 8px; padding: 9px 13px; border-radius: 11px; border: 1px solid var(--border);
+                     background: var(--card); color: var(--text); font-size: 13px; font-weight: 600;
+                     cursor: pointer; margin-bottom: 8px; }
+  .prm-toggle-btn .prm-toggle-ic { display: flex; align-items: center; color: var(--acc); transition: transform .18s; }
+  .prm-toggle-btn .prm-toggle-ic svg { width: 15px; height: 15px; display: block; }
+  .prm-toggle-btn.aberto .prm-toggle-ic { transform: rotate(180deg); }
+  .pr-mini { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; margin: 0 0 16px; }
+  .pr-mini[hidden] { display: none; }
+  a.prm-card { position: relative; display: flex; flex-direction: column; align-items: center;
+               justify-content: center; text-align: center; gap: 5px; border-radius: 11px; padding: 8px 6px;
+               text-decoration: none; color: var(--text); min-height: 52px; min-width: 0; border: 1.5px solid;
+               overflow: hidden; transition: filter .15s; }
+  a.prm-card:hover { filter: brightness(1.12); }
+  a.prm-card::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; }
+  .prm-card.prm-oc { background: linear-gradient(135deg,#33221d,#241713); border-color: #e07a52; }
+  .prm-card.prm-oc::before { background: #f28a63; }
+  .prm-card.prm-so { background: linear-gradient(135deg,#152a22,#111d17); border-color: #4fbf92; }
+  .prm-card.prm-so::before { background: #7fe6bd; }
+  .prm-card.prm-dose { background: linear-gradient(135deg,#16222c,#121a21); border-color: #6fa8dc; }
+  .prm-card.prm-dose::before { background: #8ec0ea; }
+  .prm-card.prm-ficha { background: linear-gradient(135deg,#241d2e,#191424); border-color: #9b8ec4; }
+  .prm-card.prm-ficha::before { background: #b6a9dd; }
+  a.prm-card .prm-chip { width: 24px; height: 24px; border-radius: 7px; display: flex;
+                          align-items: center; justify-content: center; flex: none; }
+  a.prm-card .prm-chip svg { width: 13px; height: 13px; display: block; flex: none; }
+  .prm-card.prm-oc .prm-chip { background: rgba(226,75,74,.16); color: #f0a58f; }
+  .prm-card.prm-so .prm-chip { background: rgba(80,170,110,.16); color: #9fdcae; }
+  .prm-card.prm-dose .prm-chip { background: rgba(111,168,220,.18); color: #8ec0ea; }
+  .prm-card.prm-ficha .prm-chip { background: rgba(155,142,196,.18); color: #b6a9dd; }
+  .prm-card .prm-t { font-size: 11.5px; font-weight: 600; }
+</style>
+<button type="button" class="prm-toggle-btn" id="prm-toggle-btn" aria-expanded="false" aria-controls="pr-mini-conteudo">
+  <span>Painel Rápido</span>
+  <span class="prm-toggle-ic"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span>
+</button>
+<div class="pr-mini" id="pr-mini-conteudo" hidden>
+  <a class="prm-card prm-oc" href="maitres-registro.html">
+    <span class="prm-chip"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4"/><path d="M12 16h.01"/><path d="M10.36 3.6 2.26 17.5a1.9 1.9 0 0 0 1.64 2.5h16.2a1.9 1.9 0 0 0 1.64-2.5L13.64 3.6a1.9 1.9 0 0 0-3.28 0z"/></svg></span><span class="prm-t">Nova demanda</span></a>
+  <a class="prm-card prm-so" href="maitres-quebras.html">
+    <span class="prm-chip"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4h10l-1.15 15.1a2 2 0 0 1-2 1.9h-3.7a2 2 0 0 1-2-1.9L7 4z"/><path d="M9.7 8.4l3.1 2.2-2.2 2.1 2.7 2.3"/></svg></span><span class="prm-t">Quebras</span></a>
+  <a class="prm-card prm-ficha" href="maitres-cocktails.html">
+    <span class="prm-chip"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-8 9z"/><path d="M12 14v6M8 20h8"/></svg></span><span class="prm-t">Ficha técnica</span></a>
+  <a class="prm-card prm-dose" href="maitres-dose.html"><span class="prm-chip"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3h4v3l2 3v10a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2V9l2-3z"/><path d="M9 13h6"/></svg></span><span class="prm-t">Registro de Dose</span></a>
+</div>
+<script>(function(){
+  var btn = document.getElementById('prm-toggle-btn');
+  var conteudo = document.getElementById('pr-mini-conteudo');
+  btn.onclick = function () {
+    var abrir = conteudo.hidden;
+    conteudo.hidden = !abrir;
+    btn.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+    btn.classList.toggle('aberto', abrir);
+  };
+})();</script>
 
 
-<a class="voltar" id="voltar-hub" href="mural.html">&larr; Mural</a>
+<h1><svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/></svg> Histórico de movimentos</h1>
+<p class="sub">Transferências entre o Bento e o Bento Wine Bar e trocas de produto na execução das receitas. O resumo daqui é o que vai pra Administração lançar no sistema de vendas.</p>
+<style>
+  .mh-topo { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:0 0 14px; }
+  .mh-topo select { background:var(--bg); border:1px solid var(--border); border-radius:10px;
+      padding:8px 10px; font:inherit; font-size:13px; color:var(--text); outline:none; }
+  .mh-abas { display:flex; gap:8px; margin:0 0 14px; }
+  .mh-aba { flex:1; padding:10px 8px; border:1px solid var(--border); border-radius:10px;
+      background:var(--bg); color:var(--text-2); font:inherit; font-size:13px; font-weight:600; cursor:pointer; }
+  .mh-aba[aria-selected="true"] { border-color:var(--ambar); color:var(--text); background:var(--panel); }
+  .mh-kpis { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:0 0 14px; }
+  .mh-kpi { border:1px solid var(--border); border-radius:10px; padding:10px; background:var(--bg); }
+  .mh-kpi b { display:block; font-size:20px; line-height:1.1; }
+  .mh-kpi span { font-size:11px; color:var(--text-3); }
+  .mh-acoes { display:flex; gap:8px; margin:0 0 14px; flex-wrap:wrap; }
+  .mh-acoes button { flex:1; min-width:140px; padding:9px 10px; border:1px solid var(--border);
+      border-radius:10px; background:var(--bg); color:var(--text); font:inherit; font-size:13px;
+      cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; }
+  .mh-mes { margin:0 0 18px; }
+  .mh-mes > h2 { font-size:14px; margin:0 0 8px; }
+  .mh-tb { width:100%; border-collapse:collapse; font-size:13px; }
+  .mh-tb th { text-align:left; font-size:11px; color:var(--text-3); font-weight:600;
+      padding:0 6px 6px 0; border-bottom:1px solid var(--border); }
+  .mh-tb td { padding:7px 6px 7px 0; border-bottom:1px solid var(--border); vertical-align:top; }
+  .mh-tb tr.mh-lancado td { color:var(--text-3); }
+  .mh-sentido { white-space:nowrap; font-size:12px; }
+  .mh-tag { display:inline-block; font-size:11px; padding:2px 8px; border-radius:999px;
+      border:1px solid var(--border); white-space:nowrap; }
+  .mh-tag.pend { border-color:#a97a2a; color:#c99a48; }
+  .mh-tag.ok { border-color:#3f7a4a; color:#5da86c; }
+  .mh-marcar { border:1px solid var(--border); background:var(--bg); color:var(--text-2);
+      border-radius:8px; padding:4px 9px; font:inherit; font-size:11px; cursor:pointer; white-space:nowrap; }
+  .mh-erro { border:1px solid #7a3f3f; border-radius:10px; padding:10px; font-size:13px;
+      color:#d08a8a; margin:0 0 14px; }
+  .mh-sub { display:none; font-size:11px; color:var(--text-3); }
+  /* No celular a tabela NÃO rola de lado: as colunas largas (Sentido/Motivo,
+     "Bento -> Bento Wine Bar" com nowrap) viram uma linha fina embaixo do
+     conteúdo principal, e "Quem" some. Medido em 375px: com as 6 colunas a
+     tabela dava 363px dentro de um pai de 339px e estourava 6px pra fora da
+     tela — mesmo remédio das tabelas do Banco de Horas do Portal IZ. */
+  @media (max-width:640px){
+    .mh-kpi b { font-size:17px; }
+    .mh-tb { table-layout:fixed; }
+    .mh-tb th.mh-col-resp, .mh-tb td.mh-col-resp,
+    .mh-tb th.mh-col-larga, .mh-tb td.mh-col-larga { display:none; }
+    .mh-tb .mh-sub { display:block; }
+    .mh-tb th.mh-c-dia, .mh-tb td.mh-c-dia { width:15%; }
+    .mh-tb th.mh-c-nome, .mh-tb td.mh-c-nome { width:45%; }
+    .mh-tb th.mh-c-qtde, .mh-tb td.mh-c-qtde { width:16%; }
+    .mh-tb th.mh-c-fim, .mh-tb td.mh-c-fim { width:24%; }
+    .mh-tb td { word-break:break-word; }
+  }
+</style>
+
+<div class="mh-topo">
+  <label for="mh-meses" class="sub" style="margin:0">Período:</label>
+  <select id="mh-meses">
+    <option value="3">Últimos 3 meses</option>
+    <option value="6" selected>Últimos 6 meses</option>
+    <option value="12">Últimos 12 meses</option>
+  </select>
+</div>
+
+<div class="mh-abas" role="tablist">
+  <button class="mh-aba" id="mh-t-transf" role="tab" aria-selected="true">Transferências</button>
+  <button class="mh-aba" id="mh-t-troca" role="tab" aria-selected="false">Trocas de receita</button>
+</div>
+
+<div class="mh-acoes">
+  <button id="mh-copiar"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 3h6v4H9z"/><path d="M9 12h6M9 16h4"/></svg> Copiar resumo</button>
+  <button id="mh-csv"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg> Exportar CSV</button>
+</div>
+<p class="sub" id="mh-acao-msg" role="status" aria-live="polite" style="margin:-8px 0 14px"></p>
+
+<div id="mh-corpo"><p class="sub">Carregando…</p></div>
+
 <script>
-(function () {
-  var alvos = {"equipe": ["mural.html", "Mural"], "maitres": ["maitres-mural.html", "Mural"], "admin": ["admin-mural.html", "Mural"], "rh": ["rh.html", "In\u00edcio RH"]};
-  function escolhe() {
-    var p = new URLSearchParams(location.search).get('nivel');
-    if (p && alvos[p]) return p;
-    var r = document.referrer || '';
-    if (/rh(?:-|\.html)/.test(r)) return 'rh';
-    if (r.indexOf('admin-') !== -1) return 'admin';
-    if (r.indexOf('maitres-') !== -1) return 'maitres';
-    return 'equipe';
+(function(){
+  var CHAVE = '2436ca47933b3c17a90886daa8fec616';
+  var CHAVE_LANCAR = null;
+  var REG = window.BENTO_WORKER;
+  var OPT = {"motivo_falta": "Faltou o produto previsto"};
+  var ABA = 'transf';
+  var DADOS = null;
+
+  function el(id){ return document.getElementById(id); }
+  function esc(t){ var d=document.createElement('div'); d.textContent=(t==null?'':String(t)); return d.innerHTML; }
+  // Data pura (AAAA-MM-DD) se fatia como TEXTO. new Date("2026-07-05") é
+  // meia-noite UTC e vira dia 4 em UTC-3 — o movimento apareceria um dia antes.
+  function diaMes(iso){
+    if(!iso || iso.length < 10) return '';
+    return iso.slice(8,10) + '/' + iso.slice(5,7);
   }
-  var k = escolhe();
-  var a = document.getElementById('voltar-hub');
-  a.setAttribute('href', alvos[k][0]);
-  a.textContent = '\u2190 ' + alvos[k][1];
-  // Link "Editar escala" só aparece pra quem tem página de edição (admin/rh)
-  // — regras.html é pública, então isso é só conveniência de navegação, não
-  // controle de acesso (a página de destino é que exige sessão de verdade.
-  var edicaoPorNivel = { admin: 'admin-escala.html', rh: 'rh-escalas.html' };
-  if (edicaoPorNivel[k]) {
-    document.getElementById('editar-escala-link').setAttribute('href', edicaoPorNivel[k]);
-    document.getElementById('editar-escala-painel').style.display = 'block';
+  function num(n){
+    var v = Number(n) || 0;
+    return (Math.round(v * 100) / 100).toString().replace('.', ',');
   }
+
+  function fonteAtual(){
+    if(!DADOS) return null;
+    return ABA === 'transf' ? DADOS.transferencias : DADOS.trocas;
+  }
+
+  function carrega(){
+    var corpo = el('mh-corpo');
+    corpo.innerHTML = '<p class="sub">Carregando…</p>';
+    if(!REG){ corpo.innerHTML = '<p class="sub">Histórico indisponível — worker não configurado.</p>'; return; }
+    fetch(REG + '/api/movimentos/historico', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chave: CHAVE, meses: parseInt(el('mh-meses').value, 10) })
+    }).then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(d){
+        if(!d || !d.ok){ corpo.innerHTML = '<p class="sub">Não deu pra carregar o histórico.</p>'; return; }
+        DADOS = d;
+        render();
+      })
+      .catch(function(){ corpo.innerHTML = '<p class="sub">Falha de conexão.</p>'; });
+  }
+
+  function render(){
+    var corpo = el('mh-corpo');
+    var fonte = fonteAtual();
+    if(!fonte){ corpo.innerHTML = '<p class="sub">Sem dado.</p>'; return; }
+    var html = '';
+    // Erro de UMA das duas fontes não esconde a outra — cada aba diz o que
+    // houve com a dela.
+    if(fonte.erro){ html += '<div class="mh-erro">' + esc(fonte.erro) + '</div>'; }
+    var meses = fonte.meses || [];
+    if(!meses.length){
+      corpo.innerHTML = html + '<p class="sub">Nenhum registro no período.</p>';
+      return;
+    }
+    html += ABA === 'transf' ? kpisTransf(meses) : kpisTroca(meses);
+    meses.forEach(function(m){
+      html += '<div class="mh-mes"><h2>' + esc(m.label) + '</h2>';
+      html += ABA === 'transf' ? tabelaTransf(m) : tabelaTroca(m);
+      html += '</div>';
+    });
+    corpo.innerHTML = html;
+    if(ABA === 'transf' && CHAVE_LANCAR) ligaMarcar();
+  }
+
+  function kpisTransf(meses){
+    var linhas = 0, pend = 0, itens = {};
+    meses.forEach(function(m){ m.entradas.forEach(function(e){
+      linhas++; if(!e.lancado) pend++; itens[e.produto] = true;
+    }); });
+    return '<div class="mh-kpis">'
+      + kpi(linhas, 'transferências')
+      + kpi(pend, pend === 1 ? 'falta lançar' : 'faltam lançar')
+      + kpi(Object.keys(itens).length, 'produtos diferentes')
+      + '</div>';
+  }
+  function kpisTroca(meses){
+    var linhas = 0, drinks = 0, falta = 0;
+    meses.forEach(function(m){ m.entradas.forEach(function(e){
+      linhas++; drinks += (Number(e.quantidade) || 0);
+      if(OPT.motivo_falta && e.motivo === OPT.motivo_falta) falta++;
+    }); });
+    return '<div class="mh-kpis">'
+      + kpi(linhas, 'trocas registradas')
+      + kpi(drinks, 'drinks afetados')
+      + kpi(OPT.motivo_falta ? falta : '—', 'por falta do produto')
+      + '</div>';
+  }
+  function kpi(valor, rotulo){
+    return '<div class="mh-kpi"><b>' + esc(valor) + '</b><span>' + esc(rotulo) + '</span></div>';
+  }
+
+  function tabelaTransf(m){
+    var h = '<table class="mh-tb"><thead><tr>'
+      + '<th class="mh-c-dia">Dia</th><th class="mh-c-nome">Produto</th><th class="mh-c-qtde">Qtde</th>'
+      + '<th class="mh-col-larga">Sentido</th>'
+      + '<th class="mh-col-resp">Quem</th><th class="mh-c-fim">Sistema</th>'
+      + '</tr></thead><tbody>';
+    m.entradas.forEach(function(e){
+      var sentido = esc(e.origem) + ' &rarr; ' + esc(e.destino);
+      h += '<tr class="' + (e.lancado ? 'mh-lancado' : '') + '">'
+        + '<td class="mh-c-dia">' + esc(diaMes(e.data)) + '</td>'
+        + '<td class="mh-c-nome">' + esc(e.produto)
+        +   '<span class="mh-sub">' + sentido + '</span>'
+        +   (e.observacao ? '<span class="mh-sub" style="display:block">' + esc(e.observacao) + '</span>' : '')
+        + '</td>'
+        + '<td class="mh-c-qtde">' + esc(num(e.quantidade)) + ' ' + esc(e.unidade) + '</td>'
+        + '<td class="mh-sentido mh-col-larga">' + sentido + '</td>'
+        + '<td class="mh-col-resp">' + esc(e.responsavel || '—') + '</td>'
+        + '<td class="mh-c-fim">' + celulaSistema(e) + '</td>'
+        + '</tr>';
+    });
+    return h + '</tbody></table>';
+  }
+  function celulaSistema(e){
+    if(!CHAVE_LANCAR){
+      return e.lancado
+        ? '<span class="mh-tag ok">Lançado</span>'
+        : '<span class="mh-tag pend">Pendente</span>';
+    }
+    return '<button class="mh-marcar" data-id="' + esc(e.id) + '" data-lancado="' + (e.lancado ? '1' : '0') + '">'
+      + (e.lancado ? 'Lançado &check;' : 'Marcar lançado') + '</button>';
+  }
+
+  function tabelaTroca(m){
+    var h = '<table class="mh-tb"><thead><tr>'
+      + '<th class="mh-c-dia">Dia</th><th class="mh-c-nome">Drink</th>'
+      + '<th class="mh-c-fim">Troca</th><th class="mh-c-qtde">Qtde</th>'
+      + '<th class="mh-col-larga">Motivo</th><th class="mh-col-resp">Quem</th>'
+      + '</tr></thead><tbody>';
+    m.entradas.forEach(function(e){
+      h += '<tr>'
+        + '<td class="mh-c-dia">' + esc(diaMes(e.data)) + '</td>'
+        + '<td class="mh-c-nome">' + esc(e.cocktail)
+        +   '<span class="mh-sub">' + esc(e.motivo) + '</span>'
+        +   (e.comanda ? '<span class="mh-sub" style="display:block">comanda ' + esc(e.comanda) + '</span>' : '')
+        + '</td>'
+        + '<td class="mh-c-fim">' + esc(e.previsto) + ' &rarr; <b>' + esc(e.usado) + '</b>'
+        + (e.observacao ? '<span class="mh-sub" style="display:block">' + esc(e.observacao) + '</span>' : '') + '</td>'
+        + '<td class="mh-c-qtde">' + esc(num(e.quantidade)) + '</td>'
+        + '<td class="mh-col-larga">' + esc(e.motivo) + '</td>'
+        + '<td class="mh-col-resp">' + esc(e.responsavel || '—') + '</td>'
+        + '</tr>';
+    });
+    return h + '</tbody></table>';
+  }
+
+  // "Lançado por" é coluna de AUDITORIA, e com a string fixa 'Administração'
+  // ela não respondia nada: mais de uma pessoa usa esse acesso e ninguém sabe
+  // quem marcou. O nome vem da identidade individual que o portal já resolve
+  // (POST /api/pessoa, feito pelo Mural) e guarda no aparelho junto da senha
+  // que o produziu — a senha confere, é a mesma pessoa. Esta página NÃO
+  // carrega a chave que /api/pessoa exige (só a do histórico e a de demandas;
+  // NÃO escreva os nomes dos placeholders com os underscores aqui: comentário
+  // viaja pra todos os níveis, o substitui_chave do publicar.sh casa por texto
+  // e não sabe o que é código e o que é prosa. Na página de admin os dois
+  // seriam trocados pelos segredos REAIS dentro do comentário; na de maître só
+  // um é, e a trava de placeholder aborta a publicação inteira. Aconteceu.
+  // pôr o placeholder errado aqui iria literal pro ar e
+  // falharia em silêncio), por isso ela lê o cache em vez de resolver de
+  // novo. Sem cache pra ESTA senha manda '', que o worker já trata, em vez de
+  // carimbar um nome que pode não ser o de quem clicou.
+  function quemLanca(){
+    try {
+      var senha = localStorage.getItem('bento_pessoa_senha');
+      if(!senha) return '';
+      var cache = JSON.parse(localStorage.getItem('bento_pessoa_nome_cache') || 'null');
+      if(cache && cache.senha === senha && cache.nome) return String(cache.nome);
+    } catch(e) {}
+    return '';
+  }
+
+  function ligaMarcar(){
+    Array.prototype.forEach.call(document.querySelectorAll('.mh-marcar'), function(b){
+      b.addEventListener('click', function(){
+        var id = b.getAttribute('data-id');
+        var jaLancado = b.getAttribute('data-lancado') === '1';
+        b.disabled = true;
+        fetch(REG + '/api/transferencia/lancado', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chave: CHAVE_LANCAR, id: id, lancado: !jaLancado, por: quemLanca() })
+        }).then(function(r){ return r.ok ? r.json() : null; })
+          .then(function(d){
+            b.disabled = false;
+            if(!d || !d.ok){ el('mh-acao-msg').textContent = 'Não deu pra atualizar.'; return; }
+            // Atualiza o dado em memória e redesenha: os KPIs ("faltam
+            // lançar") mudam junto, senão o número no topo mentiria.
+            (DADOS.transferencias.meses || []).forEach(function(m){
+              m.entradas.forEach(function(e){ if(e.id === id) e.lancado = d.lancado; });
+            });
+            el('mh-acao-msg').textContent = '';
+            render();
+          })
+          .catch(function(){ b.disabled = false; el('mh-acao-msg').textContent = 'Falha de conexão.'; });
+      });
+    });
+  }
+
+  // --- Resumo em texto (pra colar no WhatsApp do adm) -----------------------
+  function resumoTexto(){
+    var fonte = fonteAtual();
+    if(!fonte || !(fonte.meses || []).length) return '';
+    var linhas = [];
+    if(ABA === 'transf'){
+      fonte.meses.forEach(function(m){
+        linhas.push('TRANSFERÊNCIAS — ' + m.label);
+        // Agrupa por sentido e produto+unidade: o adm lança um total por
+        // produto, não linha a linha. Só o que FALTA lançar entra no resumo —
+        // é essa a pergunta que ele faz ao abrir a mensagem.
+        var porSentido = {};
+        var pendentes = 0;
+        m.entradas.forEach(function(e){
+          if(e.lancado) return;
+          pendentes++;
+          var s = e.origem + ' -> ' + e.destino;
+          // A chave junta produto+unidade só pra agrupar — o par fica no
+          // VALOR, nunca reparseado de volta. Produto é texto livre de
+          // propósito (o worker nem valida contra catálogo), então um "Gin |
+          // Tanqueray" quebrava o split('|') e a linha saía "3  Tanqueray
+          // Gin": o adm lia "Tanqueray" como unidade e lançava errado.
+          var k = e.produto + '|' + e.unidade;
+          porSentido[s] = porSentido[s] || {};
+          var acc = porSentido[s][k];
+          if(!acc){ acc = porSentido[s][k] = { produto: e.produto, unidade: e.unidade, total: 0 }; }
+          acc.total += (Number(e.quantidade) || 0);
+        });
+        if(!pendentes){ linhas.push('  (tudo já lançado no sistema)'); linhas.push(''); return; }
+        Object.keys(porSentido).forEach(function(s){
+          linhas.push('  ' + s);
+          Object.keys(porSentido[s]).sort().forEach(function(k){
+            var it = porSentido[s][k];
+            linhas.push('    ' + num(it.total) + ' ' + it.unidade + '  ' + it.produto);
+          });
+        });
+        linhas.push('');
+      });
+    } else {
+      fonte.meses.forEach(function(m){
+        linhas.push('TROCAS DE RECEITA — ' + m.label);
+        m.entradas.forEach(function(e){
+          linhas.push('  ' + diaMes(e.data) + '  ' + num(e.quantidade) + 'x ' + e.cocktail
+            + ': ' + e.previsto + ' -> ' + e.usado + ' (' + e.motivo + ')');
+        });
+        linhas.push('');
+      });
+    }
+    return linhas.join('\n').trim();
+  }
+
+  el('mh-copiar').addEventListener('click', function(){
+    var txt = resumoTexto();
+    var msg = el('mh-acao-msg');
+    if(!txt){ msg.textContent = 'Nada pra copiar no período.'; return; }
+    function fallback(){
+      // clipboard API exige contexto seguro e permissão; sem ela, um textarea
+      // + execCommand ainda funciona no navegador do celular.
+      var ta = document.createElement('textarea');
+      ta.value = txt; ta.setAttribute('readonly',''); ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch(e) { ok = false; }
+      document.body.removeChild(ta);
+      msg.textContent = ok ? 'Resumo copiado.' : 'Não deu pra copiar — selecione e copie à mão.';
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(function(){ msg.textContent = 'Resumo copiado.'; }).catch(fallback);
+    } else { fallback(); }
+  });
+
+  // --- CSV ------------------------------------------------------------------
+  function csvCampo(v){
+    var s = (v == null ? '' : String(v));
+    // Produto, Observação e Responsável são texto livre e este arquivo vai
+    // direto pra quem lança no sistema de vendas. Aspas não bastam: valor
+    // começando com = + - @ o Excel interpreta como FÓRMULA ao abrir, e ela
+    // roda na máquina de quem abriu. O apóstrofo à frente força célula de
+    // texto e não aparece na planilha.
+    if(/^[=+\-@]/.test(s)) s = "'" + s;
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  el('mh-csv').addEventListener('click', function(){
+    var fonte = fonteAtual();
+    var msg = el('mh-acao-msg');
+    if(!fonte || !(fonte.meses || []).length){ msg.textContent = 'Nada pra exportar no período.'; return; }
+    var linhas = [];
+    if(ABA === 'transf'){
+      linhas.push(['Data','Produto','Quantidade','Unidade','Origem','Destino','Responsável','Lançado no sistema','Lançado em','Observação'].map(csvCampo).join(';'));
+      fonte.meses.forEach(function(m){ m.entradas.forEach(function(e){
+        linhas.push([e.data, e.produto, num(e.quantidade), e.unidade, e.origem, e.destino,
+          e.responsavel || '', e.lancado ? 'Sim' : 'Não', e.lancadoEm || '', e.observacao || ''].map(csvCampo).join(';'));
+      }); });
+    } else {
+      linhas.push(['Data','Cocktail','Produto previsto','Produto usado','Quantidade','Motivo','Comanda','Responsável','Observação'].map(csvCampo).join(';'));
+      fonte.meses.forEach(function(m){ m.entradas.forEach(function(e){
+        linhas.push([e.data, e.cocktail, e.previsto, e.usado, num(e.quantidade), e.motivo,
+          e.comanda || '', e.responsavel || '', e.observacao || ''].map(csvCampo).join(';'));
+      }); });
+    }
+    // BOM: sem ele o Excel abre "Transferência" como "TransferÃªncia".
+    var blob = new Blob(['﻿' + linhas.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (ABA === 'transf' ? 'transferencias' : 'trocas-receita') + '-bento.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+    msg.textContent = 'CSV baixado.';
+  });
+
+  function mostraAba(qual){
+    ABA = qual;
+    el('mh-t-transf').setAttribute('aria-selected', qual === 'transf' ? 'true' : 'false');
+    el('mh-t-troca').setAttribute('aria-selected', qual === 'troca' ? 'true' : 'false');
+    el('mh-acao-msg').textContent = '';
+    render();
+  }
+  el('mh-t-transf').addEventListener('click', function(){ mostraAba('transf'); });
+  el('mh-t-troca').addEventListener('click', function(){ mostraAba('troca'); });
+  el('mh-meses').addEventListener('change', carrega);
+
+  carrega();
 })();
 </script>
 
-<h1>Escala, folgas e banco de horas</h1>
-<p class="sub">Regras fixas da operação. Em dúvida, fale com a coordenação.</p>
 
-<h2>Padrão fixo da equipe</h2>
-
-<table class="regras">
-<tr><th>Pessoa</th><th>Turno</th><th>Folga fixa</th><th>Rodízio extra</th></tr>
-<tr><td><strong>Gabriel</strong></td><td>Dia</td><td>Segunda</td><td>1 domingo a cada 4 semanas (rodízio mensal)</td></tr><tr><td><strong>Vitória</strong></td><td>Noite</td><td>Terça</td><td>domingo sim, domingo não (rodízio com a Yasmin)</td></tr><tr><td><strong>Yasmin</strong></td><td>Noite</td><td>Quinta</td><td>domingo sim, domingo não (rodízio com a Vitória)</td></tr><tr><td><strong>Jardel</strong></td><td>Noite</td><td>Domingo</td><td>—</td></tr>
-</table>
-
-<h2>Próximas semanas</h2>
-<p class="sub" style="margin-bottom:10px">Linhas em vermelho: pessoa de folga naquele dia.
-Atualizado a partir do Notion em 2026-07-04.</p>
-
-<table class="escala regras">
-<tr><th>Dia</th><th>Gabriel</th><th>Vitória</th><th>Yasmin</th><th>Jardel</th></tr>
-<tr><td>Segunda 29/06</td><td class="folga">Folga</td><td class="turno">Noite</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Terça 30/06</td><td class="turno">Dia</td><td class="folga">Folga</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Quarta 01/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Quinta 02/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="folga">Folga</td><td class="turno">Noite</td></tr><tr><td>Sexta 03/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Sábado 04/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Domingo 05/07</td><td class="turno">Dia</td><td class="folga">Folga</td><td class="turno">Noite</td><td class="folga">Folga</td></tr><tr><td>Segunda 06/07</td><td class="folga">Folga</td><td class="turno">Noite</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Terça 07/07</td><td class="turno">Dia</td><td class="folga">Folga</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Quarta 08/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Quinta 09/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="folga">Folga</td><td class="turno">Noite</td></tr><tr><td>Sexta 10/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Sábado 11/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Domingo 12/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="folga">Folga</td><td class="folga">Folga</td></tr><tr><td>Segunda 13/07</td><td class="folga">Folga</td><td class="turno">Noite</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Terça 14/07</td><td class="turno">Dia</td><td class="folga">Folga</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Quarta 15/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Quinta 16/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="folga">Folga</td><td class="turno">Noite</td></tr><tr><td>Sexta 17/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Sábado 18/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Domingo 19/07</td><td class="turno">Dia</td><td class="folga">Folga</td><td class="turno">Noite</td><td class="folga">Folga</td></tr><tr><td>Segunda 20/07</td><td class="folga">Folga</td><td class="turno">Noite</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Terça 21/07</td><td class="turno">Dia</td><td class="folga">Folga</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Quarta 22/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Quinta 23/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="folga">Folga</td><td class="turno">Noite</td></tr><tr><td>Sexta 24/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Sábado 25/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Domingo 26/07</td><td class="folga">Folga</td><td class="turno">Noite</td><td class="folga">Folga</td><td class="folga">Folga</td></tr>
-</table>
-
-<div class="panel alerta">
-<h2><svg class="ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4"/><path d="M12 16h.01"/><path d="M10.36 3.6 2.26 17.5a1.9 1.9 0 0 0 1.64 2.5h16.2a1.9 1.9 0 0 0 1.64-2.5L13.64 3.6a1.9 1.9 0 0 0-3.28 0z"/></svg> Pontos de atenção na escala</h2>
-<ul><li><strong>Domingo à noite abaixo da cobertura mínima</strong> — Todo domingo o Jardel folga (fixo) e uma das mulheres folga (rodízio) — sobra só 1 bartender à noite, abaixo do mínimo de 2 por turno.</li><li><strong>26/07/2026 — também sem cobertura no turno dia</strong> — Gabriel (ciclo mensal) e Yasmin (rodízio) folgam no mesmo domingo — só a Vitória trabalha, e ela sozinha também cobre a noite. Turno dia fica sem ninguém.</li></ul>
+<div class="sino-pop" id="sino-pop" role="dialog" aria-label="Notificações" hidden>
+  <div class="sino-cab">
+    <h3>Notificações</h3>
+    <button class="sino-lidas" id="sino-lidas" type="button">Marcar todas como lidas</button>
+  </div>
+  <div class="sino-abas">
+    <button class="sino-aba on" id="sino-aba-rec" data-aba="rec" type="button">Recebidas <span class="sino-n" id="sino-n-rec" hidden></span></button>
+    <button class="sino-aba" id="sino-aba-nov" data-aba="nov" type="button">Novidades do site <span class="sino-n" id="sino-n-nov" hidden></span></button>
+  </div>
+  <div class="sino-lista" id="sino-lista-rec"><div class="sino-vazio">Carregando…</div></div>
+  <div class="sino-lista" id="sino-lista-nov" hidden></div>
 </div>
-
-<h2>Regras fixas (CLT)</h2>
-<table class="regras">
-<tr><th>Regra</th><th>Valor</th></tr>
-<tr><td>Jornada semanal máxima</td><td><strong>44 horas</strong> (CLT)</td></tr>
-<tr><td>Folga mínima</td><td><strong>1 dia por semana</strong></td></tr>
-<tr><td>Intervalo mínimo entre turnos</td><td><strong>11 horas</strong></td></tr>
-<tr><td>Cobertura mínima por turno</td><td><strong>2 bartenders</strong></td></tr>
-<tr><td>Horas extras</td><td>Aprovação da <strong>diretoria</strong> antes de ir ao RH</td></tr>
-</table>
-
-<div class="panel" style="margin-top:14px">
-<h2>Banco de horas (BH)</h2>
-<ul>
-<li>Saldo BH = horas trabalhadas − horas contratuais.</li>
-<li>Hora extra entra como <strong>BH</strong> por padrão; pagamento só quando a coordenação definir.</li>
-<li>Lançamentos e consultas: pelo grupo de BH no WhatsApp.</li>
-<li>Fique de olho em quem está perto do limite de 44h ou com BH negativo — sinalize à coordenação.</li>
-</ul>
-</div>
-
-<div class="panel">
-<h2>Trocas, folgas e férias</h2>
-<ul>
-<li>Antes de aprovar troca ou férias, confira a cobertura mínima do turno (2 bartenders).</li>
-<li>Escala já aprovada não muda sem confirmação do coordenador.</li>
-<li>Férias: solicitar pelo <a href="rh-ferias.html" style="color:var(--ambar-2)">Portal · acesso RH</a>,
-com antecedência.</li>
-</ul>
-</div>
-
-<div class="panel" id="editar-escala-painel" style="display:none">
-<h2>Editar a escala</h2>
-<p>Administração e RH podem editar a escala direto pelo Portal — pontualmente (um dia) ou no padrão
-(afeta as próximas semanas). A edição só salva se passar nas regras de CLT acima.</p>
-<a id="editar-escala-link" href="#" style="color:var(--ambar-2)">Editar escala &rarr;</a>
-</div>
-
-<div class="panel">
-<h2>Precisa resolver algo?</h2>
-<p>Troca de plantão, dúvida de saldo, escala apertada — chama direto:</p>
-<a class="wa" href="https://wa.me/556281483511?text=Ol%C3%A1%20Rodrigo!%20Vim%20pelo%20Portal%20do%20Bento.%20">
-WhatsApp — Rodrigo (Coordenação de Bares)</a>
-</div>
-
 
 <p class="nota">Portal do Bar · Bento · atualizado em 05/08/2026.
 Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à mão.</p>
-
+<script>if (window.FilaOffline) window.FilaOffline.iniciarSelo({"elId": "fila-selo", "destinos": {"registro": "maitres-registro.html", "turno": "maitres-turno.html"}});</script>
 
 <style>
   .ver-nova { position: fixed; left: 12px; right: 12px; top: calc(10px + env(safe-area-inset-top, 0px));
@@ -959,6 +1350,240 @@ if ('serviceWorker' in navigator) {
 </script>
 
 
+<script>
+(function () {
+  var COCKTAILS_HREF = "maitres-cocktails.html";
+  var btn = document.getElementById('lupa-busca');
+  var ov = document.getElementById('busca-global-ov');
+  var input = document.getElementById('bg-input');
+  var res = document.getElementById('bg-res');
+  var fechar = document.getElementById('bg-fechar');
+  if (!btn || !ov) return;
+  var idx = null, carregando = false;
 
+  function semAcento(s) { return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+
+  function carrega() {
+    if (idx || carregando) return;
+    carregando = true;
+    fetch('receitas_idx.json').then(function (r) { return r.json(); })
+      .then(function (d) { idx = d; if (input.value.trim().length >= 2) aplica(); })
+      .catch(function () { idx = []; res.innerHTML = '<p class="bg-vazio">Índice indisponível — ' +
+        '<a href="' + COCKTAILS_HREF + '">abrir fichas técnicas</a>.</p>'; });
+  }
+
+  function marca(nome, q) {
+    var i = semAcento(nome).indexOf(q);
+    if (i < 0) return nome;
+    return nome.slice(0, i) + '<mark>' + nome.slice(i, i + q.length) + '</mark>' + nome.slice(i + q.length);
+  }
+
+  function aplica() {
+    var q = semAcento(input.value.trim());
+    if (q.length < 2) { res.innerHTML = '<p class="bg-dica">Digite ao menos 2 letras.</p>'; return; }
+    if (!idx) { res.innerHTML = '<p class="bg-dica">Carregando…</p>'; return; }
+    var achados = idx.filter(function (it) { return semAcento(it.n).indexOf(q) >= 0; }).slice(0, 8);
+    if (!achados.length) {
+      res.innerHTML = '<p class="bg-vazio">Nada com "' + input.value.trim() +
+        '" — <a href="' + COCKTAILS_HREF + '">ver todas as fichas &rarr;</a></p>';
+      return;
+    }
+    res.innerHTML = '';
+    achados.forEach(function (it) {
+      var a = document.createElement('a');
+      a.className = 'bg-item'; a.href = COCKTAILS_HREF + '#ficha-' + it.s;
+      a.innerHTML = '<span class="nome">' + marca(it.n, q) + '</span>';
+      res.appendChild(a);
+    });
+  }
+
+  function abre() {
+    ov.classList.add('aberto');
+    document.body.style.overflow = 'hidden';
+    carrega();
+    setTimeout(function () { input.focus(); }, 30);
+  }
+  function fecha() {
+    ov.classList.remove('aberto');
+    document.body.style.overflow = '';
+  }
+  btn.addEventListener('click', abre);
+  fechar.addEventListener('click', fecha);
+  ov.addEventListener('click', function (e) { if (e.target === ov) fecha(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === '/' && !ov.classList.contains('aberto') &&
+        document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+      e.preventDefault(); abre();
+    } else if (e.key === 'Escape' && ov.classList.contains('aberto')) {
+      fecha();
+    }
+  });
+  input.addEventListener('input', aplica);
+})();
+</script>
+
+<script>
+
+(function(){
+  var REG = window.BENTO_WORKER;
+  var btn = document.getElementById('sino-btn');
+  var pop = document.getElementById('sino-pop');
+  if(!btn || !pop) return;
+  var s = window.sessaoBentoLer();
+  if(!s) return;               // deslogado: sino fica escondido
+  btn.hidden = false;
+
+  var recebidas = [], novidades = [], carregou = false;
+
+  function esc(t){ var d=document.createElement('div'); d.textContent=(t==null?'':String(t)); return d.innerHTML; }
+  function idR(x){ return x.chave || (x.tipo+':'+(x.quando||'')); }
+  function idN(x){ return (x.data||'')+'|'+(x.titulo||''); }
+  function vKey(){ return 'bento_sino_visto_'+(s.pessoa||s.nivel||'x'); }
+  function lerV(){ try{ return JSON.parse(localStorage.getItem(vKey())||'{}'); }catch(e){ return {}; } }
+  function salvarV(v){ try{ localStorage.setItem(vKey(), JSON.stringify(v)); }catch(e){} }
+
+  function tempo(iso){
+    if(!iso) return '';
+    var t = Date.parse(iso); if(isNaN(t)) return '';
+    var seg = Math.floor((Date.now()-t)/1000);
+    if(seg < 60) return 'agora';
+    if(seg < 3600) return 'há '+Math.floor(seg/60)+' min';
+    if(seg < 86400) return 'há '+Math.floor(seg/3600)+' h';
+    var dias = Math.floor(seg/86400);
+    if(dias === 1) return 'ontem';
+    if(dias < 7) return 'há '+dias+' dias';
+    return dataCurta(iso);
+  }
+  var MESES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  function dataCurta(iso){
+    var d = new Date(iso); if(isNaN(d.getTime())){ var m=String(iso).slice(0,10).split('-'); if(m.length===3) return (+m[2])+' '+MESES[(+m[1])-1]; return ''; }
+    return d.getDate()+' '+MESES[d.getMonth()];
+  }
+  function dataHoraCheia(iso){
+    if(!iso) return '';
+    var d = new Date(iso); if(isNaN(d.getTime())) return '';
+    return d.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+  }
+
+  var ICO = {
+    demanda:'<path d="M5 4h14v16l-7-3-7 3z"/>',
+    resposta:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+    aviso:'<path d="M3 11l18-7-7 18-2-8z"/>',
+    acesso:'<circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M18 8v6M15 11h6"/>'
+  };
+  function svg(tp){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+(ICO[tp]||ICO.aviso)+'</svg>'; }
+  function tag(tp){ return tp==='demanda'?'Demanda':(tp==='resposta'?'Resposta':(tp==='acesso'?'Acesso':'Aviso')); }
+
+  function renderRec(){
+    var wrap = document.getElementById('sino-lista-rec');
+    if(!recebidas.length){ wrap.innerHTML='<div class="sino-vazio">Nada por aqui ainda.</div>'; return; }
+    var v = lerV();
+    wrap.innerHTML = recebidas.map(function(x){
+      var novo = !v['r:'+idR(x)];
+      return '<a class="sino-item'+(novo?' novo':'')+' tp-'+esc(x.tipo)+'" href="'+esc(x.url||'#')+'">'
+        + '<span class="sino-ic">'+svg(x.tipo)+'</span>'
+        + '<span class="sino-tx">'
+        +   '<span class="sino-t"><span class="sino-tag">'+esc(tag(x.tipo))+'</span>'+esc(x.titulo)+'</span>'
+        +   '<span class="sino-d">'+esc(x.descricao)+'</span>'
+        +   '<span class="sino-m" title="'+esc(dataHoraCheia(x.quando))+'">'+esc(tempo(x.quando))+'</span>'
+        + '</span></a>';
+    }).join('');
+  }
+  function renderNov(){
+    var wrap = document.getElementById('sino-lista-nov');
+    if(!novidades.length){ wrap.innerHTML='<div class="sino-vazio">Sem novidades por enquanto.</div>'; return; }
+    wrap.innerHTML = novidades.map(function(x){
+      return '<div class="sino-nov"><div class="sino-nc"><span class="sino-marco"></span>'
+        + '<h4>'+esc(x.titulo)+'</h4><span class="sino-data">'+esc(dataCurta(x.data))+'</span></div>'
+        + '<p>'+esc(x.descricao)+'</p></div>';
+    }).join('');
+  }
+  function chip(id, n){ var e=document.getElementById(id); if(!e) return; if(n>0){ e.textContent=(n>99?'99+':n); e.hidden=false; } else e.hidden=true; }
+  function atualiza(){
+    var v = lerV();
+    var nR = recebidas.filter(function(x){ return !v['r:'+idR(x)]; }).length;
+    var nN = novidades.filter(function(x){ return !v['n:'+idN(x)]; }).length;
+    var tot = nR + nN;
+    var b = document.getElementById('sino-badge');
+    if(tot>0){ b.textContent=(tot>99?'99+':tot); b.hidden=false; btn.classList.add('tem'); }
+    else { b.hidden=true; btn.classList.remove('tem'); }
+    chip('sino-n-rec', nR); chip('sino-n-nov', nN);
+  }
+
+  function visivel(niv){
+    if(!niv || niv==='todos') return true;
+    if(Array.isArray(niv)) return niv.indexOf(s.nivel)>=0 || niv.indexOf('todos')>=0;
+    return niv===s.nivel;
+  }
+  // Pedidos de acesso esperando: sem isto, um pedido que não é da equipe de
+  // bar fica parado até alguém lembrar de abrir a página de Acessos — e é
+  // essa fila que faz a aprovação existir. Só a administração busca.
+  function itensAcesso(d){
+    if(!d || !d.itens || !d.itens.length) return [];
+    return d.itens.map(function(x){
+      return {
+        tipo:'acesso',
+        chave:'acesso:'+x.id,
+        titulo:'Pedido de acesso: '+x.nome,
+        descricao:'quer entrar no Portal'+(x.cargo ? ' como '+x.cargo : ''),
+        quando:x.criado_em ? new Date(x.criado_em).toISOString() : null,
+        url:'acessos.html'
+      };
+    });
+  }
+  function carregar(){
+    carregou = true;
+    var pAcesso = (s.nivel === 'admin')
+      ? fetch(window.BENTO_WORKER+'/api/acessos/pendentes', { headers:{ 'X-Token': s.token } })
+          .then(function(r){ return r.ok ? r.json() : null; })
+          .then(itensAcesso).catch(function(){ return []; })
+      : Promise.resolve([]);
+    if(REG){
+      Promise.all([
+        fetch(REG+'/api/notificacoes', { headers:{ 'X-Token': s.token } })
+          .then(function(r){ return r.ok ? r.json() : {itens:[]}; })
+          .then(function(d){ return (d&&d.itens)||[]; })
+          .catch(function(){ return []; }),
+        pAcesso
+      ]).then(function(res){ recebidas = (res[1]||[]).concat(res[0]); renderRec(); atualiza(); });
+    } else {
+      pAcesso.then(function(a){ recebidas = a||[]; renderRec(); atualiza(); });
+    }
+    fetch('changelog.json', { cache:'no-cache' })
+      .then(function(r){ return r.ok ? r.json() : {itens:[]}; })
+      .then(function(d){ novidades = ((d&&d.itens)||[]).filter(function(x){ return visivel(x.niveis); }); renderNov(); atualiza(); })
+      .catch(function(){});
+  }
+
+  function troca(a){
+    document.getElementById('sino-aba-rec').classList.toggle('on', a==='rec');
+    document.getElementById('sino-aba-nov').classList.toggle('on', a==='nov');
+    document.getElementById('sino-lista-rec').hidden = (a!=='rec');
+    document.getElementById('sino-lista-nov').hidden = (a!=='nov');
+    var v = lerV();
+    if(a==='rec') recebidas.forEach(function(x){ v['r:'+idR(x)]=1; });
+    else novidades.forEach(function(x){ v['n:'+idN(x)]=1; });
+    salvarV(v);
+    setTimeout(function(){ if(a==='rec') renderRec(); atualiza(); }, 1400);
+  }
+  document.getElementById('sino-aba-rec').addEventListener('click', function(){ troca('rec'); });
+  document.getElementById('sino-aba-nov').addEventListener('click', function(){ troca('nov'); });
+  document.getElementById('sino-lidas').addEventListener('click', function(){
+    var v = lerV();
+    recebidas.forEach(function(x){ v['r:'+idR(x)]=1; });
+    novidades.forEach(function(x){ v['n:'+idN(x)]=1; });
+    salvarV(v); renderRec(); atualiza();
+  });
+
+  function abre(){ pop.hidden=false; btn.setAttribute('aria-expanded','true'); if(!carregou) carregar(); }
+  function fecha(){ pop.hidden=true; btn.setAttribute('aria-expanded','false'); }
+  btn.addEventListener('click', function(e){ e.stopPropagation(); if(pop.hidden) abre(); else fecha(); });
+  document.addEventListener('click', function(e){ if(!pop.hidden && !pop.contains(e.target) && !btn.contains(e.target)) fecha(); });
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape' && !pop.hidden) fecha(); });
+
+  carregar();  // carga silenciosa pra o badge aparecer sem abrir
+})();
+
+</script>
 </body>
 </html>

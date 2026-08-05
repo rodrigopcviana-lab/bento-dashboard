@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#2b2620">
 <link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black"><meta name="apple-mobile-web-app-title" content="Bento">
-<title>Escala &amp; BH · Portal do Bar | Bento</title>
+<title>Movimentos entre bares · Portal do Bar | Bento</title>
 <style>
   /* Cross-document view transition (2026-07-11): navegadores que já suportam
      (Safari 18+/iOS 18+, Chrome) fazem um cross-fade suave entre páginas do
@@ -733,112 +733,351 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 </script>
 
 <script src="fila-offline.js"></script>
-
+<script>window.exigirNivel(["equipe"], "transferencias");</script>
 <header class="brand"><img class="logo" src="logo-bento.png" alt="Bento Restaurante">
-<div class="topo-linha"><a class="nivel-pill" href="index.html">Página inicial <b>(Trocar acesso)</b></a><button type="button" class="fila-selo" id="fila-selo"></button></div>
+<div class="topo-linha"><a class="nivel-pill" href="meu-perfil.html">Meu perfil</a><a class="nivel-pill trocar" href="index.html?trocar=1" title="Entrar com outro acesso"><svg class="ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Trocar<span class="tr-ex">acesso</span></a>
+<button class="lupa-busca" id="lupa-busca" type="button" aria-label="Buscar receita" title="Buscar receita (/)">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4.5 4.5"/></svg>
+</button>
+<div id="busca-global-ov" role="dialog" aria-modal="true" aria-label="Buscar receita">
+<div class="bg-caixa">
+<div class="bg-topo">
+<input id="bg-input" type="search" placeholder="Nome do drink…" autocomplete="off">
+<button class="bg-fechar" id="bg-fechar" type="button" aria-label="Fechar busca">&times;</button>
+</div>
+<div class="bg-res" id="bg-res"><p class="bg-dica">Digite ao menos 2 letras.</p></div>
+</div>
+</div>
+<button class="sino-btn" id="sino-btn" type="button" title="Notificações" aria-label="Notificações" aria-expanded="false" hidden><svg class="ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="sino-badge" id="sino-badge" hidden>0</span></button><button type="button" class="fila-selo" id="fila-selo"></button></div>
 </header>
+<a class="voltar" href="mural.html">&larr; Mural</a>
+
+<style>
+  .prm-toggle-btn { width: 100%; display: flex; align-items: center; justify-content: space-between;
+                     gap: 8px; padding: 9px 13px; border-radius: 11px; border: 1px solid var(--border);
+                     background: var(--card); color: var(--text); font-size: 13px; font-weight: 600;
+                     cursor: pointer; margin-bottom: 8px; }
+  .prm-toggle-btn .prm-toggle-ic { display: flex; align-items: center; color: var(--acc); transition: transform .18s; }
+  .prm-toggle-btn .prm-toggle-ic svg { width: 15px; height: 15px; display: block; }
+  .prm-toggle-btn.aberto .prm-toggle-ic { transform: rotate(180deg); }
+  .pr-mini { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; margin: 0 0 16px; }
+  .pr-mini[hidden] { display: none; }
+  a.prm-card { position: relative; display: flex; flex-direction: column; align-items: center;
+               justify-content: center; text-align: center; gap: 5px; border-radius: 11px; padding: 8px 6px;
+               text-decoration: none; color: var(--text); min-height: 52px; min-width: 0; border: 1.5px solid;
+               overflow: hidden; transition: filter .15s; }
+  a.prm-card:hover { filter: brightness(1.12); }
+  a.prm-card::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; }
+  .prm-card.prm-oc { background: linear-gradient(135deg,#33221d,#241713); border-color: #e07a52; }
+  .prm-card.prm-oc::before { background: #f28a63; }
+  .prm-card.prm-so { background: linear-gradient(135deg,#152a22,#111d17); border-color: #4fbf92; }
+  .prm-card.prm-so::before { background: #7fe6bd; }
+  .prm-card.prm-dose { background: linear-gradient(135deg,#16222c,#121a21); border-color: #6fa8dc; }
+  .prm-card.prm-dose::before { background: #8ec0ea; }
+  .prm-card.prm-ficha { background: linear-gradient(135deg,#241d2e,#191424); border-color: #9b8ec4; }
+  .prm-card.prm-ficha::before { background: #b6a9dd; }
+  a.prm-card .prm-chip { width: 24px; height: 24px; border-radius: 7px; display: flex;
+                          align-items: center; justify-content: center; flex: none; }
+  a.prm-card .prm-chip svg { width: 13px; height: 13px; display: block; flex: none; }
+  .prm-card.prm-oc .prm-chip { background: rgba(226,75,74,.16); color: #f0a58f; }
+  .prm-card.prm-so .prm-chip { background: rgba(80,170,110,.16); color: #9fdcae; }
+  .prm-card.prm-dose .prm-chip { background: rgba(111,168,220,.18); color: #8ec0ea; }
+  .prm-card.prm-ficha .prm-chip { background: rgba(155,142,196,.18); color: #b6a9dd; }
+  .prm-card .prm-t { font-size: 11.5px; font-weight: 600; }
+</style>
+<button type="button" class="prm-toggle-btn" id="prm-toggle-btn" aria-expanded="false" aria-controls="pr-mini-conteudo">
+  <span>Painel Rápido</span>
+  <span class="prm-toggle-ic"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span>
+</button>
+<div class="pr-mini" id="pr-mini-conteudo" hidden>
+  <a class="prm-card prm-oc" href="registro.html">
+    <span class="prm-chip"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4"/><path d="M12 16h.01"/><path d="M10.36 3.6 2.26 17.5a1.9 1.9 0 0 0 1.64 2.5h16.2a1.9 1.9 0 0 0 1.64-2.5L13.64 3.6a1.9 1.9 0 0 0-3.28 0z"/></svg></span><span class="prm-t">Nova demanda</span></a>
+  <a class="prm-card prm-so" href="quebras.html">
+    <span class="prm-chip"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4h10l-1.15 15.1a2 2 0 0 1-2 1.9h-3.7a2 2 0 0 1-2-1.9L7 4z"/><path d="M9.7 8.4l3.1 2.2-2.2 2.1 2.7 2.3"/></svg></span><span class="prm-t">Quebras</span></a>
+  <a class="prm-card prm-ficha" href="cocktails.html">
+    <span class="prm-chip"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-8 9z"/><path d="M12 14v6M8 20h8"/></svg></span><span class="prm-t">Ficha técnica</span></a>
+  <a class="prm-card prm-dose" href="dose.html"><span class="prm-chip"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3h4v3l2 3v10a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2V9l2-3z"/><path d="M9 13h6"/></svg></span><span class="prm-t">Registro de Dose</span></a>
+</div>
+<script>(function(){
+  var btn = document.getElementById('prm-toggle-btn');
+  var conteudo = document.getElementById('pr-mini-conteudo');
+  btn.onclick = function () {
+    var abrir = conteudo.hidden;
+    conteudo.hidden = !abrir;
+    btn.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+    btn.classList.toggle('aberto', abrir);
+  };
+})();</script>
 
 
-<a class="voltar" id="voltar-hub" href="mural.html">&larr; Mural</a>
+<h1><svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8.5V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8.5"/><path d="M2.5 8.5h19L19.5 4h-15z"/><path d="M10 12h4"/></svg> Movimentos entre bares</h1>
+<p class="sub">Produto que passou de um bar pro outro, e drink que saiu diferente da ficha. Os dois viram histórico pra Administração — o Bento e o Bento Wine Bar têm sistemas de venda separados, então a transferência precisa ser lançada à mão no sistema depois.</p>
+<style>
+  .mv-abas { display:flex; gap:8px; margin:0 0 14px; }
+  .mv-aba { flex:1; padding:10px 8px; border:1px solid var(--border); border-radius:10px;
+      background:var(--bg); color:var(--text-2); font:inherit; font-size:13px; font-weight:600;
+      cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; }
+  .mv-aba[aria-selected="true"] { border-color:var(--ambar); color:var(--text); background:var(--panel); }
+  .mv-campo { margin-bottom:10px; }
+  .mv-campo label { display:block; font-size:12px; color:var(--text-2); margin:0 0 4px; }
+  .mv-campo input, .mv-campo select, .mv-campo textarea { width:100%; background:var(--bg);
+      border:1px solid var(--border); border-radius:10px; padding:10px 12px; font:inherit;
+      font-size:14px; color:var(--text); outline:none; }
+  .mv-campo input:focus, .mv-campo select:focus, .mv-campo textarea:focus { border-color:var(--ambar); }
+  .mv-dupla { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .mv-enviar { width:100%; padding:12px; font-weight:700; border:none; border-radius:10px;
+      background:var(--ambar); color:#2b2620; cursor:pointer; font-size:15px; }
+  .mv-enviar[disabled] { opacity:.55; cursor:default; }
+  .mv-sentido { display:flex; align-items:center; gap:8px; }
+  .mv-sentido select { flex:1; }
+  .mv-troca-btn { border:1px solid var(--border); background:var(--bg); color:var(--text-2);
+      border-radius:10px; padding:0 10px; height:40px; cursor:pointer; font:inherit; font-size:16px; }
+  .mv-nota { font-size:12px; color:var(--text-3); margin:8px 0 0; }
+</style>
+
+<div class="mv-abas" role="tablist">
+  <button class="mv-aba" id="mv-t-transf" role="tab" aria-selected="true" aria-controls="mv-p-transf"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8.5V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8.5"/><path d="M2.5 8.5h19L19.5 4h-15z"/><path d="M10 12h4"/></svg> Transferência</button>
+  <button class="mv-aba" id="mv-t-troca" role="tab" aria-selected="false" aria-controls="mv-p-troca"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-8 9z"/><path d="M12 14v6M8 20h8"/></svg> Troca na receita</button>
+</div>
+
+<datalist id="mv-produtos"></datalist>
+<datalist id="mv-cocktails"></datalist>
+
+<section class="panel" id="mv-p-transf" role="tabpanel" aria-labelledby="mv-t-transf">
+  <div class="mv-campo">
+    <label for="tr-produto">Produto</label>
+    <input id="tr-produto" list="mv-produtos" maxlength="120" placeholder="Digite ou escolha da lista" autocomplete="off">
+  </div>
+  <div class="mv-dupla">
+    <div class="mv-campo">
+      <label for="tr-qtde">Quantidade</label>
+      <input id="tr-qtde" type="number" inputmode="decimal" min="0" step="any" placeholder="0">
+    </div>
+    <div class="mv-campo">
+      <label for="tr-unidade">Unidade</label>
+      <select id="tr-unidade"></select>
+    </div>
+  </div>
+  <div class="mv-campo">
+    <label for="tr-origem">Saiu de / entrou em</label>
+    <div class="mv-sentido">
+      <select id="tr-origem"></select>
+      <button type="button" class="mv-troca-btn" id="tr-inverter" aria-label="Inverter origem e destino" title="Inverter">&#8646;</button>
+      <select id="tr-destino"></select>
+    </div>
+  </div>
+  <div class="mv-dupla">
+    <div class="mv-campo">
+      <label for="tr-data">Data</label>
+      <input id="tr-data" type="date">
+    </div>
+    <div class="mv-campo">
+      <label for="tr-responsavel">Quem transferiu</label>
+      <input id="tr-responsavel" maxlength="80" placeholder="Seu nome">
+    </div>
+  </div>
+  <div class="mv-campo">
+    <label for="tr-obs">Observação (opcional)</label>
+    <textarea id="tr-obs" rows="2" maxlength="2000" placeholder="Algo que a Administração precise saber ao lançar"></textarea>
+  </div>
+  <button class="mv-enviar" id="tr-enviar">Registrar transferência</button>
+  <p class="sub" id="tr-msg" role="status" aria-live="polite" style="margin:10px 0 0"></p>
+  <p class="mv-nota">Cada transferência registrada aqui ainda precisa ser lançada no sistema de vendas pela Administração — este registro é o que diz a ela o que lançar.</p>
+</section>
+
+<section class="panel" id="mv-p-troca" role="tabpanel" aria-labelledby="mv-t-troca" hidden>
+  <div class="mv-campo">
+    <label for="tc-cocktail">Qual drink</label>
+    <input id="tc-cocktail" list="mv-cocktails" maxlength="120" placeholder="Digite ou escolha da lista" autocomplete="off">
+  </div>
+  <div class="mv-campo">
+    <label for="tc-previsto">O que a ficha pede</label>
+    <input id="tc-previsto" list="mv-produtos" maxlength="120" placeholder="Ex.: Red Bull Normal" autocomplete="off">
+  </div>
+  <div class="mv-campo">
+    <label for="tc-usado">O que foi usado no lugar</label>
+    <input id="tc-usado" list="mv-produtos" maxlength="120" placeholder="Ex.: Red Bull Tropical" autocomplete="off">
+  </div>
+  <div class="mv-dupla">
+    <div class="mv-campo">
+      <label for="tc-qtde">Quantos drinks</label>
+      <input id="tc-qtde" type="number" inputmode="numeric" min="1" step="1" value="1">
+    </div>
+    <div class="mv-campo">
+      <label for="tc-comanda">Comanda (opcional)</label>
+      <input id="tc-comanda" maxlength="30" placeholder="Nº">
+    </div>
+  </div>
+  <div class="mv-campo">
+    <label for="tc-motivo">Por que trocou</label>
+    <select id="tc-motivo"></select>
+  </div>
+  <div class="mv-dupla">
+    <div class="mv-campo">
+      <label for="tc-data">Data</label>
+      <input id="tc-data" type="date">
+    </div>
+    <div class="mv-campo">
+      <label for="tc-responsavel">Quem preparou</label>
+      <input id="tc-responsavel" maxlength="80" placeholder="Seu nome">
+    </div>
+  </div>
+  <div class="mv-campo">
+    <label for="tc-obs">Observação <span id="tc-obs-obrig" hidden>(obrigatória em "Outro")</span></label>
+    <textarea id="tc-obs" rows="2" maxlength="2000" placeholder="Detalhe, se precisar"></textarea>
+  </div>
+  <button class="mv-enviar" id="tc-enviar">Registrar troca</button>
+  <p class="sub" id="tc-msg" role="status" aria-live="polite" style="margin:10px 0 0"></p>
+</section>
+
 <script>
-(function () {
-  var alvos = {"equipe": ["mural.html", "Mural"], "maitres": ["maitres-mural.html", "Mural"], "admin": ["admin-mural.html", "Mural"], "rh": ["rh.html", "In\u00edcio RH"]};
-  function escolhe() {
-    var p = new URLSearchParams(location.search).get('nivel');
-    if (p && alvos[p]) return p;
-    var r = document.referrer || '';
-    if (/rh(?:-|\.html)/.test(r)) return 'rh';
-    if (r.indexOf('admin-') !== -1) return 'admin';
-    if (r.indexOf('maitres-') !== -1) return 'maitres';
-    return 'equipe';
+(function(){
+  var CHAVE = '52d20056e7bbf3bcc08092123cdde44d';
+  var REG = window.BENTO_WORKER;
+  var OPT = {"locais": ["Bento", "Bento Wine Bar"], "unidades": ["un", "garrafa", "dose", "taça", "lata", "caixa", "kg", "L", "ml"], "motivos": ["Pedido do cliente", "Faltou o produto previsto", "Sugestão do bar", "Outro"], "produtos": ["Água c/ gás 370ml", "Água s/ gás 370ml", "Água de coco 330ml", "Água San Pellegrino", "Baden Ipa", "Baden Cristal", "Corona Long", "Corona Long Zero", "Heineken Lata", "Heineken Long", "Heineken Zero", "Stella Artois", "Stella Artois S/ Glúten", "Red Bull Normal", "Red Bull Melancia", "Red Bull Tropical", "Red Bull Zero", "Coca Cola Normal", "Coca Cola Zero", "Guaraná Normal", "Guaraná Zero", "H2O Limoneto", "Pink Limonade", "Schweppes Lata", "Xarope simples", "Suco/limão taiti espremido", "Espuma de gengibre", "Pré-batch Fitzgerald", "Pré-batch Aperol Spritz", "Pré-batch Limoncello Spritz", "Caneca chopp", "Copo baixo liso", "Long Drink soho", "Taça Mistic Coupe", "Caneca cobre", "Tulipa", "Leafy", "Taça Gin", "Shot", "Copo Baixo Soho", "Aruba", "Copo Haus", "Red Label 8 anos", "Old Parr 12 anos", "Jack Daniel's nº 7", "Buchanan's 12 anos", "Chivas Regal 12 anos", "J.W. Black Label 12 anos", "J.W. Double Black 12 anos", "J.W. Gold Label 15 anos", "Chivas Regal 18 anos", "Royal Salute 21 anos", "Blue Label 21 anos", "Cachaça Seleta", "Cachaça Sagatiba", "Campari", "Tequila Jose Cuervo prata", "Tequila Jose Cuervo ouro", "Conhaque Fundador", "Ciroc (750ml)", "Absolut (1lt)", "Tanqueray", "Bombay Saphire", "Licor 43", "Amarula", "Frangelico", "Drambuie", "Limoncello", "Café expresso", "Capuccino", "Chás variados", "ESP 1913 SPARKLING BRANCO BRUT", "ESP CHANDON BRUT ROSE 750ML", "ESP 1913 SPARKLING MOSCATEL", "ESP VULCANICI ROSE 750ML", "ESP CHANDON BRUT 750ML", "ESP CHANDON PASSION 750ML", "ESP 1913 SPARKLING ROSE BRUT", "ESP 1913 SPARKLING MOSC 187ML", "ESP 1913 SPARKLING BRUT 187ML"], "cocktails": ["Fitzgerald", "Negroni", "Aperol Spritz", "Moscow Mule", "Whisky Sour", "Caipirinha (base — Caipi Seleta Limão / Caipi Absolut Limão, Bento)", "Gin & Tônica (Gin Tônica, Bento)", "Gin Tropical (Tropical Gin)", "Ladyberries (mocktail)", "Morena Rosa", "Soda Italiana Maçã Verde", "Bento Clericot", "Limoncello Spritz", "Bonaventura", "Escarlate", "Samba a dois", "Solstício", "Veltet Berries", "Caipirinha Frutas vermelhas", "Caipirinha Maracujá", "Caipirinha Tangerina", "Bloody mary", "Cosmopolitan", "Margarita", "Mark Twain I", "Penicillin", "Pisco Sour", "Luci", "Raspberry Mocktail", "Carajillo", "Dry Martini", "Mojito", "Pina Colada", "Porto Tônico", "Xarope simples", "Suco/limão taiti espremido", "Espuma de gengibre", "Pré-batch Fitzgerald", "Pré-batch Aperol Spritz", "Pré-batch Limoncello Spritz"]};
+
+  function el(id){ return document.getElementById(id); }
+  function opcoes(sel, lista, valorInicial){
+    sel.innerHTML = '';
+    lista.forEach(function(v){
+      var o = document.createElement('option');
+      o.value = v; o.textContent = v;
+      if (v === valorInicial) o.selected = true;
+      sel.appendChild(o);
+    });
   }
-  var k = escolhe();
-  var a = document.getElementById('voltar-hub');
-  a.setAttribute('href', alvos[k][0]);
-  a.textContent = '\u2190 ' + alvos[k][1];
-  // Link "Editar escala" só aparece pra quem tem página de edição (admin/rh)
-  // — regras.html é pública, então isso é só conveniência de navegação, não
-  // controle de acesso (a página de destino é que exige sessão de verdade.
-  var edicaoPorNivel = { admin: 'admin-escala.html', rh: 'rh-escalas.html' };
-  if (edicaoPorNivel[k]) {
-    document.getElementById('editar-escala-link').setAttribute('href', edicaoPorNivel[k]);
-    document.getElementById('editar-escala-painel').style.display = 'block';
+  function preencheDatalist(id, lista){
+    var dl = el(id); if(!dl) return;
+    lista.forEach(function(v){
+      var o = document.createElement('option'); o.value = v; dl.appendChild(o);
+    });
   }
+  // Data local, nunca new Date().toISOString() — aquilo é UTC e às 22h em
+  // Goiânia já virou o dia seguinte, carimbando a transferência no dia errado.
+  function hojeLocal(){
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+
+  preencheDatalist('mv-produtos', OPT.produtos);
+  preencheDatalist('mv-cocktails', OPT.cocktails);
+  opcoes(el('tr-unidade'), OPT.unidades, 'un');
+  opcoes(el('tr-origem'), OPT.locais, OPT.locais[0]);
+  opcoes(el('tr-destino'), OPT.locais, OPT.locais[1] || OPT.locais[0]);
+  opcoes(el('tc-motivo'), OPT.motivos, OPT.motivos[0]);
+  el('tr-data').value = hojeLocal();
+  el('tc-data').value = hojeLocal();
+
+  // Abas
+  function mostraAba(qual){
+    var ehTransf = qual === 'transf';
+    el('mv-t-transf').setAttribute('aria-selected', ehTransf ? 'true' : 'false');
+    el('mv-t-troca').setAttribute('aria-selected', ehTransf ? 'false' : 'true');
+    el('mv-p-transf').hidden = !ehTransf;
+    el('mv-p-troca').hidden = ehTransf;
+  }
+  el('mv-t-transf').addEventListener('click', function(){ mostraAba('transf'); });
+  el('mv-t-troca').addEventListener('click', function(){ mostraAba('troca'); });
+  // #troca na URL abre direto na segunda aba (link do Mural / de outra tela).
+  if ((location.hash || '').indexOf('troca') >= 0) mostraAba('troca');
+
+  el('tr-inverter').addEventListener('click', function(){
+    var o = el('tr-origem'), d = el('tr-destino');
+    var tmp = o.value; o.value = d.value; d.value = tmp;
+  });
+
+  el('tc-motivo').addEventListener('change', function(){
+    el('tc-obs-obrig').hidden = el('tc-motivo').value !== 'Outro';
+  });
+
+  function envia(url, corpo, botao, msg, aoOk){
+    if(!REG){ msg.textContent = 'Registro indisponível — worker não configurado.'; return; }
+    botao.disabled = true; msg.textContent = 'Enviando…';
+    fetch(REG + url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(corpo)
+    }).then(function(r){
+      return r.json().catch(function(){ return {}; }).then(function(j){ return { ok: r.ok, j: j }; });
+    }).then(function(res){
+      botao.disabled = false;
+      if (res.ok && res.j && res.j.ok) { msg.textContent = 'Registrado.'; aoOk(); }
+      else { msg.textContent = (res.j && res.j.erro) || 'Não deu pra registrar.'; }
+    }).catch(function(){
+      botao.disabled = false;
+      msg.textContent = 'Falha de conexão — tente de novo em instantes.';
+    });
+  }
+
+  el('tr-enviar').addEventListener('click', function(){
+    var msg = el('tr-msg');
+    var produto = el('tr-produto').value.trim();
+    var qtde = parseFloat(el('tr-qtde').value);
+    if(!produto){ msg.textContent = 'Diga qual produto.'; return; }
+    if(!(qtde > 0)){ msg.textContent = 'Quantidade precisa ser maior que zero.'; return; }
+    if(el('tr-origem').value === el('tr-destino').value){
+      msg.textContent = 'Origem e destino são o mesmo bar.'; return;
+    }
+    envia('/api/transferencia', {
+      chave: CHAVE, produto: produto, quantidade: qtde,
+      unidade: el('tr-unidade').value,
+      origem: el('tr-origem').value, destino: el('tr-destino').value,
+      data: el('tr-data').value,
+      responsavel: el('tr-responsavel').value.trim(),
+      observacao: el('tr-obs').value.trim()
+    }, el('tr-enviar'), msg, function(){
+      // Nome e sentido ficam: numa noite de transferências, quem registra é a
+      // mesma pessoa mandando pro mesmo bar várias vezes.
+      el('tr-produto').value = ''; el('tr-qtde').value = ''; el('tr-obs').value = '';
+      el('tr-produto').focus();
+    });
+  });
+
+  el('tc-enviar').addEventListener('click', function(){
+    var msg = el('tc-msg');
+    var cocktail = el('tc-cocktail').value.trim();
+    var previsto = el('tc-previsto').value.trim();
+    var usado = el('tc-usado').value.trim();
+    var qtde = parseInt(el('tc-qtde').value, 10);
+    var obs = el('tc-obs').value.trim();
+    if(!cocktail){ msg.textContent = 'Diga qual drink.'; return; }
+    if(!previsto || !usado){ msg.textContent = 'Informe o que a ficha pede e o que foi usado.'; return; }
+    if(!(qtde > 0)){ msg.textContent = 'Quantos drinks saíram assim?'; return; }
+    if(el('tc-motivo').value === 'Outro' && !obs){ msg.textContent = 'Descreva o motivo em "Outro".'; return; }
+    envia('/api/troca-receita', {
+      chave: CHAVE, cocktail: cocktail, previsto: previsto, usado: usado,
+      quantidade: qtde, motivo: el('tc-motivo').value,
+      comanda: el('tc-comanda').value.trim(),
+      data: el('tc-data').value,
+      responsavel: el('tc-responsavel').value.trim(),
+      observacao: obs
+    }, el('tc-enviar'), msg, function(){
+      el('tc-cocktail').value = ''; el('tc-previsto').value = ''; el('tc-usado').value = '';
+      el('tc-qtde').value = '1'; el('tc-comanda').value = ''; el('tc-obs').value = '';
+      el('tc-cocktail').focus();
+    });
+  });
 })();
 </script>
 
-<h1>Escala, folgas e banco de horas</h1>
-<p class="sub">Regras fixas da operação. Em dúvida, fale com a coordenação.</p>
 
-<h2>Padrão fixo da equipe</h2>
-
-<table class="regras">
-<tr><th>Pessoa</th><th>Turno</th><th>Folga fixa</th><th>Rodízio extra</th></tr>
-<tr><td><strong>Gabriel</strong></td><td>Dia</td><td>Segunda</td><td>1 domingo a cada 4 semanas (rodízio mensal)</td></tr><tr><td><strong>Vitória</strong></td><td>Noite</td><td>Terça</td><td>domingo sim, domingo não (rodízio com a Yasmin)</td></tr><tr><td><strong>Yasmin</strong></td><td>Noite</td><td>Quinta</td><td>domingo sim, domingo não (rodízio com a Vitória)</td></tr><tr><td><strong>Jardel</strong></td><td>Noite</td><td>Domingo</td><td>—</td></tr>
-</table>
-
-<h2>Próximas semanas</h2>
-<p class="sub" style="margin-bottom:10px">Linhas em vermelho: pessoa de folga naquele dia.
-Atualizado a partir do Notion em 2026-07-04.</p>
-
-<table class="escala regras">
-<tr><th>Dia</th><th>Gabriel</th><th>Vitória</th><th>Yasmin</th><th>Jardel</th></tr>
-<tr><td>Segunda 29/06</td><td class="folga">Folga</td><td class="turno">Noite</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Terça 30/06</td><td class="turno">Dia</td><td class="folga">Folga</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Quarta 01/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Quinta 02/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="folga">Folga</td><td class="turno">Noite</td></tr><tr><td>Sexta 03/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Sábado 04/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Domingo 05/07</td><td class="turno">Dia</td><td class="folga">Folga</td><td class="turno">Noite</td><td class="folga">Folga</td></tr><tr><td>Segunda 06/07</td><td class="folga">Folga</td><td class="turno">Noite</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Terça 07/07</td><td class="turno">Dia</td><td class="folga">Folga</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Quarta 08/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Quinta 09/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="folga">Folga</td><td class="turno">Noite</td></tr><tr><td>Sexta 10/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Sábado 11/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Domingo 12/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="folga">Folga</td><td class="folga">Folga</td></tr><tr><td>Segunda 13/07</td><td class="folga">Folga</td><td class="turno">Noite</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Terça 14/07</td><td class="turno">Dia</td><td class="folga">Folga</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Quarta 15/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Quinta 16/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="folga">Folga</td><td class="turno">Noite</td></tr><tr><td>Sexta 17/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Sábado 18/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Domingo 19/07</td><td class="turno">Dia</td><td class="folga">Folga</td><td class="turno">Noite</td><td class="folga">Folga</td></tr><tr><td>Segunda 20/07</td><td class="folga">Folga</td><td class="turno">Noite</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Terça 21/07</td><td class="turno">Dia</td><td class="folga">Folga</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Quarta 22/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Quinta 23/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="folga">Folga</td><td class="turno">Noite</td></tr><tr><td>Sexta 24/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Sábado 25/07</td><td class="turno">Dia</td><td class="turno">Noite</td><td class="turno">Noite</td><td class="turno">Noite</td></tr><tr><td>Domingo 26/07</td><td class="folga">Folga</td><td class="turno">Noite</td><td class="folga">Folga</td><td class="folga">Folga</td></tr>
-</table>
-
-<div class="panel alerta">
-<h2><svg class="ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4"/><path d="M12 16h.01"/><path d="M10.36 3.6 2.26 17.5a1.9 1.9 0 0 0 1.64 2.5h16.2a1.9 1.9 0 0 0 1.64-2.5L13.64 3.6a1.9 1.9 0 0 0-3.28 0z"/></svg> Pontos de atenção na escala</h2>
-<ul><li><strong>Domingo à noite abaixo da cobertura mínima</strong> — Todo domingo o Jardel folga (fixo) e uma das mulheres folga (rodízio) — sobra só 1 bartender à noite, abaixo do mínimo de 2 por turno.</li><li><strong>26/07/2026 — também sem cobertura no turno dia</strong> — Gabriel (ciclo mensal) e Yasmin (rodízio) folgam no mesmo domingo — só a Vitória trabalha, e ela sozinha também cobre a noite. Turno dia fica sem ninguém.</li></ul>
+<div class="sino-pop" id="sino-pop" role="dialog" aria-label="Notificações" hidden>
+  <div class="sino-cab">
+    <h3>Notificações</h3>
+    <button class="sino-lidas" id="sino-lidas" type="button">Marcar todas como lidas</button>
+  </div>
+  <div class="sino-abas">
+    <button class="sino-aba on" id="sino-aba-rec" data-aba="rec" type="button">Recebidas <span class="sino-n" id="sino-n-rec" hidden></span></button>
+    <button class="sino-aba" id="sino-aba-nov" data-aba="nov" type="button">Novidades do site <span class="sino-n" id="sino-n-nov" hidden></span></button>
+  </div>
+  <div class="sino-lista" id="sino-lista-rec"><div class="sino-vazio">Carregando…</div></div>
+  <div class="sino-lista" id="sino-lista-nov" hidden></div>
 </div>
-
-<h2>Regras fixas (CLT)</h2>
-<table class="regras">
-<tr><th>Regra</th><th>Valor</th></tr>
-<tr><td>Jornada semanal máxima</td><td><strong>44 horas</strong> (CLT)</td></tr>
-<tr><td>Folga mínima</td><td><strong>1 dia por semana</strong></td></tr>
-<tr><td>Intervalo mínimo entre turnos</td><td><strong>11 horas</strong></td></tr>
-<tr><td>Cobertura mínima por turno</td><td><strong>2 bartenders</strong></td></tr>
-<tr><td>Horas extras</td><td>Aprovação da <strong>diretoria</strong> antes de ir ao RH</td></tr>
-</table>
-
-<div class="panel" style="margin-top:14px">
-<h2>Banco de horas (BH)</h2>
-<ul>
-<li>Saldo BH = horas trabalhadas − horas contratuais.</li>
-<li>Hora extra entra como <strong>BH</strong> por padrão; pagamento só quando a coordenação definir.</li>
-<li>Lançamentos e consultas: pelo grupo de BH no WhatsApp.</li>
-<li>Fique de olho em quem está perto do limite de 44h ou com BH negativo — sinalize à coordenação.</li>
-</ul>
-</div>
-
-<div class="panel">
-<h2>Trocas, folgas e férias</h2>
-<ul>
-<li>Antes de aprovar troca ou férias, confira a cobertura mínima do turno (2 bartenders).</li>
-<li>Escala já aprovada não muda sem confirmação do coordenador.</li>
-<li>Férias: solicitar pelo <a href="rh-ferias.html" style="color:var(--ambar-2)">Portal · acesso RH</a>,
-com antecedência.</li>
-</ul>
-</div>
-
-<div class="panel" id="editar-escala-painel" style="display:none">
-<h2>Editar a escala</h2>
-<p>Administração e RH podem editar a escala direto pelo Portal — pontualmente (um dia) ou no padrão
-(afeta as próximas semanas). A edição só salva se passar nas regras de CLT acima.</p>
-<a id="editar-escala-link" href="#" style="color:var(--ambar-2)">Editar escala &rarr;</a>
-</div>
-
-<div class="panel">
-<h2>Precisa resolver algo?</h2>
-<p>Troca de plantão, dúvida de saldo, escala apertada — chama direto:</p>
-<a class="wa" href="https://wa.me/556281483511?text=Ol%C3%A1%20Rodrigo!%20Vim%20pelo%20Portal%20do%20Bento.%20">
-WhatsApp — Rodrigo (Coordenação de Bares)</a>
-</div>
-
 
 <p class="nota">Portal do Bar · Bento · atualizado em 05/08/2026.
 Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à mão.</p>
-
+<script>if (window.FilaOffline) window.FilaOffline.iniciarSelo({"elId": "fila-selo", "destinos": {"registro": "registro.html", "turno": "turno.html"}});</script>
 
 <style>
   .ver-nova { position: fixed; left: 12px; right: 12px; top: calc(10px + env(safe-area-inset-top, 0px));
@@ -959,6 +1198,240 @@ if ('serviceWorker' in navigator) {
 </script>
 
 
+<script>
+(function () {
+  var COCKTAILS_HREF = "cocktails.html";
+  var btn = document.getElementById('lupa-busca');
+  var ov = document.getElementById('busca-global-ov');
+  var input = document.getElementById('bg-input');
+  var res = document.getElementById('bg-res');
+  var fechar = document.getElementById('bg-fechar');
+  if (!btn || !ov) return;
+  var idx = null, carregando = false;
 
+  function semAcento(s) { return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+
+  function carrega() {
+    if (idx || carregando) return;
+    carregando = true;
+    fetch('receitas_idx.json').then(function (r) { return r.json(); })
+      .then(function (d) { idx = d; if (input.value.trim().length >= 2) aplica(); })
+      .catch(function () { idx = []; res.innerHTML = '<p class="bg-vazio">Índice indisponível — ' +
+        '<a href="' + COCKTAILS_HREF + '">abrir fichas técnicas</a>.</p>'; });
+  }
+
+  function marca(nome, q) {
+    var i = semAcento(nome).indexOf(q);
+    if (i < 0) return nome;
+    return nome.slice(0, i) + '<mark>' + nome.slice(i, i + q.length) + '</mark>' + nome.slice(i + q.length);
+  }
+
+  function aplica() {
+    var q = semAcento(input.value.trim());
+    if (q.length < 2) { res.innerHTML = '<p class="bg-dica">Digite ao menos 2 letras.</p>'; return; }
+    if (!idx) { res.innerHTML = '<p class="bg-dica">Carregando…</p>'; return; }
+    var achados = idx.filter(function (it) { return semAcento(it.n).indexOf(q) >= 0; }).slice(0, 8);
+    if (!achados.length) {
+      res.innerHTML = '<p class="bg-vazio">Nada com "' + input.value.trim() +
+        '" — <a href="' + COCKTAILS_HREF + '">ver todas as fichas &rarr;</a></p>';
+      return;
+    }
+    res.innerHTML = '';
+    achados.forEach(function (it) {
+      var a = document.createElement('a');
+      a.className = 'bg-item'; a.href = COCKTAILS_HREF + '#ficha-' + it.s;
+      a.innerHTML = '<span class="nome">' + marca(it.n, q) + '</span>';
+      res.appendChild(a);
+    });
+  }
+
+  function abre() {
+    ov.classList.add('aberto');
+    document.body.style.overflow = 'hidden';
+    carrega();
+    setTimeout(function () { input.focus(); }, 30);
+  }
+  function fecha() {
+    ov.classList.remove('aberto');
+    document.body.style.overflow = '';
+  }
+  btn.addEventListener('click', abre);
+  fechar.addEventListener('click', fecha);
+  ov.addEventListener('click', function (e) { if (e.target === ov) fecha(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === '/' && !ov.classList.contains('aberto') &&
+        document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+      e.preventDefault(); abre();
+    } else if (e.key === 'Escape' && ov.classList.contains('aberto')) {
+      fecha();
+    }
+  });
+  input.addEventListener('input', aplica);
+})();
+</script>
+
+<script>
+
+(function(){
+  var REG = window.BENTO_WORKER;
+  var btn = document.getElementById('sino-btn');
+  var pop = document.getElementById('sino-pop');
+  if(!btn || !pop) return;
+  var s = window.sessaoBentoLer();
+  if(!s) return;               // deslogado: sino fica escondido
+  btn.hidden = false;
+
+  var recebidas = [], novidades = [], carregou = false;
+
+  function esc(t){ var d=document.createElement('div'); d.textContent=(t==null?'':String(t)); return d.innerHTML; }
+  function idR(x){ return x.chave || (x.tipo+':'+(x.quando||'')); }
+  function idN(x){ return (x.data||'')+'|'+(x.titulo||''); }
+  function vKey(){ return 'bento_sino_visto_'+(s.pessoa||s.nivel||'x'); }
+  function lerV(){ try{ return JSON.parse(localStorage.getItem(vKey())||'{}'); }catch(e){ return {}; } }
+  function salvarV(v){ try{ localStorage.setItem(vKey(), JSON.stringify(v)); }catch(e){} }
+
+  function tempo(iso){
+    if(!iso) return '';
+    var t = Date.parse(iso); if(isNaN(t)) return '';
+    var seg = Math.floor((Date.now()-t)/1000);
+    if(seg < 60) return 'agora';
+    if(seg < 3600) return 'há '+Math.floor(seg/60)+' min';
+    if(seg < 86400) return 'há '+Math.floor(seg/3600)+' h';
+    var dias = Math.floor(seg/86400);
+    if(dias === 1) return 'ontem';
+    if(dias < 7) return 'há '+dias+' dias';
+    return dataCurta(iso);
+  }
+  var MESES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  function dataCurta(iso){
+    var d = new Date(iso); if(isNaN(d.getTime())){ var m=String(iso).slice(0,10).split('-'); if(m.length===3) return (+m[2])+' '+MESES[(+m[1])-1]; return ''; }
+    return d.getDate()+' '+MESES[d.getMonth()];
+  }
+  function dataHoraCheia(iso){
+    if(!iso) return '';
+    var d = new Date(iso); if(isNaN(d.getTime())) return '';
+    return d.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+  }
+
+  var ICO = {
+    demanda:'<path d="M5 4h14v16l-7-3-7 3z"/>',
+    resposta:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+    aviso:'<path d="M3 11l18-7-7 18-2-8z"/>',
+    acesso:'<circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M18 8v6M15 11h6"/>'
+  };
+  function svg(tp){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+(ICO[tp]||ICO.aviso)+'</svg>'; }
+  function tag(tp){ return tp==='demanda'?'Demanda':(tp==='resposta'?'Resposta':(tp==='acesso'?'Acesso':'Aviso')); }
+
+  function renderRec(){
+    var wrap = document.getElementById('sino-lista-rec');
+    if(!recebidas.length){ wrap.innerHTML='<div class="sino-vazio">Nada por aqui ainda.</div>'; return; }
+    var v = lerV();
+    wrap.innerHTML = recebidas.map(function(x){
+      var novo = !v['r:'+idR(x)];
+      return '<a class="sino-item'+(novo?' novo':'')+' tp-'+esc(x.tipo)+'" href="'+esc(x.url||'#')+'">'
+        + '<span class="sino-ic">'+svg(x.tipo)+'</span>'
+        + '<span class="sino-tx">'
+        +   '<span class="sino-t"><span class="sino-tag">'+esc(tag(x.tipo))+'</span>'+esc(x.titulo)+'</span>'
+        +   '<span class="sino-d">'+esc(x.descricao)+'</span>'
+        +   '<span class="sino-m" title="'+esc(dataHoraCheia(x.quando))+'">'+esc(tempo(x.quando))+'</span>'
+        + '</span></a>';
+    }).join('');
+  }
+  function renderNov(){
+    var wrap = document.getElementById('sino-lista-nov');
+    if(!novidades.length){ wrap.innerHTML='<div class="sino-vazio">Sem novidades por enquanto.</div>'; return; }
+    wrap.innerHTML = novidades.map(function(x){
+      return '<div class="sino-nov"><div class="sino-nc"><span class="sino-marco"></span>'
+        + '<h4>'+esc(x.titulo)+'</h4><span class="sino-data">'+esc(dataCurta(x.data))+'</span></div>'
+        + '<p>'+esc(x.descricao)+'</p></div>';
+    }).join('');
+  }
+  function chip(id, n){ var e=document.getElementById(id); if(!e) return; if(n>0){ e.textContent=(n>99?'99+':n); e.hidden=false; } else e.hidden=true; }
+  function atualiza(){
+    var v = lerV();
+    var nR = recebidas.filter(function(x){ return !v['r:'+idR(x)]; }).length;
+    var nN = novidades.filter(function(x){ return !v['n:'+idN(x)]; }).length;
+    var tot = nR + nN;
+    var b = document.getElementById('sino-badge');
+    if(tot>0){ b.textContent=(tot>99?'99+':tot); b.hidden=false; btn.classList.add('tem'); }
+    else { b.hidden=true; btn.classList.remove('tem'); }
+    chip('sino-n-rec', nR); chip('sino-n-nov', nN);
+  }
+
+  function visivel(niv){
+    if(!niv || niv==='todos') return true;
+    if(Array.isArray(niv)) return niv.indexOf(s.nivel)>=0 || niv.indexOf('todos')>=0;
+    return niv===s.nivel;
+  }
+  // Pedidos de acesso esperando: sem isto, um pedido que não é da equipe de
+  // bar fica parado até alguém lembrar de abrir a página de Acessos — e é
+  // essa fila que faz a aprovação existir. Só a administração busca.
+  function itensAcesso(d){
+    if(!d || !d.itens || !d.itens.length) return [];
+    return d.itens.map(function(x){
+      return {
+        tipo:'acesso',
+        chave:'acesso:'+x.id,
+        titulo:'Pedido de acesso: '+x.nome,
+        descricao:'quer entrar no Portal'+(x.cargo ? ' como '+x.cargo : ''),
+        quando:x.criado_em ? new Date(x.criado_em).toISOString() : null,
+        url:'acessos.html'
+      };
+    });
+  }
+  function carregar(){
+    carregou = true;
+    var pAcesso = (s.nivel === 'admin')
+      ? fetch(window.BENTO_WORKER+'/api/acessos/pendentes', { headers:{ 'X-Token': s.token } })
+          .then(function(r){ return r.ok ? r.json() : null; })
+          .then(itensAcesso).catch(function(){ return []; })
+      : Promise.resolve([]);
+    if(REG){
+      Promise.all([
+        fetch(REG+'/api/notificacoes', { headers:{ 'X-Token': s.token } })
+          .then(function(r){ return r.ok ? r.json() : {itens:[]}; })
+          .then(function(d){ return (d&&d.itens)||[]; })
+          .catch(function(){ return []; }),
+        pAcesso
+      ]).then(function(res){ recebidas = (res[1]||[]).concat(res[0]); renderRec(); atualiza(); });
+    } else {
+      pAcesso.then(function(a){ recebidas = a||[]; renderRec(); atualiza(); });
+    }
+    fetch('changelog.json', { cache:'no-cache' })
+      .then(function(r){ return r.ok ? r.json() : {itens:[]}; })
+      .then(function(d){ novidades = ((d&&d.itens)||[]).filter(function(x){ return visivel(x.niveis); }); renderNov(); atualiza(); })
+      .catch(function(){});
+  }
+
+  function troca(a){
+    document.getElementById('sino-aba-rec').classList.toggle('on', a==='rec');
+    document.getElementById('sino-aba-nov').classList.toggle('on', a==='nov');
+    document.getElementById('sino-lista-rec').hidden = (a!=='rec');
+    document.getElementById('sino-lista-nov').hidden = (a!=='nov');
+    var v = lerV();
+    if(a==='rec') recebidas.forEach(function(x){ v['r:'+idR(x)]=1; });
+    else novidades.forEach(function(x){ v['n:'+idN(x)]=1; });
+    salvarV(v);
+    setTimeout(function(){ if(a==='rec') renderRec(); atualiza(); }, 1400);
+  }
+  document.getElementById('sino-aba-rec').addEventListener('click', function(){ troca('rec'); });
+  document.getElementById('sino-aba-nov').addEventListener('click', function(){ troca('nov'); });
+  document.getElementById('sino-lidas').addEventListener('click', function(){
+    var v = lerV();
+    recebidas.forEach(function(x){ v['r:'+idR(x)]=1; });
+    novidades.forEach(function(x){ v['n:'+idN(x)]=1; });
+    salvarV(v); renderRec(); atualiza();
+  });
+
+  function abre(){ pop.hidden=false; btn.setAttribute('aria-expanded','true'); if(!carregou) carregar(); }
+  function fecha(){ pop.hidden=true; btn.setAttribute('aria-expanded','false'); }
+  btn.addEventListener('click', function(e){ e.stopPropagation(); if(pop.hidden) abre(); else fecha(); });
+  document.addEventListener('click', function(e){ if(!pop.hidden && !pop.contains(e.target) && !btn.contains(e.target)) fecha(); });
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape' && !pop.hidden) fecha(); });
+
+  carregar();  // carga silenciosa pra o badge aparecer sem abrir
+})();
+
+</script>
 </body>
 </html>
