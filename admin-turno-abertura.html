@@ -89,6 +89,27 @@
   .ck-d { font-size: 12px; color: var(--text-3); margin-top: 3px; line-height: 1.45; display: none; }
   .ck-item.aberto .ck-d { display: block; }
   .ck-seta { flex: none; font-size: 11px; color: var(--text-3); margin-top: 2px; }
+  .ck-dono { font-size: 11px; font-weight: 400; color: var(--text-3); margin-left: 6px; white-space: nowrap; }
+  .ck-dono.ck-semdono { color: #e0967a; }
+  .ck-num { margin-top: 8px; display: flex; align-items: center; gap: 6px; }
+  .ck-num input { width: 88px; padding: 7px 9px; font-size: 14px; border-radius: 7px;
+                  border: 1px solid var(--border); background: var(--card-2); color: var(--text); }
+  .ck-num span { font-size: 12px; color: var(--text-3); }
+  .ck-tag-pontual { font-size: 9.5px; font-weight: 700; padding: 1px 6px; border-radius: 99px;
+                     border: 1px solid #6f9bd6; color: #8fb3e0; margin-left: 6px; vertical-align: 1px; }
+  .ck-cancelar { font-size: 11px; color: #e0967a; background: none; border: none; cursor: pointer;
+                 padding: 2px 0; margin-top: 4px; text-decoration: underline; }
+  .nt-painel { display: none; }
+  .nt-painel.on { display: block; }
+  .nt-campo { margin-bottom: 8px; }
+  .nt-campo input, .nt-campo textarea, .nt-campo select { width: 100%; padding: 9px 10px; font-size: 14px;
+        border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--text);
+        font-family: inherit; }
+  .nt-campo textarea { min-height: 44px; resize: vertical; }
+  .nt-linha { display: flex; gap: 8px; }
+  .nt-linha .nt-campo { flex: 1; }
+  .nt-toggle { font-size: 12.5px; color: var(--ambar-2); background: none; border: none; cursor: pointer;
+               padding: 0; text-decoration: underline; margin-bottom: 8px; }
   .gelo-pills { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
   .gelo-pill { flex: 1; min-width: 52px; padding: 10px 4px; border: 1px solid var(--border); border-radius: 8px;
                background: var(--card-2); color: var(--text-2); font-size: 13px; cursor: pointer; text-align: center;
@@ -239,7 +260,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 </div>
 <script>
 (function () {
-  var BUILD = 'fc25e6029dfe';
+  var BUILD = 'f97ffe93f4db';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
@@ -356,6 +377,32 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
     <div class="checklist" id="tv-checklist"></div>
   </div>
 
+  <div class="tu-campo" id="tv-nt-bloco-wrap" style="display:none">
+    <button type="button" class="nt-toggle" id="tv-nt-toggle">+ Incluir tarefa pontual</button>
+    <div class="nt-painel panel" id="tv-nt-painel">
+      <div class="nt-campo"><input id="tv-nt-titulo" placeholder="O que precisa ser feito?" maxlength="120"></div>
+      <div class="nt-campo"><textarea id="tv-nt-desc" placeholder="Detalhe (opcional)" maxlength="800"></textarea></div>
+      <div class="nt-linha">
+        <div class="nt-campo">
+          <select id="tv-nt-bloco">
+            <option value="abertura">Abertura</option>
+            <option value="mise_en_place">Mise en place</option>
+            <option value="durante" selected>Durante o serviço</option>
+            <option value="fechamento">Fechamento</option>
+            <option value="periodica">Periódica</option>
+          </select>
+        </div>
+        <div class="nt-campo"><input id="tv-nt-prazo" type="date"></div>
+      </div>
+      <div class="tu-campo tu-check" style="margin-bottom:8px">
+        <input type="checkbox" id="tv-nt-prio">
+        <label for="tv-nt-prio" style="margin:0;text-transform:none;font-size:14px;color:var(--text)">Prioritário</label>
+      </div>
+      <button type="button" class="enviar" id="tv-nt-enviar" style="margin-top:0">Incluir tarefa</button>
+      <p class="status" id="tv-nt-status"></p>
+    </div>
+  </div>
+
   <div class="tu-campo"><label>Gelo</label>
     <div class="gelo-pills" id="tv-gelo-pills">
       <button type="button" class="gelo-pill" data-pct="0">0%</button>
@@ -397,8 +444,86 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
   var WORKER_URL = "https://bento-portal-contagem.rodrigopcviana.workers.dev";
   var CHAVE = '52d20056e7bbf3bcc08092123cdde44d';
   var FASE = "abertura";
-  var ROTINAS = /* ROTINAS:INICIO */ {"foco_do_dia": "Turno tranquilo — capricho no básico: bancada limpa, etiquetas em dia, gelo cheio.", "abertura": [{"t": "Bater ponto e vestir uniforme", "d": "Chegar no horário e já entrar pronto pro turno — uniforme completo, sem enrolar.", "prio": true}, {"t": "Ligar equipamentos (geladeira, máquina de gelo, liquidificador)", "d": "Checar se todos ligam normal. Equipamento com defeito, avisar na hora, não deixar pra depois.", "prio": true}, {"t": "Conferir limpeza geral do bar", "d": "Bancada, piso e prateleiras sem sujeira ou resíduo do dia anterior.", "prio": true}, {"t": "Verificar estoque de bebidas e insumos", "d": "Olhar o que tem e o que falta pra montar o turno sem correr atrás no meio do serviço.", "prio": true}, {"t": "Montar a bancada (mise en place)", "d": "Frutas, ervas, garnishes e xaropes prontos e no lugar certo antes de abrir.", "prio": true}, {"t": "Conferir gelo (cubo e triturado)", "d": "Máquina cheia e reserva pronta — gelo é o insumo que mais falta no meio do movimento.", "prio": true}, {"t": "Repor copos, shakers e utensílios", "d": "Estação completa: coqueteleiras, jiggers, colheres e copos limpos e à mão.", "prio": false}, {"t": "Checar etiquetagem dos insumos", "d": "Garrafas, bisnagas e potes com etiqueta legível (produto + data). Sem etiqueta, sem uso.", "prio": true}, {"t": "Testar iluminação e som", "d": "Ambiente pronto pra receber o primeiro cliente sem ajuste de última hora.", "prio": false}, {"t": "Verificar reservas e eventos do dia", "d": "Saber se tem grupo grande ou evento programado ajuda a calcular o ritmo do turno.", "prio": false}, {"t": "Conferir carrinho/bancada de apoio", "d": "Itens de reposição rápida (guardanapo, canudo, palito) abastecidos.", "prio": false}], "fechamento": [{"t": "Registrar vendas e consumo do dia", "d": "Fechar a contagem do que saiu, pra bater com o estoque amanhã.", "prio": true}, {"t": "Verificar estoque e anotar o que falta", "d": "Lista clara do que precisa repor — isso vira a base do pedido de compra.", "prio": true}, {"t": "Lavar e guardar utensílios", "d": "Copos, shakers, jiggers e colheres limpos e guardados no lugar certo.", "prio": true}, {"t": "Limpar bancada, equipamentos e dreno", "d": "Estação inteira higienizada, sem resíduo de fruta, xarope ou bebida.", "prio": true}, {"t": "Esvaziar e higienizar a máquina de gelo", "d": "Gelo velho fora, máquina limpa pra não acumular sujeira ou mau cheiro.", "prio": false}, {"t": "Guardar insumos e ingredientes perecíveis", "d": "Fruta, ervas e produtos abertos na geladeira, bem fechados e etiquetados.", "prio": true}, {"t": "Desligar todos os equipamentos", "d": "Confirmar que nada fica ligado à toa até o próximo turno.", "prio": true}, {"t": "Conferir lixo e organização geral", "d": "Lixo recolhido, saco novo colocado, área de trabalho arrumada pra quem abre amanhã.", "prio": false}, {"t": "Anotar rupturas e pendências do turno", "d": "O que quebrou, faltou ou não deu tempo de fazer — registrar pra não se perder.", "prio": true}, {"t": "Registrar ocorrência, se houver", "d": "Problema com cliente, equipamento ou equipe vai pro Registro Rápido, não fica só no boca a boca.", "prio": false}, {"t": "Trancar geladeiras e armários", "d": "Itens sensíveis guardados e travados antes de sair.", "prio": false}]} /* ROTINAS:FIM */;
-  var ITENS = ROTINAS[FASE] || [];
+  var ROTINAS = /* ROTINAS:INICIO */ {"_nota": "ROTINAS v3 (2026-09-02, PLANO_ROTINAS_V3.md §2/§3). Fonte única das rotinas do Bento: alimenta as 6 páginas de turno (via bento/injeta_rotinas.py), a página rh-rotinas.html e o card 'Foco do dia' do mural.\n\nCOMPATÍVEL COM O QUE ESTÁ NO AR: as páginas de turno leem ROTINAS['abertura'] e ROTINAS['fechamento'] e renderizam só 't', 'd' e 'prio'. Os campos e blocos novos são IGNORADOS por elas até o E5 — publicar este arquivo sozinho não quebra nada e não mostra nada novo.\n\nCAMPOS:\n  id        ESTÁVEL e nunca reciclado — é a chave de histórico e de conclusão. Reescrever o título é seguro; trocar o id reabre o item como novo pra todo mundo.\n  bloco     abertura | mise_en_place | durante | fechamento | periodica\n  setor     bar | salao | apoio\n  freq      'diaria' | 'semanal:<N>' | 'quinzenal:<N>' | 'mensal:<D>'  (N = dia ISO da semana, 1=segunda; D = dia do mês)\n  minutos   ESTIMATIVA, não medição — serve pra equilibrar a divisão de tarefas do E5. Corrigir conforme a casa mostrar o tempo real.\n  evidencia nenhuma | foto | numero\n  origem    fixa | producao | pontual  ('producao' é injetado pelo E3 a partir de bento/producao_semanal.py; não escrever à mão aqui)\n\nO bloco mise_en_place nasce com os itens FIXOS de preparo. As ordens de produção com quantidade (ex.: 'espremer 570 ml de limão') entram nele em tempo de geração, vindas de data/bento/producao_semanal_audit.json — não são digitadas aqui (Regra Zero).", "versao": 3, "foco_do_dia": "Turno tranquilo — capricho no básico: bancada limpa, etiquetas em dia, gelo cheio.", "blocos": [{"chave": "abertura", "rotulo": "Abertura", "ordem": 1}, {"chave": "mise_en_place", "rotulo": "Mise en place", "ordem": 2}, {"chave": "durante", "rotulo": "Durante o serviço", "ordem": 3}, {"chave": "fechamento", "rotulo": "Fechamento", "ordem": 4}, {"chave": "periodica", "rotulo": "Periódicas", "ordem": 5}], "abertura": [{"id": "abt_equipamentos", "t": "Ligar equipamentos (geladeira, máquina de gelo, liquidificador)", "d": "Checar se todos ligam normal. Equipamento com defeito, avisar na hora, não deixar pra depois.", "prio": true, "bloco": "abertura", "setor": "bar", "freq": "diaria", "minutos": 3, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "abt_limpeza", "t": "Conferir limpeza geral do bar", "d": "Bancada, piso e prateleiras sem sujeira ou resíduo do turno anterior. Achou sujeira, é ruptura do fechamento de ontem — registra.", "prio": true, "bloco": "abertura", "setor": "bar", "freq": "diaria", "minutos": 5, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "abt_validade", "t": "Conferir validade das produções abertas", "d": "Suco espremido dura 24h e pré-batch 2 dias. O que passou da validade sai da bancada AGORA — não é pra 'usar rápido antes que estrague'.", "prio": true, "bloco": "abertura", "setor": "bar", "freq": "diaria", "minutos": 5, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "abt_producao_ontem", "t": "Conferir a produção que ficou pendente do turno anterior", "d": "O fechamento de ontem anotou o que não deu tempo de produzir. Isso entra na frente da mise en place de hoje.", "prio": true, "bloco": "abertura", "setor": "bar", "freq": "diaria", "minutos": 2, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "abt_gelo", "t": "Conferir gelo (cubo e triturado)", "d": "Máquina cheia e reserva pronta — gelo é o insumo que mais falta no meio do movimento.", "prio": true, "bloco": "abertura", "setor": "bar", "freq": "diaria", "minutos": 5, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "abt_etiquetas", "t": "Checar etiquetagem dos insumos", "d": "Garrafas, bisnagas e potes com etiqueta legível (produto + data). Sem etiqueta, sem uso.", "prio": true, "bloco": "abertura", "setor": "bar", "freq": "diaria", "minutos": 4, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "abt_utensilios", "t": "Repor copos, shakers e utensílios", "d": "Estação completa: coqueteleiras, jiggers, colheres e copos limpos e à mão.", "prio": false, "bloco": "abertura", "setor": "bar", "freq": "diaria", "minutos": 4, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "abt_falta", "t": "Lançar na Contagem o que está faltando", "d": "O que faltar vai pra tela de Contagem de insumos, não pra um papel na bancada — é dali que sai o pedido de compra.", "prio": false, "bloco": "abertura", "setor": "bar", "freq": "diaria", "minutos": 5, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "abt_apoio", "t": "Conferir bancada de apoio", "d": "Itens de reposição rápida (guardanapo, canudo, palito) abastecidos.", "prio": false, "bloco": "abertura", "setor": "bar", "freq": "diaria", "minutos": 3, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "abt_reservas", "t": "Verificar reservas e eventos do dia", "d": "Saber se tem grupo grande ou evento programado ajuda a calcular o ritmo do turno e o tanto de produção.", "prio": false, "bloco": "abertura", "setor": "bar", "freq": "diaria", "minutos": 2, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}], "mise_en_place": [{"id": "mep_garnish", "t": "Cortar e montar os garnishes do dia", "d": "Frutas, ervas e cascas prontas e cobertas antes de abrir. Garnish cortado na hora do pedido é drink atrasado.", "prio": true, "bloco": "mise_en_place", "setor": "bar", "freq": "diaria", "minutos": 15, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "mep_bancada", "t": "Montar a estação de trabalho", "d": "Xaropes, sucos e pré-batches do dia posicionados na bancada, na ordem em que a mão pega.", "prio": true, "bloco": "mise_en_place", "setor": "bar", "freq": "diaria", "minutos": 10, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}], "durante": [{"id": "dur_gelo_pico", "t": "Repor gelo antes do pico", "d": "Encher a reserva antes de o movimento subir, não durante.", "prio": true, "bloco": "durante", "setor": "bar", "freq": "diaria", "minutos": 5, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "dur_reset_bancada", "t": "Reset da bancada no meio do serviço", "d": "Limpar, repor garnish e conferir o que está acabando — 5 minutos aqui evitam meia hora de correria depois.", "prio": false, "bloco": "durante", "setor": "bar", "freq": "diaria", "minutos": 5, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}], "fechamento": [{"id": "fch_contagem", "t": "Fechar a contagem do dia", "d": "Lançar a contagem do que saiu na tela de Contagem, pra bater com o estoque amanhã.", "prio": true, "bloco": "fechamento", "setor": "bar", "freq": "diaria", "minutos": 10, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "fch_producao_sobra", "t": "Anotar quanto sobrou de cada produção", "d": "Os itens logo abaixo perguntam, um a um, quanto ficou de cada suco/xarope/pré-batch no fim do turno. É esse número que ensina o sistema a pedir a quantidade certa — sem ele, a produção continua sendo chute. (Este aqui é só o título da seção; o E3/rotinas_gen.py que insere os itens de verdade, um por produção calculável, logo em seguida.)", "prio": true, "bloco": "fechamento", "setor": "bar", "freq": "diaria", "minutos": 0, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "fch_utensilios", "t": "Lavar e guardar utensílios", "d": "Copos, shakers, jiggers e colheres limpos e guardados no lugar certo.", "prio": true, "bloco": "fechamento", "setor": "bar", "freq": "diaria", "minutos": 15, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "fch_limpeza", "t": "Limpar bancada, equipamentos e dreno", "d": "Estação inteira higienizada, sem resíduo de fruta, xarope ou bebida.", "prio": true, "bloco": "fechamento", "setor": "bar", "freq": "diaria", "minutos": 15, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "fch_perecivel", "t": "Guardar insumos e ingredientes perecíveis", "d": "Fruta, ervas e produtos abertos na geladeira, bem fechados e etiquetados com a data.", "prio": true, "bloco": "fechamento", "setor": "bar", "freq": "diaria", "minutos": 8, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "fch_registro", "t": "Registrar ruptura, quebra ou ocorrência do turno", "d": "O que quebrou, faltou, ou o problema com cliente/equipe vai pro Registro Rápido — não fica só no boca a boca nem só neste formulário.", "prio": true, "bloco": "fechamento", "setor": "bar", "freq": "diaria", "minutos": 5, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "fch_desligar", "t": "Desligar todos os equipamentos", "d": "Confirmar que nada fica ligado à toa até o próximo turno.", "prio": true, "bloco": "fechamento", "setor": "bar", "freq": "diaria", "minutos": 3, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "fch_lixo", "t": "Conferir lixo e organização geral", "d": "Lixo recolhido, saco novo colocado, área de trabalho arrumada pra quem abre amanhã.", "prio": false, "bloco": "fechamento", "setor": "bar", "freq": "diaria", "minutos": 5, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "fch_trancar", "t": "Trancar geladeiras e armários", "d": "Itens sensíveis guardados e travados antes de sair.", "prio": false, "bloco": "fechamento", "setor": "bar", "freq": "diaria", "minutos": 2, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}], "periodica": [{"id": "per_maquina_gelo", "t": "Esvaziar e higienizar a máquina de gelo", "d": "Gelo velho fora, máquina limpa por dentro. Era item de fechamento diário e virou semanal — diariamente ninguém fazia de verdade, e meia rotina cumprida vale menos que uma rotina inteira.", "prio": true, "bloco": "periodica", "setor": "bar", "freq": "semanal:1", "minutos": 30, "evidencia": "foto", "funcao": "bartender", "origem": "fixa"}, {"id": "per_validades", "t": "Revisão geral de validades e etiquetas", "d": "Varrer geladeira e prateleira inteiras, não só a bancada do dia. O que estiver sem etiqueta ou vencido, descarta e registra.", "prio": true, "bloco": "periodica", "setor": "bar", "freq": "semanal:1", "minutos": 25, "evidencia": "foto", "funcao": "bartender", "origem": "fixa"}, {"id": "per_geladeira", "t": "Limpeza profunda das geladeiras do bar", "d": "Tirar tudo, limpar por dentro, conferir borracha e temperatura.", "prio": false, "bloco": "periodica", "setor": "bar", "freq": "quinzenal:1", "minutos": 45, "evidencia": "foto", "funcao": "bartender", "origem": "fixa"}, {"id": "per_vidraria", "t": "Contagem de copos e vidraria", "d": "Contagem completa na tela de Contagem de copos — é o que mostra quebra que ninguém registrou.", "prio": false, "bloco": "periodica", "setor": "bar", "freq": "mensal:1", "minutos": 30, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}]} /* ROTINAS:FIM */;
+  // --- Rotinas v3 (E5/E6): dia real por /api/rotinas, com fallback estático ---
+  // FASE decide os blocos: abertura mostra o que "quem abre" faz (abertura +
+  // mise en place + periódicas do dia); fechamento mostra só o fechamento
+  // (a divisão por turno, no worker, já separa por BLOCO_TURNO — aqui só
+  // decide quais blocos ESTA página exibe).
+  function blocosDaFase() {
+    // 'durante' entra nas duas: os dois turnos fazem (BLOCO_TURNO='todos' no
+    // gerador), e task pontual sem bloco escolhido nasce em 'durante'
+    // (default do worker) — sem isso ela não apareceria em página nenhuma.
+    return FASE === 'abertura'
+      ? ['abertura', 'mise_en_place', 'durante', 'periodica']
+      : ['fechamento', 'durante'];
+  }
+  // Fallback SEM rede/sessão: junta os blocos fixos embutidos no próprio
+  // arquivo (ROTINAS, injetado por bento/injeta_rotinas.py). Não tem
+  // filtro de periodicidade (isso é conta do servidor) nem ordens de
+  // produção com quantidade — degradação declarada, nunca tela vazia.
+  function itensEstaticosFallback() {
+    var out = [];
+    blocosDaFase().forEach(function (b) { (ROTINAS[b] || []).forEach(function (it) { out.push(it); }); });
+    return out;
+  }
+  var ITENS = itensEstaticosFallback();
+  var rotinasHoje = null;   // resposta cheia de GET /api/rotinas, se carregou
+
+  function normalizaTurnoLabel(t) { return t === 'Jantar' ? 'Noite' : 'Dia'; }
+
+  // id -> nome (dono) | null (sem dono definido) | undefined (ainda não se sabe —
+  // sem turno escolhido, ou API não respondeu). O undefined é o que faz a tag
+  // não aparecer antes de o turno ser escolhido, em vez de mostrar "sem dono"
+  // errado por um instante.
+  function donoPorItem() {
+    var mapa = {};
+    if (!rotinasHoje || !rotinasHoje.hoje || !turnoSel) return mapa;
+    var turnoNorm = normalizaTurnoLabel(turnoSel);
+    var divisao = (rotinasHoje.hoje.divisao || {})[turnoNorm] || {};
+    Object.keys(divisao).forEach(function (pessoa) {
+      (divisao[pessoa] || []).forEach(function (id) { mapa[id] = pessoa; });
+    });
+    (rotinasHoje.hoje.itens_sem_dono || []).forEach(function (id) {
+      if (!(id in mapa)) mapa[id] = null;
+    });
+    return mapa;
+  }
+
+  // Tarefa pontual (D1, tabela `tarefas`) -> mesmo formato dos itens fixos, pra
+  // caber no MESMO renderChecklist sem lógica duplicada. prazo/responsavel
+  // viram texto na descrição em vez de campo à parte — um item a menos pra
+  // desenhar.
+  function tarefaParaItem(t) {
+    var extra = [];
+    if (t.prazo) extra.push('prazo ' + t.prazo.split('-').reverse().join('/'));
+    if (t.responsavel) extra.push('para ' + t.responsavel);
+    var desc = (t.descricao || '').trim();
+    if (extra.length) desc = (desc ? desc + ' — ' : '') + extra.join(' · ');
+    return { id: t.id, t: t.titulo, d: desc, prio: !!t.prio, evidencia: 'nenhuma', origem: 'pontual' };
+  }
+
+  function carregaDia() {
+    var s = window.sessaoBentoLer();
+    var dia = document.getElementById('tv-data').value;
+    if (!s || !dia) return;
+    fetch(WORKER_URL + '/api/rotinas?dia=' + encodeURIComponent(dia), { headers: { 'X-Token': s.token } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !d.hoje || !d.itens) return;  // 401/404/fora do horizonte — segue no fallback estático já na tela
+        rotinasHoje = d;
+        var ids = [];
+        blocosDaFase().forEach(function (b) { (d.hoje.blocos[b] || []).forEach(function (id) { ids.push(id); }); });
+        var novos = ids.map(function (id) { return d.itens[id]; }).filter(Boolean);
+        var tarefasDoBloco = (d.tarefas || [])
+          .filter(function (tr) { return blocosDaFase().indexOf(tr.bloco) >= 0; })
+          .map(tarefaParaItem);
+        if (novos.length) ITENS = novos.concat(tarefasDoBloco);
+        if (d.foco_do_dia) document.getElementById('tv-foco-txt').textContent = d.foco_do_dia;
+        renderChecklist(); atualizaProgresso();
+      })
+      .catch(function () { /* sem rede — fica no fallback estático, já renderizado */ });
+  }
   var CAMPOS_EXTRA = [{"k": "movimento", "destino": "movimento"}, {"k": "ocorrencias", "destino": "ocorrencias"}];
 
   var form = document.getElementById('tv-form');
@@ -407,6 +532,7 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
   var turnoSel = null;
   var geloSel = null;
   var checkState = {};
+  var valorState = {};
 
   document.getElementById('tv-foco-txt').textContent = ROTINAS.foco_do_dia || 'Sem recado do Rodrigo hoje.';
 
@@ -421,6 +547,7 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
       turnoSel = b.dataset.turno;
       document.querySelectorAll('#tv-turno-pills .tu-pill').forEach(function (x) { x.classList.remove('on'); });
       b.classList.add('on');
+      renderChecklist();   // re-renderiza pra mostrar o dono de cada item neste turno
     };
   });
   document.querySelectorAll('#tv-gelo-pills .gelo-pill').forEach(function (b) {
@@ -434,32 +561,77 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
   // --- checklist -------------------------------------------------------------
   var elChecklist = document.getElementById('tv-checklist');
   function renderChecklist() {
-    elChecklist.innerHTML = ITENS.map(function (it, i) {
-      return '<div class="ck-item" data-i="' + i + '">' +
-        '<span class="ck-chk" data-i="' + i + '"><span class="box"></span></span>' +
-        '<div class="ck-corpo" data-i="' + i + '">' +
-        '<div class="ck-t">' + esc(it.t) + (it.prio ? '<span class="ck-badge">!</span>' : '') + '</div>' +
-        (it.d ? '<div class="ck-d">' + esc(it.d) + '</div>' : '') + '</div>' +
+    var donos = donoPorItem();
+    elChecklist.innerHTML = ITENS.map(function (it) {
+      var temDono = donos.hasOwnProperty(it.id);
+      var dono = temDono ? donos[it.id] : undefined;
+      var donoTag = !temDono ? '' :
+        (dono ? '<span class="ck-dono">&middot; ' + esc(dono) + '</span>'
+              : '<span class="ck-dono ck-semdono">&middot; sem dono definido</span>');
+      var numInput = it.evidencia === 'numero'
+        ? '<div class="ck-num"><input type="number" min="0" step="1" inputmode="numeric" placeholder="0"' +
+          ' data-id="' + it.id + '" value="' + (valorState[it.id] != null ? valorState[it.id] : '') + '"><span>ml</span></div>'
+        : '';
+      var pontualTag = it.origem === 'pontual' ? '<span class="ck-tag-pontual">Tarefa</span>' : '';
+      var cancelarBtn = (it.origem === 'pontual' && GESTAO)
+        ? '<button type="button" class="ck-cancelar" data-id="' + it.id + '">cancelar tarefa</button>' : '';
+      return '<div class="ck-item" data-id="' + it.id + '">' +
+        '<span class="ck-chk' + (checkState[it.id] ? ' on' : '') + '" data-id="' + it.id + '"><span class="box"></span></span>' +
+        '<div class="ck-corpo" data-id="' + it.id + '">' +
+        '<div class="ck-t">' + esc(it.t) + (it.prio ? '<span class="ck-badge">!</span>' : '') + pontualTag + donoTag + '</div>' +
+        (it.d ? '<div class="ck-d">' + esc(it.d) + '</div>' : '') + numInput + cancelarBtn + '</div>' +
         (it.d ? '<span class="ck-seta">&#9662;</span>' : '') + '</div>';
     }).join('');
     elChecklist.querySelectorAll('.ck-chk').forEach(function (el) {
       el.onclick = function (ev) {
         ev.stopPropagation();
-        var i = +el.dataset.i;
-        checkState[i] = !checkState[i];
-        el.classList.toggle('on', !!checkState[i]);
+        var id = el.dataset.id;
+        checkState[id] = !checkState[id];
+        el.classList.toggle('on', !!checkState[id]);
         atualizaProgresso();
       };
     });
     elChecklist.querySelectorAll('.ck-corpo').forEach(function (el) {
-      el.onclick = function () {
+      el.onclick = function (ev) {
+        if (ev.target && ev.target.tagName === 'INPUT') return;
         el.closest('.ck-item').classList.toggle('aberto');
+      };
+    });
+    elChecklist.querySelectorAll('.ck-num input').forEach(function (el) {
+      el.onclick = function (ev) { ev.stopPropagation(); };
+      el.oninput = function () {
+        var id = el.dataset.id;
+        var v = el.value === '' ? null : Math.max(0, parseInt(el.value, 10) || 0);
+        valorState[id] = v;
+        if (v !== null) {
+          checkState[id] = true;
+          var chk = elChecklist.querySelector('.ck-chk[data-id="' + id + '"]');
+          if (chk) chk.classList.add('on');
+        }
+        atualizaProgresso();
+      };
+    });
+    elChecklist.querySelectorAll('.ck-cancelar').forEach(function (el) {
+      el.onclick = function (ev) {
+        ev.stopPropagation();
+        var id = el.dataset.id;
+        if (!confirm('Cancelar esta tarefa? Ela some da rotina de todo mundo.')) return;
+        var s = window.sessaoBentoLer();
+        var senha = elSenha.value.trim();
+        if (!s || !senha) { alert('Preencha sua senha individual antes de cancelar.'); return; }
+        el.disabled = true; el.textContent = 'cancelando…';
+        fetch(WORKER_URL + '/api/tarefa', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Token': s.token },
+          body: JSON.stringify({ chave: CHAVE, senha_pessoa: senha, acao: 'cancelar', id: id })
+        }).then(function (r) { return r.json().catch(function () { return null; }); })
+          .then(function () { carregaDia(); })
+          .catch(function () { el.disabled = false; el.textContent = 'cancelar tarefa'; alert('Sem conexão — tente de novo.'); });
       };
     });
   }
   function atualizaProgresso() {
     var feitos = 0;
-    ITENS.forEach(function (it, i) { if (checkState[i]) feitos++; });
+    ITENS.forEach(function (it) { if (checkState[it.id]) feitos++; });
     var total = ITENS.length;
     document.getElementById('tv-prog-lbl').textContent = feitos + '/' + total;
     document.getElementById('tv-prog-fill').style.width = (total ? (feitos / total * 100) : 0) + '%';
@@ -469,6 +641,62 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
   }
   renderChecklist();
   atualizaProgresso();
+  document.getElementById('tv-data').addEventListener('change', carregaDia);
+  carregaDia();
+
+  // --- inclusão de tarefa pontual (maitres/admin) -----------------------------
+  var GESTAO = (function () {
+    var s = window.sessaoBentoLer();
+    return !!s && (s.nivel === 'maitres' || s.nivel === 'admin');
+  })();
+  if (GESTAO) {
+    document.getElementById('tv-nt-bloco-wrap').style.display = 'block';
+    var ntPainel = document.getElementById('tv-nt-painel');
+    document.getElementById('tv-nt-toggle').onclick = function () {
+      ntPainel.classList.toggle('on');
+    };
+    document.getElementById('tv-nt-enviar').onclick = function () {
+      var ntStatus = document.getElementById('tv-nt-status');
+      var titulo = document.getElementById('tv-nt-titulo').value.trim();
+      if (!titulo) {
+        ntStatus.textContent = 'Escreva o que precisa ser feito.'; ntStatus.className = 'status erro';
+        return;
+      }
+      var senha = elSenha.value.trim();
+      if (!senha) {
+        ntStatus.textContent = 'Preencha sua senha individual (mais abaixo) antes de incluir.';
+        ntStatus.className = 'status erro'; elSenha.focus();
+        return;
+      }
+      var s = window.sessaoBentoLer();
+      if (!s) { ntStatus.textContent = 'Sessão expirada — recarregue a página.'; ntStatus.className = 'status erro'; return; }
+      ntStatus.textContent = 'Incluindo…'; ntStatus.className = 'status';
+      fetch(WORKER_URL + '/api/tarefa', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Token': s.token },
+        body: JSON.stringify({
+          chave: CHAVE, senha_pessoa: senha, acao: 'criar', titulo: titulo,
+          descricao: document.getElementById('tv-nt-desc').value.trim(),
+          bloco: document.getElementById('tv-nt-bloco').value,
+          prazo: document.getElementById('tv-nt-prazo').value || null,
+          prio: document.getElementById('tv-nt-prio').checked
+        })
+      }).then(function (r) { return r.json().then(function (j) { return { status: r.status, json: j }; }).catch(function () { return { status: r.status, json: null }; }); })
+        .then(function (res) {
+          if (res.status === 200 && res.json && res.json.ok) {
+            ntStatus.textContent = 'Incluída ✓'; ntStatus.className = 'status ok';
+            document.getElementById('tv-nt-titulo').value = '';
+            document.getElementById('tv-nt-desc').value = '';
+            document.getElementById('tv-nt-prazo').value = '';
+            document.getElementById('tv-nt-prio').checked = false;
+            carregaDia();
+          } else {
+            ntStatus.textContent = (res.json && res.json.erro) || 'Não foi possível incluir agora.';
+            ntStatus.className = 'status erro';
+          }
+        })
+        .catch(function () { ntStatus.textContent = 'Sem conexão — tente de novo.'; ntStatus.className = 'status erro'; });
+    };
+  }
 
   function esc(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -648,7 +876,7 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
   // --- envio -------------------------------------------------------------------
   function montarBody(senha, anexoId) {
     var pendentes = [];
-    ITENS.forEach(function (it, i) { if (!checkState[i]) pendentes.push(it.t); });
+    ITENS.forEach(function (it) { if (!checkState[it.id]) pendentes.push(it.t); });
     var body = {
       chave: CHAVE, _idemp: filaTurno.uuid(), senha_pessoa: senha, fase: FASE,
       data: document.getElementById('tv-data').value, turno: turnoSel,
@@ -695,7 +923,25 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
           status.textContent = body.checklist.pendentes.length
             ? 'Enviado com ' + body.checklist.pendentes.length + ' pendência(s) ✓' : 'Enviado ✓';
           status.className = 'status ok';
-          form.reset(); turnoSel = null; geloSel = null; checkState = {}; fotoBlob = null; fotoUploadId = null;
+          // Marca a rotina do dia como efeito colateral do MESMO envio (a prova
+          // continua sendo a foto, no /api/turno acima). Melhor esforço: sem
+          // rede aqui, a marcação simplesmente não vai — não bloqueia o que já
+          // foi confirmado, e a pessoa pode marcar de novo depois.
+          (function () {
+            var turnoNorm = normalizaTurnoLabel(turnoSel);
+            ITENS.forEach(function (it) {
+              if (!checkState[it.id]) return;
+              fetch(WORKER_URL + '/api/rotina/concluir', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  chave: CHAVE, senha_pessoa: senha, dia: body.data, turno: turnoNorm,
+                  item_id: it.id, feito: true,
+                  valor: it.evidencia === 'numero' && valorState[it.id] != null ? valorState[it.id] : null
+                })
+              }).catch(function () {});
+            });
+          })();
+          form.reset(); turnoSel = null; geloSel = null; checkState = {}; valorState = {}; fotoBlob = null; fotoUploadId = null;
           document.querySelectorAll('.tu-pill, .gelo-pill').forEach(function (b) { b.classList.remove('on'); });
           renderChecklist(); atualizaProgresso(); atualizaFotoUI(); atualizaBotaoEnviar();
           document.getElementById('tv-data').value = hoje();

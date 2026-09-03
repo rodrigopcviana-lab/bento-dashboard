@@ -742,10 +742,119 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 
 <h1>Rotinas</h1>
 <p class="sub">Check-lists e rotinas fixas da operação do Bento.</p>
-<div class="panel">
-<p>Nenhuma rotina cadastrada ainda. Assim que a coordenação definir as
-rotinas (abertura, fechamento, limpeza, etc.), elas aparecem aqui.</p>
+
+<style>
+  .rhr-hoje { margin-bottom: 14px; }
+  .rhr-hoje h2 { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+                 font-size: 17px; font-weight: 500; margin-bottom: 10px; }
+  .rhr-hoje-secoes { display: grid; grid-template-columns: 1fr; gap: 14px; }
+  @media (min-width: 720px) { .rhr-hoje-secoes { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); } }
+  .rhr-hoje-bloco h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em;
+                        color: var(--text-3); margin-bottom: 6px; }
+  .rhr-hd { font-size: 11px; color: var(--text-3); margin-left: 6px; white-space: nowrap; }
+  .rhr-hd.rhr-hd-sem { color: #e0967a; }
+</style>
+<div class="rhr-hoje panel" id="rhr-hoje" style="display:none">
+  <h2>Hoje</h2>
+  <p class="nota" id="rhr-hoje-alerta" style="display:none;margin-top:0"></p>
+  <div class="rhr-hoje-secoes" id="rhr-hoje-secoes"></div>
 </div>
+<script>
+(function () {
+  var s = window.sessaoBentoLer();
+  if (!s) return;
+  function hoje() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function esc(x) { return String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  fetch(window.BENTO_WORKER + '/api/rotinas?dia=' + hoje(), { headers: { 'X-Token': s.token } })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) {
+      if (!d || !d.hoje || !d.itens) return;  // sem sessão nova, dia fora do horizonte, KV vazio — fica só no modelo padrão abaixo
+      var box = document.getElementById('rhr-hoje');
+      var alerta = document.getElementById('rhr-hoje-alerta');
+      if (d.hoje.escala_origem === 'indisponivel') {
+        alerta.style.display = 'block';
+        alerta.textContent = 'Sem escala pra hoje — ' + Object.values(d.hoje.divisao_motivos || {})[0] || 'a divisão por pessoa não está disponível.';
+      } else if (d.hoje.escala_origem === 'padrao') {
+        alerta.style.display = 'block';
+        alerta.textContent = 'Escala publicada não cobre hoje — mostrando o padrão fixo por pessoa.';
+      }
+      var donoPorId = {};
+      ['Dia', 'Noite'].forEach(function (turno) {
+        Object.keys((d.hoje.divisao || {})[turno] || {}).forEach(function (pessoa) {
+          d.hoje.divisao[turno][pessoa].forEach(function (id) {
+            donoPorId[id] = (donoPorId[id] || []).concat(turno + ': ' + pessoa);
+          });
+        });
+      });
+      (d.hoje.itens_sem_dono || []).forEach(function (id) { if (!donoPorId[id]) donoPorId[id] = ['sem dono definido']; });
+      // Tarefa pontual (D1) não mora em d.itens — agrupa à parte, por bloco,
+      // pra caber na mesma seção. Sem isso o RH via um panorama incompleto:
+      // via a rotina fixa, mas não a demanda pontual que um maître incluiu.
+      var tarefasPorBloco = {};
+      (d.tarefas || []).forEach(function (t) {
+        (tarefasPorBloco[t.bloco] = tarefasPorBloco[t.bloco] || []).push(t);
+      });
+      var blocos = (d.blocos || []).slice().sort(function (a, b) { return a.ordem - b.ordem; });
+      var html = blocos.map(function (b) {
+        var ids = d.hoje.blocos[b.chave] || [];
+        var extras = tarefasPorBloco[b.chave] || [];
+        if (!ids.length && !extras.length) return '';
+        var itensHtml = ids.map(function (id) {
+          var it = d.itens[id];
+          if (!it) return '';
+          var donos = donoPorId[id] || [];
+          var donoHtml = donos.length
+            ? donos.map(function (x) {
+                return '<span class="rhr-hd' + (x === 'sem dono definido' ? ' rhr-hd-sem' : '') + '">&middot; ' + esc(x) + '</span>';
+              }).join('')
+            : '';
+          var badge = it.prio ? '<span class="rhr-prio">Prioritário</span>' : '';
+          return '<div class="rhr-item"><p class="rhr-t">' + esc(it.t) + badge + donoHtml + '</p></div>';
+        }).join('');
+        var extrasHtml = extras.map(function (t) {
+          var badge = t.prio ? '<span class="rhr-prio">Prioritário</span>' : '';
+          var extra = [];
+          if (t.prazo) extra.push('prazo ' + t.prazo.split('-').reverse().join('/'));
+          if (t.responsavel) extra.push('para ' + t.responsavel);
+          var tagExtra = extra.length ? '<span class="rhr-hd">&middot; ' + esc(extra.join(' &middot; ')) + '</span>' : '';
+          return '<div class="rhr-item"><p class="rhr-t">' + esc(t.titulo) + badge +
+            '<span class="rhr-hd">&middot; tarefa</span>' + tagExtra + '</p></div>';
+        }).join('');
+        return '<div class="rhr-hoje-bloco"><h3>' + esc(b.rotulo) + '</h3>' + itensHtml + extrasHtml + '</div>';
+      }).join('');
+      if (!html) return;
+      document.getElementById('rhr-hoje-secoes').innerHTML = html;
+      box.style.display = 'block';
+    })
+    .catch(function () { /* sem rede — fica só no modelo padrão abaixo */ });
+})();
+</script>
+
+
+<style>
+  .rhr-secoes { display: grid; grid-template-columns: 1fr; gap: 14px; margin-bottom: 14px; }
+  @media (min-width: 720px) { .rhr-secoes { grid-template-columns: 1fr 1fr; } }
+  .rhr-sec h2 { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+                 font-size: 17px; font-weight: 500; margin-bottom: 10px; }
+  .rhr-item { padding: 9px 0; border-bottom: 1px dashed var(--border); }
+  .rhr-item:last-child { border-bottom: none; }
+  .rhr-t { font-size: 14px; color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .rhr-d { font-size: 12.5px; color: var(--text-2); line-height: 1.45; margin-top: 3px; }
+  .rhr-prio { font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+               color: var(--ambar-2); background: var(--ambar-bg); border-radius: 999px;
+               padding: 2px 8px; flex: none; }
+  .rhr-vazio { font-size: 13px; color: var(--text-3); }
+</style>
+<div class="mh-foco"><span class="fk">Foco do dia</span><p>Turno tranquilo — capricho no básico: bancada limpa, etiquetas em dia, gelo cheio.</p></div>
+<div class="rhr-secoes">
+  <div class="rhr-sec panel"><h2>Abertura</h2><div class="rhr-item"><p class="rhr-t">Ligar equipamentos (geladeira, máquina de gelo, liquidificador)<span class="rhr-prio">Prioritário</span></p><p class="rhr-d">Checar se todos ligam normal. Equipamento com defeito, avisar na hora, não deixar pra depois.</p></div><div class="rhr-item"><p class="rhr-t">Conferir limpeza geral do bar<span class="rhr-prio">Prioritário</span></p><p class="rhr-d">Bancada, piso e prateleiras sem sujeira ou resíduo do turno anterior. Achou sujeira, é ruptura do fechamento de ontem — registra.</p></div><div class="rhr-item"><p class="rhr-t">Conferir validade das produções abertas<span class="rhr-prio">Prioritário</span></p><p class="rhr-d">Suco espremido dura 24h e pré-batch 2 dias. O que passou da validade sai da bancada AGORA — não é pra &#x27;usar rápido antes que estrague&#x27;.</p></div><div class="rhr-item"><p class="rhr-t">Conferir a produção que ficou pendente do turno anterior<span class="rhr-prio">Prioritário</span></p><p class="rhr-d">O fechamento de ontem anotou o que não deu tempo de produzir. Isso entra na frente da mise en place de hoje.</p></div><div class="rhr-item"><p class="rhr-t">Conferir gelo (cubo e triturado)<span class="rhr-prio">Prioritário</span></p><p class="rhr-d">Máquina cheia e reserva pronta — gelo é o insumo que mais falta no meio do movimento.</p></div><div class="rhr-item"><p class="rhr-t">Checar etiquetagem dos insumos<span class="rhr-prio">Prioritário</span></p><p class="rhr-d">Garrafas, bisnagas e potes com etiqueta legível (produto + data). Sem etiqueta, sem uso.</p></div><div class="rhr-item"><p class="rhr-t">Repor copos, shakers e utensílios</p><p class="rhr-d">Estação completa: coqueteleiras, jiggers, colheres e copos limpos e à mão.</p></div><div class="rhr-item"><p class="rhr-t">Lançar na Contagem o que está faltando</p><p class="rhr-d">O que faltar vai pra tela de Contagem de insumos, não pra um papel na bancada — é dali que sai o pedido de compra.</p></div><div class="rhr-item"><p class="rhr-t">Conferir bancada de apoio</p><p class="rhr-d">Itens de reposição rápida (guardanapo, canudo, palito) abastecidos.</p></div><div class="rhr-item"><p class="rhr-t">Verificar reservas e eventos do dia</p><p class="rhr-d">Saber se tem grupo grande ou evento programado ajuda a calcular o ritmo do turno e o tanto de produção.</p></div></div>
+  <div class="rhr-sec panel"><h2>Fechamento</h2><div class="rhr-item"><p class="rhr-t">Fechar a contagem do dia<span class="rhr-prio">Prioritário</span></p><p class="rhr-d">Lançar a contagem do que saiu na tela de Contagem, pra bater com o estoque amanhã.</p></div><div class="rhr-item"><p class="rhr-t">Anotar quanto sobrou de cada produção<span class="rhr-prio">Prioritário</span></p><p class="rhr-d">Os itens logo abaixo perguntam, um a um, quanto ficou de cada suco/xarope/pré-batch no fim do turno. É esse número que ensina o sistema a pedir a quantidade certa — sem ele, a produção continua sendo chute. (Este aqui é só o título da seção; o E3/rotinas_gen.py que insere os itens de verdade, um por produção calculável, logo em seguida.)</p></div><div class="rhr-item"><p class="rhr-t">Lavar e guardar utensílios<span class="rhr-prio">Prioritário</span></p><p class="rhr-d">Copos, shakers, jiggers e colheres limpos e guardados no lugar certo.</p></div><div class="rhr-item"><p class="rhr-t">Limpar bancada, equipamentos e dreno<span class="rhr-prio">Prioritário</span></p><p class="rhr-d">Estação inteira higienizada, sem resíduo de fruta, xarope ou bebida.</p></div><div class="rhr-item"><p class="rhr-t">Guardar insumos e ingredientes perecíveis<span class="rhr-prio">Prioritário</span></p><p class="rhr-d">Fruta, ervas e produtos abertos na geladeira, bem fechados e etiquetados com a data.</p></div><div class="rhr-item"><p class="rhr-t">Registrar ruptura, quebra ou ocorrência do turno<span class="rhr-prio">Prioritário</span></p><p class="rhr-d">O que quebrou, faltou, ou o problema com cliente/equipe vai pro Registro Rápido — não fica só no boca a boca nem só neste formulário.</p></div><div class="rhr-item"><p class="rhr-t">Desligar todos os equipamentos<span class="rhr-prio">Prioritário</span></p><p class="rhr-d">Confirmar que nada fica ligado à toa até o próximo turno.</p></div><div class="rhr-item"><p class="rhr-t">Conferir lixo e organização geral</p><p class="rhr-d">Lixo recolhido, saco novo colocado, área de trabalho arrumada pra quem abre amanhã.</p></div><div class="rhr-item"><p class="rhr-t">Trancar geladeiras e armários</p><p class="rhr-d">Itens sensíveis guardados e travados antes de sair.</p></div></div>
+</div>
+<p class="nota">Mesmo check-list que a equipe vê ao abrir e fechar o turno — aqui é só leitura, pra dar contexto de quem o RH atende.</p>
+
 <div class="panel">
 <h2>Quer sugerir uma rotina?</h2>
 <a class="wa" href="https://wa.me/556281483511?text=Ol%C3%A1%20Rodrigo!%20Sugest%C3%A3o%20de%20rotina%20pro%20Bento%3A%20">
@@ -753,7 +862,7 @@ WhatsApp — Rodrigo (Coordenação de Bares)</a>
 </div>
 
 
-<p class="nota">Portal do Bar · Bento · atualizado em 19/08/2026.
+<p class="nota">Portal do Bar · Bento · atualizado em 03/09/2026.
 Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à mão.</p>
 
 
@@ -781,7 +890,7 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
 </div>
 <script>
 (function () {
-  var BUILD = 'fc25e6029dfe';
+  var BUILD = 'f97ffe93f4db';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
