@@ -239,6 +239,19 @@
   table.escala td.folga { color: #f09b9b; font-weight: 600; }
   table.escala td.turno { color: var(--ambar-2); }
   table.escala tr.hoje td { background: var(--ambar-bg); }
+  /* A escala tem 5 colunas FIXAS (Dia + os 4 bartenders, ver
+     _escala_semanas_tabela). Herdando só o `table.regras`, o padding de 14px
+     por lado × 5 colunas comia 140px dos 375 e a tabela estourava pra 428px —
+     MEDIDO: a página inteira rolava 53px de lado no celular, e era a única
+     das 26 páginas de equipe com esse defeito. `table-layout: fixed` faz o
+     width:100% valer de verdade (sem ele o navegador respeita a largura
+     mínima do conteúdo e ignora o 100%); as larguras abaixo dão à coluna do
+     dia o dobro das outras, que é a proporção do texto real
+     ("Segunda 29/06" contra "Folga"/"Noite"). */
+  table.escala { table-layout: fixed; }
+  table.escala th, table.escala td { padding: 11px 6px; font-size: 13px; }
+  table.escala th:first-child, table.escala td:first-child { width: 32%; }
+  table.escala th:not(:first-child), table.escala td:not(:first-child) { width: 17%; }
   .panel.alerta { border-color: rgba(226,75,74,.4); }
   .panel.alerta h2 { color: #f09b9b; }
 
@@ -370,10 +383,17 @@
      380px (display:none em .mh-nm) — corrigido em 2026-08-03: o chip existe
      justamente pra dizer qual acesso está em uso, então sumir com o nome
      tira a única informação que ele carrega. Em vez de esconder, o nome
-     ENCOLHE (max-width + ellipsis) — "Administração" vira "Administr…" mas
-     nunca desaparece; o Trocar continua sempre inteiro e clicável. */
+     ENCOLHE (max-width + ellipsis) — mas nunca desaparece; o Trocar
+     continua sempre inteiro e clicável.
+     REVISADO 2026-09-04: o 78px era conservador DEMAIS e cortava os dois papéis mais comuns:
+     "Equipe de Bar" e "Administração" (13 caracteres, ~94px) viravam
+     "Equipe de…" / "Administr…" SEMPRE, não só num caso extremo. Medido a
+     375px: o chip fica sozinho na 2ª linha da topbar, que tem 335px, e ele
+     ocupa 199 — sobravam 136px de folga sem uso nenhum. 104px cobre os dois
+     nomes inteiros e ainda deixa ~110px de folga; o limite continua existindo
+     como rede contra um papel futuro de nome longo. */
   @media (max-width: 380px) {
-    .mh-nm { max-width: 78px; overflow: hidden; text-overflow: ellipsis;
+    .mh-nm { max-width: 104px; overflow: hidden; text-overflow: ellipsis;
              white-space: nowrap; display: inline-block; }
   }
   /* Foco do dia (config/rotinas_bento.json) — promovido do fundo das
@@ -1038,18 +1058,26 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
   .tcm-cab .t { font-size: 11px; letter-spacing: 1.4px; color: var(--text-3); font-weight: 600; }
   .tcm-cab .t b { color: var(--ambar-2); }
   .tcm-cab a { font-size: 11px; color: var(--ambar-2); text-decoration: none; }
-  .tc5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
-  .tc-it { border: 1px solid var(--border); border-radius: 9px; background: var(--card-2); padding: 5px 3px 4px; position: relative; text-align: center; min-width: 0; }
-  .tc-it.tc-r1 { border-color: rgba(213,160,92,.6); background: var(--ambar-bg); }
-  .tc-r { position: absolute; top: 3px; left: 4px; font-size: 11px; color: var(--text-3); display: flex; }
+  .tc-lista { display: flex; flex-direction: column; }
+  .tc-it { display: flex; align-items: center; gap: 8px; padding: 1px 0;
+            line-height: 1.35; border-bottom: 1px solid var(--border); min-width: 0; }
+  .tc-it:last-child { border-bottom: none; }
+  .tc-r { flex: none; width: 13px; font-size: 11px; color: var(--text-3);
+           display: flex; justify-content: center; }
   .tc-it.tc-r1 .tc-r { color: var(--ambar); }
-  .tc-nm { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
-            font-size: 11px; color: var(--text-2); margin: 10px 0 2px; line-height: 1.15; word-break: break-word; }
-  .tc-q { display: block; font-size: 13px; font-weight: 700; color: var(--ambar-2); font-variant-numeric: tabular-nums; }
+  .tc-it.tc-r1 .tc-nm { color: var(--text); }
+  /* `flex: 1` sozinho NÃO encolhe: todo flex item nasce com min-width:auto,
+     que respeita a largura mínima do conteúdo — sem o `min-width: 0` o nome
+     empurra a linha e o text-overflow nunca chega a aplicar. É a mesma
+     armadilha do `1fr` em grid (que pede minmax(0,1fr)), na versão flex. */
+  .tc-nm { flex: 1; min-width: 0; font-size: 12px; color: var(--text-2);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tc-q { flex: none; font-size: 13px; font-weight: 700; color: var(--ambar-2);
+           font-variant-numeric: tabular-nums; }
 </style>
 <div class="tcm">
-  <div class="tcm-cab"><span class="t">TOP COCKTAILS · <b>Fev/26</b></span><a href="admin-cocktails-ranking.html">ver ›</a></div>
-  <div class="tc5"><div class="tc-it tc-r1"><span class="tc-r"><svg class="ic" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="tc-nm">APEROL SPRITZ</span><span class="tc-q">69</span></div><div class="tc-it"><span class="tc-r">2</span><span class="tc-nm">GIN FITZGERALD</span><span class="tc-q">69</span></div><div class="tc-it"><span class="tc-r">3</span><span class="tc-nm">LADYBERRIES</span><span class="tc-q">50</span></div><div class="tc-it"><span class="tc-r">4</span><span class="tc-nm">CAIPI SELETA LIMAO</span><span class="tc-q">48</span></div><div class="tc-it"><span class="tc-r">5</span><span class="tc-nm">GIN TROPICAL</span><span class="tc-q">48</span></div></div>
+  <div class="tcm-cab"><span class="t">TOP COCKTAILS · <b>Mai/26</b></span><a href="admin-cocktails-ranking.html">ver ›</a></div>
+  <div class="tc-lista"><div class="tc-it tc-r1"><span class="tc-r"><svg class="ic" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="tc-nm">APEROL SPRITZ</span><span class="tc-q">232</span></div><div class="tc-it"><span class="tc-r">2</span><span class="tc-nm">GIN FITZGERALD</span><span class="tc-q">144</span></div><div class="tc-it"><span class="tc-r">3</span><span class="tc-nm">LADYBERRIES</span><span class="tc-q">73</span></div><div class="tc-it"><span class="tc-r">4</span><span class="tc-nm">GIN TROPICAL</span><span class="tc-q">67</span></div><div class="tc-it"><span class="tc-r">5</span><span class="tc-nm">MOSCOW MULE</span><span class="tc-q">64</span></div></div>
 </div>
 
 
@@ -1104,7 +1132,13 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
     if (oiEl) { oiEl.dataset.saud = saud; if (!oiEl.querySelector('.nome')) oiEl.textContent = saud; }
     // Contexto por horário — só descreve o relógio, nunca afirma estado
     // operacional real (turno aberto, quem está de plantão etc.).
-    var ctx = h < 11 ? 'Antes do almoço' : h < 15 ? 'Turno de almoço' : h < 18 ? 'Entre os turnos'
+    // A madrugada (0h-5h) caía em `h < 11` e a tela dizia "Boa noite ·
+    // ANTES DO ALMOÇO" na mesma linha, às 01h — a saudação logo acima já
+    // trata 0h-5h como noite (`h < 5 || h >= 18`), então as duas se
+    // contradiziam. Num bar que fecha tarde, 1h da manhã é fechamento de
+    // turno, não véspera de almoço. Faixa própria, coerente com a saudação.
+    var ctx = h < 5 ? 'Fim de expediente' : h < 11 ? 'Antes do almoço'
+              : h < 15 ? 'Turno de almoço' : h < 18 ? 'Entre os turnos'
               : h < 23 ? 'Turno de jantar' : 'Fim de expediente';
     if (subEl) subEl.textContent = ctx;
     if (icEl) icEl.innerHTML = (h >= 6 && h < 18) ? SOL : LUA;
@@ -1262,7 +1296,7 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
 </div>
 <script>
 (function () {
-  var BUILD = 'f97ffe93f4db';
+  var BUILD = '5ffe0a563188';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
