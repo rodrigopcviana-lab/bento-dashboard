@@ -1072,15 +1072,23 @@ WhatsApp — Rodrigo (Coordenação de Bares)</a>
       return;
     }
     riscos.forEach(function(r){
-      var a = el('a', 'mrh-rlin');
-      a.href = r.destino || '#';
+      // Alguns riscos (ex.: conduta em aberto, senhas nunca usadas) trazem
+      // destino: "rh.html" DE PROPÓSITO — é a própria página, porque o
+      // destino de verdade (acessos.html) o nível rh não abre (worker.js
+      // comenta isso). "›" prometendo navegação pra quem clica só recarrega
+      // a mesma tela é achado da revisão de intuitividade (2026-09-04): sem
+      // mudar o backend, o front deixa de desenhar como link clicável
+      // quando o destino é a própria rh.html.
+      var temDestino = !!r.destino && r.destino !== 'rh.html';
+      var a = el(temDestino ? 'a' : 'div', 'mrh-rlin');
+      if (temDestino) a.href = r.destino;
       var tag = el('span', 'mrh-tag mrh-t-' + r.nivel, r.nivel === 'critico' ? 'Crítico' : r.nivel === 'atencao' ? 'Atenção' : 'Sem fonte');
       a.appendChild(tag);
       var txt = el('span', 'mrh-txt');
       txt.appendChild(el('b', null, r.titulo));
       if (r.detalhe) txt.appendChild(el('em', null, r.detalhe));
       a.appendChild(txt);
-      if (r.nivel !== 'sem_fonte') a.appendChild(el('span', 'mrh-go', '›'));
+      if (r.nivel !== 'sem_fonte' && temDestino) a.appendChild(el('span', 'mrh-go', '›'));
       host.appendChild(a);
     });
   }
@@ -1209,7 +1217,7 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
 </div>
 <script>
 (function () {
-  var BUILD = '43ac962621e5';
+  var BUILD = 'de77d53986bf';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;

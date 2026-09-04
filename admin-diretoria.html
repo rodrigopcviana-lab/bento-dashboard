@@ -907,7 +907,13 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
     }
     if (diretoria) {
       var confPct = pct(diretoria.turno.completos, diretoria.turno.total);
-      itens.push(kpi(confPct >= 80 ? 'up' : (confPct > 0 ? '' : 'down'), diretoria.turno.total ? (confPct + '%') : '—', 'conformidade de turno'));
+      // Sem turno lançado ainda no mês (total === 0), confPct também é 0 —
+      // a expressão antiga não distinguia isso de "conformidade real 0%" e
+      // pintava o "—" de vermelho, como se fosse resultado ruim em vez de
+      // ausência de dado (achado da revisão de intuitividade, 2026-09-04;
+      // o KPI vizinho "demandas respondidas" já não caía nessa, por nunca
+      // usar 'down').
+      itens.push(kpi(!diretoria.turno.total ? '' : (confPct >= 80 ? 'up' : (confPct > 0 ? '' : 'down')), diretoria.turno.total ? (confPct + '%') : '—', 'conformidade de turno'));
       var respPct = pct(diretoria.demandas.respondidas, diretoria.demandas.total);
       itens.push(kpi(respPct >= 80 ? 'up' : '', diretoria.demandas.total ? (respPct + '%') : '—', 'demandas respondidas'));
     }
@@ -1035,7 +1041,7 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
 </div>
 <script>
 (function () {
-  var BUILD = '43ac962621e5';
+  var BUILD = 'de77d53986bf';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
