@@ -890,7 +890,7 @@ duas fotos (saída/retorno) de cada controle fechado, pra conferência.</p>
 
 <script>
 (function () {
-  var CHAVE = '52d20056e7bbf3bcc08092123cdde44d';
+  var CHAVE = '__REGISTRO_CHAVE__';
   var WORKER = "https://bento-portal-contagem.rodrigopcviana.workers.dev";
 
   function esc(s) {
@@ -929,15 +929,19 @@ duas fotos (saída/retorno) de cada controle fechado, pra conferência.</p>
     return chaves[0];
   }
 
+  function ehInvalido(d) { return d.veredito === 'Peso inválido — revisar'; }
+
   function renderKpis(lista) {
     var fechadas = lista.filter(function (d) { return d.status === 'Fechado' && d.servido_ml != null; });
     var total = fechadas.length;
-    var acima = fechadas.filter(function (d) { return d.veredito !== 'Dentro do padrão'; }).length;
+    var invalidas = fechadas.filter(ehInvalido).length;
+    var validas = fechadas.filter(function (d) { return !ehInvalido(d); });
+    var acima = validas.filter(function (d) { return d.veredito !== 'Dentro do padrão'; }).length;
     var somaMl = fechadas.reduce(function (s, d) { return s + (d.servido_ml || 0); }, 0);
     var mediaMl = total ? (somaMl / total) : 0;
-    var taxa = total ? (acima / total * 100) : 0;
+    var taxa = validas.length ? (acima / validas.length * 100) : 0;
     var porGarcom = {}, porProduto = {};
-    fechadas.forEach(function (d) {
+    validas.forEach(function (d) {
       if (d.veredito === 'Dentro do padrão' || !d.veredito) return;
       if (d.garcom) porGarcom[d.garcom] = (porGarcom[d.garcom] || 0) + 1;
       if (d.bebida) porProduto[d.bebida] = (porProduto[d.bebida] || 0) + 1;
@@ -948,7 +952,8 @@ duas fotos (saída/retorno) de cada controle fechado, pra conferência.</p>
       kpi(mediaMl.toFixed(1) + ' ml', 'média servida'),
       kpi(taxa.toFixed(1) + '%', 'taxa de excesso', taxa > 15 ? 'bad' : (taxa > 0 ? 'warn' : '')),
       kpi(esc(topPorContagem(porGarcom)), '+ excessos'),
-      kpi(esc(topPorContagem(porProduto)), 'produto mais visado')
+      kpi(esc(topPorContagem(porProduto)), 'produto mais visado'),
+      kpi(invalidas, 'leituras inválidas', invalidas ? 'warn' : '')
     ].join('');
   }
 
@@ -961,9 +966,9 @@ duas fotos (saída/retorno) de cada controle fechado, pra conferência.</p>
         ? new Date(d.horario_saida).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
         : '';
       var tagClasse = d.veredito === 'Dentro do padrão' ? 'ok'
-        : (d.veredito === 'Peso inválido — revisar' ? 'inv' : (d.veredito ? 'al' : ''));
+        : (ehInvalido(d) ? 'inv' : (d.veredito ? 'al' : ''));
       var fotos = (d.tem_foto_saida || d.tem_foto_retorno)
-        ? '<button type="button" class="dp-fotos-btn" data-chave="' + esc(d.chave) + '" aria-label="Ver fotos">📷</button>' : '';
+        ? '<button type="button" class="dp-fotos-btn" data-chave="' + esc(d.chave) + '" aria-label="Ver fotos"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>' : '';
       return '<tr>' +
         '<td>' + esc(hora) + '</td>' +
         '<td class="p">' + esc(d.bebida) + '</td>' +
