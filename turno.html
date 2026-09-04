@@ -97,6 +97,16 @@
   .ck-num span { font-size: 12px; color: var(--text-3); }
   .ck-tag-pontual { font-size: 9.5px; font-weight: 700; padding: 1px 6px; border-radius: 99px;
                      border: 1px solid #6f9bd6; color: #8fb3e0; margin-left: 6px; vertical-align: 1px; }
+  /* Achado da revisão de intuitividade (2026-09-04): a meta de produção
+     calculada (venda x ficha técnica — o item mais novo e mais valioso da
+     Rotinas v3) renderizava IDÊNTICA a "ligar a geladeira": mesma linha de
+     checkbox, mesmo "!" de prioridade, sem nada que dissesse "isto foi
+     calculado pra hoje, não é rotina fixa". O campo `origem: "producao"' já
+     existia no JSON (bento/rotinas_gen.py:tarefa_de_producao) e não era
+     usado no cliente. Reaproveita o MESMO padrão visual do "Tarefa"
+     (ck-tag-pontual), só noutra cor, pra não inventar um terceiro idioma. */
+  .ck-tag-producao { font-size: 9.5px; font-weight: 700; padding: 1px 6px; border-radius: 99px;
+                      border: 1px solid #5fae7a; color: #8fd1a3; margin-left: 6px; vertical-align: 1px; }
   .ck-cancelar { font-size: 11px; color: #e0967a; background: none; border: none; cursor: pointer;
                  padding: 2px 0; margin-top: 4px; text-decoration: underline; }
   .nt-painel { display: none; }
@@ -260,7 +270,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 </div>
 <script>
 (function () {
-  var BUILD = '5ffe0a563188';
+  var BUILD = '4cf294038783';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
@@ -581,12 +591,13 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
           ' data-id="' + it.id + '" value="' + (valorState[it.id] != null ? valorState[it.id] : '') + '"><span>ml</span></div>'
         : '';
       var pontualTag = it.origem === 'pontual' ? '<span class="ck-tag-pontual">Tarefa</span>' : '';
+      var producaoTag = it.origem === 'producao' ? '<span class="ck-tag-producao">Produção de hoje</span>' : '';
       var cancelarBtn = (it.origem === 'pontual' && GESTAO)
         ? '<button type="button" class="ck-cancelar" data-id="' + it.id + '">cancelar tarefa</button>' : '';
       return '<div class="ck-item" data-id="' + it.id + '">' +
         '<span class="ck-chk' + (checkState[it.id] ? ' on' : '') + '" data-id="' + it.id + '"><span class="box"></span></span>' +
         '<div class="ck-corpo" data-id="' + it.id + '">' +
-        '<div class="ck-t">' + esc(it.t) + (it.prio ? '<span class="ck-badge">!</span>' : '') + pontualTag + donoTag + '</div>' +
+        '<div class="ck-t">' + esc(it.t) + (it.prio ? '<span class="ck-badge">!</span>' : '') + pontualTag + producaoTag + donoTag + '</div>' +
         (it.d ? '<div class="ck-d">' + esc(it.d) + '</div>' : '') + numInput + cancelarBtn + '</div>' +
         (it.d ? '<span class="ck-seta">&#9662;</span>' : '') + '</div>';
     }).join('');
