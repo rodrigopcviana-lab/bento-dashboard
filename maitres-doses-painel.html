@@ -944,8 +944,12 @@ duas fotos (saída/retorno) de cada controle fechado, pra conferência.</p>
     var invalidas = fechadas.filter(ehInvalido).length;
     var validas = fechadas.filter(function (d) { return !ehInvalido(d); });
     var acima = validas.filter(function (d) { return d.veredito !== 'Dentro do padrão'; }).length;
-    var somaMl = fechadas.reduce(function (s, d) { return s + (d.servido_ml || 0); }, 0);
-    var mediaMl = total ? (somaMl / total) : 0;
+    // Média só sobre leitura confiável (mesmo raciocínio do "acima do
+    // limite" acima, completado a pedido do Rodrigo em 2026-09-05): uma
+    // leitura inválida (peso_retorno_maior etc.) não representa uma dose
+    // real servida, então não devia puxar a média pra lugar nenhum.
+    var somaMl = validas.reduce(function (s, d) { return s + (d.servido_ml || 0); }, 0);
+    var mediaMl = validas.length ? (somaMl / validas.length) : 0;
     var taxa = validas.length ? (acima / validas.length * 100) : 0;
     var porGarcom = {}, porProduto = {};
     validas.forEach(function (d) {
@@ -1036,7 +1040,7 @@ duas fotos (saída/retorno) de cada controle fechado, pra conferência.</p>
   <div class="sino-lista" id="sino-lista-nov" hidden></div>
 </div>
 
-<p class="nota">Portal do Bar · Bento · atualizado em 04/09/2026.
+<p class="nota">Portal do Bar · Bento · atualizado em 05/09/2026.
 Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à mão.</p>
 <script>if (window.FilaOffline) window.FilaOffline.iniciarSelo({"elId": "fila-selo", "destinos": {"registro": "maitres-registro.html", "turno": "maitres-turno.html"}});</script>
 
@@ -1064,7 +1068,7 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
 </div>
 <script>
 (function () {
-  var BUILD = 'f80039b98113';
+  var BUILD = '2d853b6b4767';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;

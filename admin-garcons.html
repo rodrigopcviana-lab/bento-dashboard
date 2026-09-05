@@ -913,6 +913,14 @@ ficha; o Controle de Doses do Bento não registra preço, então esta página n�
     return Math.floor((Date.now() - d.getTime()) / (7 * 86400000));
   }
 
+  // Mesmo teste do Controle de Doses (fonte da mesma API /api/doses) —
+  // achado da revisão de intuitividade, 2026-09-05: taxa/média/excedente/
+  // tendência por garçom contavam leitura de peso INVÁLIDA (foto ilegível,
+  // garrafa trocada) junto com excesso real — o mesmo problema que já foi
+  // corrigido nos KPIs agregados do Controle de Doses, completado aqui pra
+  // não continuar acusando garçom por erro de medição.
+  function ehInvalido(x) { return x.veredito === 'Peso inválido — revisar'; }
+
   function agrega(doses) {
     var fechadas = doses.filter(function (x) {
       return x.status === 'Fechado' && x.servido_ml != null && x.garcom;
@@ -928,13 +936,17 @@ ficha; o Controle de Doses do Bento não registra preço, então esta página n�
     return Object.keys(grupos).map(function (chave) {
       var lista = grupos[chave].doses;
       var total = lista.length;
-      var acima = lista.filter(function (x) { return x.veredito !== 'Dentro do padrão'; }).length;
-      var taxa = total ? (acima / total * 100) : 0;
-      var somaMl = lista.reduce(function (s, x) { return s + (x.servido_ml || 0); }, 0);
-      var mediaMl = total ? (somaMl / total) : 0;
+      // taxa/média/excedente/tendência rodam só sobre leitura confiável —
+      // "total" continua contando toda dose fechada (é volume de trabalho,
+      // não acusação).
+      var validas = lista.filter(function (x) { return !ehInvalido(x); });
+      var acima = validas.filter(function (x) { return x.veredito !== 'Dentro do padrão'; }).length;
+      var taxa = validas.length ? (acima / validas.length * 100) : 0;
+      var somaMl = validas.reduce(function (s, x) { return s + (x.servido_ml || 0); }, 0);
+      var mediaMl = validas.length ? (somaMl / validas.length) : 0;
       // Excedente: só conta quando HÁ limite gravado e o servido passou dele.
       // Dose sem limite não vira zero silencioso nem excedente inventado.
-      var comLimite = lista.filter(function (x) { return x.limite_ml != null; });
+      var comLimite = validas.filter(function (x) { return x.limite_ml != null; });
       var excedente = comLimite.reduce(function (s, x) {
         return s + Math.max(0, (x.servido_ml || 0) - x.limite_ml);
       }, 0);
@@ -945,7 +957,7 @@ ficha; o Controle de Doses do Bento não registra preço, então esta página n�
       })[0];
 
       var buckets = [0, 1, 2, 3, 4].map(function () { return { total: 0, acima: 0 }; });
-      lista.forEach(function (x) {
+      validas.forEach(function (x) {
         var sem = semanasAtras(x.horario_saida);
         if (sem == null || sem < 0 || sem > 4) return;
         buckets[sem].total++;
@@ -1063,7 +1075,7 @@ ficha; o Controle de Doses do Bento não registra preço, então esta página n�
   <div class="sino-lista" id="sino-lista-nov" hidden></div>
 </div>
 
-<p class="nota">Portal do Bar · Bento · atualizado em 04/09/2026.
+<p class="nota">Portal do Bar · Bento · atualizado em 05/09/2026.
 Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à mão.</p>
 <script>if (window.FilaOffline) window.FilaOffline.iniciarSelo({"elId": "fila-selo", "destinos": {"registro": "admin-registro.html", "turno": "admin-turno.html"}});</script>
 
@@ -1091,7 +1103,7 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
 </div>
 <script>
 (function () {
-  var BUILD = 'f80039b98113';
+  var BUILD = '2d853b6b4767';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
