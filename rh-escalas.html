@@ -885,9 +885,13 @@ folga semanal, folga de domingo por sexo e folga compensatória).</p>
 
 <div id="es-view-padrao" style="display:none">
   <p class="sub" style="margin-bottom:10px">Padrão fixo da equipe. "Aplicar a partir de" regenera a grade dali pra
-  frente — dias já editados pontualmente (ex.: freelancer num domingo) não são sobrescritos.</p>
+  frente — dias já editados pontualmente (ex.: freelancer num domingo) não são sobrescritos. "Domingo-âncora" e
+  "A cada (semanas)" são o rodízio de domingo (ex.: Vitória/Yasmin alternando, Gabriel 1 a cada 4) — deixe em branco
+  se a pessoa não tem rodízio; preenchidos, "Aplicar Padrão" passa a dar folga extra nesses domingos, além da folga
+  fixa. Exige as colunas "Rodízio âncora"/"Rodízio cadência (semanas)" criadas na base "Escala · Padrão" do Notion —
+  sem elas, salvar dá erro.</p>
   <table class="es-padrao-tab" id="es-padrao-tab">
-    <thead><tr><th>Pessoa</th><th>Sexo</th><th>Turno base</th><th>Entrada</th><th>Saída</th><th>Folga fixa</th><th>Rodízio</th><th>Ativo</th></tr></thead>
+    <thead><tr><th>Pessoa</th><th>Sexo</th><th>Turno base</th><th>Entrada</th><th>Saída</th><th>Folga fixa</th><th>Rodízio (nota)</th><th>Domingo-âncora</th><th>A cada (semanas)</th><th>Ativo</th></tr></thead>
     <tbody></tbody>
   </table>
   <button type="button" class="es-btn" id="es-padrao-add">+ Adicionar pessoa</button>
@@ -1214,6 +1218,16 @@ folga semanal, folga de domingo por sexo e folga compensatória).</p>
         + '<td><input type="time" class="ep-saida" value="' + (p.saidaBase || '') + '"></td>'
         + '<td><select class="ep-folga">' + DIAS_SEMANA.map(function (d) { return '<option value="' + d + '"' + (d === p.folgaFixa ? ' selected' : '') + '>' + d + '</option>'; }).join('') + '</select></td>'
         + '<td><input class="ep-rodizio" value="' + (p.rodizio || '') + '"></td>'
+        // Domingo-âncora + cadência (achado da revisão de intuitividade,
+        // 2026-09-06): campos vazios/undefined até alguém preencher — sem
+        // eles "Aplicar Padrão" continua igual a sempre foi (só folga
+        // fixa). Só ficam ativos de verdade depois que as colunas
+        // "Rodízio âncora"/"Rodízio cadência (semanas)" existirem na base
+        // "Escala · Padrão" do Notion (ver comentário na interface
+        // EscalaPadraoLinha, worker/src/index.ts) — sem elas, salvar aqui
+        // dá erro do Notion em vez de gravar em silêncio.
+        + '<td><input type="date" class="ep-rodizio-ancora" value="' + (p.rodizioAncora || '') + '" title="Um domingo CONFIRMADO em que esta pessoa folga por causa do rodízio"></td>'
+        + '<td><input type="number" min="2" step="1" class="ep-rodizio-cadencia" value="' + (p.rodizioCadenciaSemanas != null ? p.rodizioCadenciaSemanas : '') + '" style="width:64px" title="De quantas em quantas semanas esse domingo se repete — 2 = alternado, 4 = mensal"></td>'
         + '<td style="text-align:center"><input type="checkbox" class="ep-ativo"' + (p.ativo ? ' checked' : '') + '></td>'
         + '</tr>';
     }).join('');
@@ -1222,6 +1236,8 @@ folga semanal, folga de domingo por sexo e folga compensatória).</p>
   function lePadraoDaTela() {
     var linhas = [];
     document.querySelectorAll('#es-padrao-tab tbody tr').forEach(function (tr) {
+      var ancora = tr.querySelector('.ep-rodizio-ancora').value;
+      var cadenciaStr = tr.querySelector('.ep-rodizio-cadencia').value;
       linhas.push({
         pessoa: tr.querySelector('.ep-pessoa').value.trim(),
         sexo: tr.querySelector('.ep-sexo').value,
@@ -1230,6 +1246,8 @@ folga semanal, folga de domingo por sexo e folga compensatória).</p>
         saidaBase: tr.querySelector('.ep-saida').value,
         folgaFixa: tr.querySelector('.ep-folga').value,
         rodizio: tr.querySelector('.ep-rodizio').value,
+        rodizioAncora: ancora || undefined,
+        rodizioCadenciaSemanas: cadenciaStr ? parseInt(cadenciaStr, 10) : undefined,
         ativo: tr.querySelector('.ep-ativo').checked,
       });
     });
@@ -1500,7 +1518,7 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
 </div>
 <script>
 (function () {
-  var BUILD = '761b9f588d13';
+  var BUILD = 'f0ea97247721';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
