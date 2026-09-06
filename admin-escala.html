@@ -854,6 +854,10 @@ folga semanal, folga de domingo por sexo e folga compensatória).</p>
   .es-versoes .es-vbtn { font-size: 12px; border-radius: 7px; padding: 5px 10px; border: 1px solid var(--border);
                           background: var(--bg); color: var(--text); cursor: pointer; font-family: inherit; }
   .es-versoes .es-vbtn:disabled { opacity: .45; cursor: default; }
+  /* "Publicar esta versão" sobrescreve a Principal — única ação de versão
+     com esse alcance, por isso o único botão com destaque de cor. */
+  .es-versoes .es-vbtn-publicar { border-color: var(--ambar); color: var(--ambar-2); }
+  .es-versoes .es-vbtn-publicar:disabled { border-color: var(--border); color: var(--text); }
   .es-versao-status { font-size: 11.5px; color: var(--text-3); margin-right: auto; }
   .es-versao-status .ok { color: #7bd88f; }
   .es-versao-status .bloq { color: #f09b9b; }
@@ -922,17 +926,22 @@ folga semanal, folga de domingo por sexo e folga compensatória).</p>
     <span class="es-versao-status" id="es-versao-status"></span>
     <button type="button" class="es-vbtn" id="es-versao-nova">+ Nova</button>
     <button type="button" class="es-vbtn" id="es-versao-oficial">Tornar oficial</button>
+    <button type="button" class="es-vbtn es-vbtn-publicar" id="es-versao-publicar">Publicar esta versão</button>
     <button type="button" class="es-vbtn" id="es-versao-excluir">Excluir</button>
   </div>
   <!-- Achado + fix propostos por agente (Sonnet/alto), revisão de
        intuitividade, 2026-09-04: o Mural do RH promete "Publicar escala" e
        calcula "X dias sem publicar" só a partir da versão Principal — mas
-       "Tornar oficial" (abaixo) marca o checkbox Oficial e NÃO copia os dias
-       pra Principal, então o alerta do Mural continua ativo mesmo depois de
-       "tornar oficial" uma versão. Esta nota corrige a comunicação; a
-       lacuna funcional (se "oficial" deve publicar de fato, e como) segue
-       em aberto — decisão do Rodrigo, ainda não tomada. -->
-  <p class="sub" style="font-size:11.5px;margin:-6px 0 12px">"Tornar oficial" só marca a versão preferida entre rascunhos — não publica. O Mural do RH sempre lê a versão <b>Principal</b>; pra atualizar o aviso "dias sem publicar", selecione Principal no campo Versão acima, edite e salve.</p>
+       "Tornar oficial" marcava o checkbox Oficial e NÃO copiava os dias pra
+       Principal, então o alerta do Mural continuava ativo mesmo depois de
+       "tornar oficial" uma versão. Fechado em 2026-09-05 (opção (c) das 3
+       propostas, aprovada pelo Rodrigo): "Publicar esta versão" copia os
+       dias da versão escolhida pra Principal (o que o Mural/downstream de
+       fato leem) sob confirmação explícita — "Tornar oficial" sozinho
+       continua só marcando preferência, sem copiar nada, de propósito
+       (evita que um clique com intenção menor sobrescreva a Principal sem
+       querer). -->
+  <p class="sub" style="font-size:11.5px;margin:-6px 0 12px">"Tornar oficial" só marca a versão preferida entre rascunhos — não publica. <b>"Publicar esta versão"</b> é quem copia os dias pra <b>Principal</b>, a versão que o Mural do RH e tudo mais lê — pede confirmação porque sobrescreve o que estiver lá.</p>
   <div class="es-grade"><table class="es-tab" id="es-grade-tab"><thead></thead><tbody></tbody></table></div>
   <div class="es-acoes">
     <input type="text" id="es-freela-nome" placeholder="Nome do freelancer" style="max-width:220px">
@@ -1315,6 +1324,9 @@ folga semanal, folga de domingo por sexo e folga compensatória).</p>
     else { el.innerHTML = '<span class="ok">sem bloqueios</span>' + (v.avisos ? ' · ' + v.avisos + ' aviso(s)' : ''); }
     var ehOficial = (estado.oficialId || '') === (estado.versao || '');
     document.getElementById('es-versao-oficial').disabled = ehOficial;
+    // "Publicar esta versão" não faz sentido olhando a própria Principal
+    // (não tem pra onde copiar) — só existe pra versão nomeada.
+    document.getElementById('es-versao-publicar').disabled = !estado.versao;
     document.getElementById('es-versao-excluir').disabled = !estado.versao || ehOficial;
   }
   function renderVersaoSelect() {
@@ -1384,11 +1396,43 @@ folga semanal, folga de domingo por sexo e folga compensatória).</p>
           return;
         }
         if (!res.corpo.ok) { toast(res.corpo.erro || 'Falha ao tornar oficial', true); return; }
-        toast('Versão marcada como oficial (isto não publica — edite a Principal pra atualizar o Mural).');
+        toast('Versão marcada como oficial (isto não publica — use "Publicar esta versão" pra copiar os dias pra Principal).');
         carregaVersoes();
       }).catch(function () { toast('Sem conexão — tente de novo', true); });
   }
   document.getElementById('es-versao-oficial').addEventListener('click', function () { enviaOficial(false, ''); });
+  // "Publicar esta versão" (2026-09-05, opção (c) das 3 propostas de
+  // "Publicar escala"): sobrescreve a Principal com os dias da versão
+  // escolhida — a única das 3 ações de versão que muda o que o Mural do RH
+  // e tudo mais que lê a escala realmente vê. Por isso pede confirmação
+  // explícita ANTES do próprio fetch, diferente de "Tornar oficial" (que
+  // só reordena preferência entre rascunhos, nunca sobrescreve nada).
+  function enviaPublicar(forcar, justificativa) {
+    var corpo = { semana: segundaDaSemana(estado.semanaInicio), versaoId: estado.versao };
+    if (forcar) { corpo.forcar = true; corpo.justificativa = justificativa; }
+    fetch(WORKER + '/api/escala/versao/publicar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Token': token() },
+      body: JSON.stringify(corpo),
+    }).then(function (r) { return r.json().then(function (j) { return { status: r.status, corpo: j }; }); })
+      .then(function (res) {
+        if (res.status === 422 && res.corpo.podeForcar) {
+          renderViolacoes(res.corpo.violacoes || []);
+          var motivo = window.prompt('Esta versão está fora da CLT. Explique o motivo pra publicar mesmo assim (ou cancele):');
+          if (motivo && motivo.trim()) { enviaPublicar(true, motivo.trim()); }
+          else { toast('Publicação bloqueada — veja as violações acima', true); }
+          return;
+        }
+        if (!res.corpo.ok) { toast(res.corpo.erro || 'Falha ao publicar', true); return; }
+        toast('Versão publicada' + (res.corpo.diasPublicados ? ' (' + res.corpo.diasPublicados + ' dias)' : '') + ' — a Principal foi atualizada.');
+        if (estado.versao) { estado.versao = ''; }
+        carregaVersoes(); carregaEscala();
+      }).catch(function () { toast('Sem conexão — tente de novo', true); });
+  }
+  document.getElementById('es-versao-publicar').addEventListener('click', function () {
+    if (!estado.versao) return;
+    if (!window.confirm('Publicar "' + nomeVersaoAtual() + '" como Principal?\n\nIsto SOBRESCREVE a escala que o Mural do RH e o resto do site leem hoje. Não dá pra desfazer pela tela.')) return;
+    enviaPublicar(false, '');
+  });
   document.getElementById('es-versao-excluir').addEventListener('click', function () {
     if (!estado.versao) { toast('A Principal não pode ser excluída', true); return; }
     if (!window.confirm('Excluir a versão "' + nomeVersaoAtual() + '" e todos os dias dela nesta semana? Não dá pra desfazer pela tela.')) return;
@@ -1512,7 +1556,7 @@ folga semanal, folga de domingo por sexo e folga compensatória).</p>
   <div class="sino-lista" id="sino-lista-nov" hidden></div>
 </div>
 
-<p class="nota">Portal do Bar · Bento · atualizado em 05/09/2026.
+<p class="nota">Portal do Bar · Bento · atualizado em 06/09/2026.
 Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à mão.</p>
 <script>if (window.FilaOffline) window.FilaOffline.iniciarSelo({"elId": "fila-selo", "destinos": {"registro": "admin-registro.html", "turno": "admin-turno.html"}});</script>
 
@@ -1540,7 +1584,7 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
 </div>
 <script>
 (function () {
-  var BUILD = '2d853b6b4767';
+  var BUILD = '761b9f588d13';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
