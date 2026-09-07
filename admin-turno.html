@@ -150,6 +150,27 @@
   .fila-banner.pend { background: #3a2d12; border: 1px solid var(--ambar); color: var(--ambar-2); }
   .fila-banner.erro { background: #3a1a1a; border: 1px solid #e08585; color: #f0a5a5; }
   .enviar.pend { background: #e0b352; }
+
+  /* Turno v4 (PLANO_TURNO_V4): data travada, identidade por lista, cobrança dos 4 envios */
+  .tv-data-campo input[readonly] { opacity: .6; pointer-events: none; background: var(--card-2);
+                                   border-style: dashed; }
+  .tv-data-ext { font-size: 13px; color: var(--text-2); margin-top: 6px; line-height: 1.45; }
+  .tv-data-ext b { color: var(--text); font-weight: 600; }
+  .ident-msg { font-size: 12.5px; color: var(--ambar-2); margin-top: 6px; line-height: 1.45; }
+  #tv-pessoa-sel { width: 100%; padding: 11px 12px; font-size: 15px; border-radius: 8px;
+                   border: 1px solid var(--border); background: var(--card); color: var(--text);
+                   font-family: inherit; }
+  #tv-senha-wrap { margin-top: 8px; }
+  .cobranca { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 16px;
+              background: var(--card-2); }
+  .cobranca h4 { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-3);
+                 margin: 0 0 8px; font-weight: 700; }
+  .cobranca ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+  .cobranca li { font-size: 13px; color: var(--text-2); display: flex; align-items: center; gap: 8px; }
+  .cobranca li .cb-ic { flex: none; width: 15px; height: 15px; }
+  .cobranca li.cb-ok { color: var(--text); }
+  .cobranca li.cb-ok .cb-ic { color: #4fbf92; }
+  .cobranca li.cb-falta .cb-ic { color: var(--text-3); }
 </style>
 </head>
 <body>
@@ -278,7 +299,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 </div>
 <script>
 (function () {
-  var BUILD = 'f0ea97247721';
+  var BUILD = 'c2da92057f32';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
@@ -380,10 +401,15 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 
 <div class="fila-banner" id="tv-fila-banner"></div>
 
+<div class="cobranca" id="tv-cobranca" hidden></div>
+
 <form class="panel" id="tv-form" novalidate>
   <div class="foco" id="tv-foco"><b>Foco do dia</b><p id="tv-foco-txt">—</p></div>
 
-  <div class="tu-campo"><label>Data</label><input id="tv-data" type="date"></div>
+  <div class="tu-campo tv-data-campo"><label>Data — dia de hoje</label>
+    <input id="tv-data" type="date" readonly tabindex="-1">
+    <p class="tv-data-ext" id="tv-data-ext">&mdash;</p>
+  </div>
   <div class="tu-campo"><label>Turno</label>
     <div class="tu-pills" id="tv-turno-pills">
       <button type="button" class="tu-pill" data-turno="Almoço">Almoço</button>
@@ -451,8 +477,13 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
     <input type="file" accept="image/*" capture="environment" id="tv-foto-input" style="display:none">
   </div>
 
-  <div class="tu-campo senha-campo"><label>Sua senha individual</label>
-    <input id="tv-senha" type="password" inputmode="text" autocomplete="off" placeholder="senha pessoal">
+  <div class="tu-campo senha-campo" id="tv-ident">
+    <label id="tv-ident-lbl">Quem está enviando</label>
+    <select id="tv-pessoa-sel" hidden></select>
+    <div id="tv-senha-wrap">
+      <input id="tv-senha" type="password" inputmode="text" autocomplete="off" placeholder="sua senha pessoal">
+    </div>
+    <p class="ident-msg" id="tv-ident-msg"></p>
   </div>
 
   <button type="submit" class="enviar" id="tv-enviar" disabled>Enviar relatório</button>
@@ -466,24 +497,25 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 mantida à mão (não faz parte da geração automática das demais páginas).</p>
 
 <script src="fila-offline.js"></script>
+<script src="rotinas-comum.js"></script>
 <script>
 (function () {
   var WORKER_URL = "https://bento-portal-contagem.rodrigopcviana.workers.dev";
   var CHAVE = '52d20056e7bbf3bcc08092123cdde44d';
   var FASE = "fechamento";
   var ROTINAS = /* ROTINAS:INICIO */ {"_nota": "ROTINAS v3 (2026-09-02, PLANO_ROTINAS_V3.md §2/§3). Fonte única das rotinas do Bento: alimenta as 6 páginas de turno (via bento/injeta_rotinas.py), a página rh-rotinas.html e o card 'Foco do dia' do mural.\n\nCOMPATÍVEL COM O QUE ESTÁ NO AR: as páginas de turno leem ROTINAS['abertura'] e ROTINAS['fechamento'] e renderizam só 't', 'd' e 'prio'. Os campos e blocos novos são IGNORADOS por elas até o E5 — publicar este arquivo sozinho não quebra nada e não mostra nada novo.\n\nCAMPOS:\n  id        ESTÁVEL e nunca reciclado — é a chave de histórico e de conclusão. Reescrever o título é seguro; trocar o id reabre o item como novo pra todo mundo.\n  bloco     abertura | mise_en_place | durante | fechamento | periodica\n  setor     bar | salao | apoio\n  freq      'diaria' | 'semanal:<N>' | 'quinzenal:<N>' | 'mensal:<D>'  (N = dia ISO da semana, 1=segunda; D = dia do mês)\n  minutos   ESTIMATIVA, não medição — serve pra equilibrar a divisão de tarefas do E5. Corrigir conforme a casa mostrar o tempo real.\n  evidencia nenhuma | foto | numero\n  origem    fixa | producao | pontual  ('producao' é injetado pelo E3 a partir de bento/producao_semanal.py; não escrever à mão aqui)\n\nO bloco mise_en_place nasce com os itens FIXOS de preparo. As ordens de produção com quantidade (ex.: 'espremer 570 ml de limão') entram nele em tempo de geração, vindas de data/bento/producao_semanal_audit.json — não são digitadas aqui (Regra Zero).", "versao": 3, "foco_do_dia": "Turno tranquilo — capricho no básico: bancada limpa, etiquetas em dia, gelo cheio.", "blocos": [{"chave": "abertura", "rotulo": "Abertura", "ordem": 1}, {"chave": "mise_en_place", "rotulo": "Mise en place", "ordem": 2}, {"chave": "durante", "rotulo": "Durante o serviço", "ordem": 3}, {"chave": "fechamento", "rotulo": "Fechamento", "ordem": 4}, {"chave": "periodica", "rotulo": "Periódicas", "ordem": 5}], "abertura": [{"id": "abt_equipamentos", "t": "Ligar equipamentos (geladeira, máquina de gelo, liquidificador)", "d": "Checar se todos ligam normal. Equipamento com defeito, avisar na hora, não deixar pra depois.", "prio": true, "bloco": "abertura", "setor": "bar", "freq": "diaria", "minutos": 3, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "abt_limpeza", "t": "Conferir limpeza geral do bar", "d": "Bancada, piso e prateleiras sem sujeira ou resíduo do turno anterior. Achou sujeira, é ruptura do fechamento de ontem — registra.", "prio": true, "bloco": "abertura", "setor": "bar", "freq": "diaria", "minutos": 5, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "abt_validade", "t": "Conferir validade das produções abertas", "d": "Suco espremido dura 24h e pré-batch 2 dias. O que passou da validade sai da bancada AGORA — não é pra 'usar rápido antes que estrague'.", "prio": true, "bloco": "abertura", "setor": "bar", "freq": "diaria", "minutos": 5, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "abt_producao_ontem", "t": "Conferir a produção que ficou pendente do turno anterior", "d": "O fechamento de ontem anotou o que não deu tempo de produzir. Isso entra na frente da mise en place de hoje.", "prio": true, "bloco": "abertura", "setor": "bar", "freq": "diaria", "minutos": 2, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "abt_gelo", "t": "Conferir gelo (cubo e triturado)", "d": "Máquina cheia e reserva pronta — gelo é o insumo que mais falta no meio do movimento.", "prio": true, "bloco": "abertura", "setor": "bar", "freq": "diaria", "minutos": 5, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "abt_etiquetas", "t": "Checar etiquetagem dos insumos", "d": "Garrafas, bisnagas e potes com etiqueta legível (produto + data). Sem etiqueta, sem uso.", "prio": true, "bloco": "abertura", "setor": "bar", "freq": "diaria", "minutos": 4, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "abt_utensilios", "t": "Repor copos, shakers e utensílios", "d": "Estação completa: coqueteleiras, jiggers, colheres e copos limpos e à mão.", "prio": false, "bloco": "abertura", "setor": "bar", "freq": "diaria", "minutos": 4, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "abt_falta", "t": "Lançar na Contagem o que está faltando", "d": "O que faltar vai pra tela de Contagem de insumos, não pra um papel na bancada — é dali que sai o pedido de compra.", "prio": false, "bloco": "abertura", "setor": "bar", "freq": "diaria", "minutos": 5, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "abt_apoio", "t": "Conferir bancada de apoio", "d": "Itens de reposição rápida (guardanapo, canudo, palito) abastecidos.", "prio": false, "bloco": "abertura", "setor": "bar", "freq": "diaria", "minutos": 3, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "abt_reservas", "t": "Verificar reservas e eventos do dia", "d": "Saber se tem grupo grande ou evento programado ajuda a calcular o ritmo do turno e o tanto de produção.", "prio": false, "bloco": "abertura", "setor": "bar", "freq": "diaria", "minutos": 2, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}], "mise_en_place": [{"id": "mep_garnish", "t": "Cortar e montar os garnishes do dia", "d": "Frutas, ervas e cascas prontas e cobertas antes de abrir. Garnish cortado na hora do pedido é drink atrasado.", "prio": true, "bloco": "mise_en_place", "setor": "bar", "freq": "diaria", "minutos": 15, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "mep_bancada", "t": "Montar a estação de trabalho", "d": "Xaropes, sucos e pré-batches do dia posicionados na bancada, na ordem em que a mão pega.", "prio": true, "bloco": "mise_en_place", "setor": "bar", "freq": "diaria", "minutos": 10, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}], "durante": [{"id": "dur_gelo_pico", "t": "Repor gelo antes do pico", "d": "Encher a reserva antes de o movimento subir, não durante.", "prio": true, "bloco": "durante", "setor": "bar", "freq": "diaria", "minutos": 5, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "dur_reset_bancada", "t": "Reset da bancada no meio do serviço", "d": "Limpar, repor garnish e conferir o que está acabando — 5 minutos aqui evitam meia hora de correria depois.", "prio": false, "bloco": "durante", "setor": "bar", "freq": "diaria", "minutos": 5, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}], "fechamento": [{"id": "fch_contagem", "t": "Fechar a contagem do dia", "d": "Lançar a contagem do que saiu na tela de Contagem, pra bater com o estoque amanhã.", "prio": true, "bloco": "fechamento", "setor": "bar", "freq": "diaria", "minutos": 10, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "fch_producao_sobra", "t": "Anotar quanto sobrou de cada produção", "d": "Os itens logo abaixo perguntam, um a um, quanto ficou de cada suco/xarope/pré-batch no fim do turno. É esse número que ensina o sistema a pedir a quantidade certa — sem ele, a produção continua sendo chute. (Este aqui é só o título da seção; o E3/rotinas_gen.py que insere os itens de verdade, um por produção calculável, logo em seguida.)", "prio": true, "bloco": "fechamento", "setor": "bar", "freq": "diaria", "minutos": 0, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "fch_utensilios", "t": "Lavar e guardar utensílios", "d": "Copos, shakers, jiggers e colheres limpos e guardados no lugar certo.", "prio": true, "bloco": "fechamento", "setor": "bar", "freq": "diaria", "minutos": 15, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "fch_limpeza", "t": "Limpar bancada, equipamentos e dreno", "d": "Estação inteira higienizada, sem resíduo de fruta, xarope ou bebida.", "prio": true, "bloco": "fechamento", "setor": "bar", "freq": "diaria", "minutos": 15, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "fch_perecivel", "t": "Guardar insumos e ingredientes perecíveis", "d": "Fruta, ervas e produtos abertos na geladeira, bem fechados e etiquetados com a data.", "prio": true, "bloco": "fechamento", "setor": "bar", "freq": "diaria", "minutos": 8, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "fch_registro", "t": "Registrar ruptura, quebra ou ocorrência do turno", "d": "O que quebrou, faltou, ou o problema com cliente/equipe vai pro Registro Rápido — não fica só no boca a boca nem só neste formulário.", "prio": true, "bloco": "fechamento", "setor": "bar", "freq": "diaria", "minutos": 5, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "fch_desligar", "t": "Desligar todos os equipamentos", "d": "Confirmar que nada fica ligado à toa até o próximo turno.", "prio": true, "bloco": "fechamento", "setor": "bar", "freq": "diaria", "minutos": 3, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "fch_lixo", "t": "Conferir lixo e organização geral", "d": "Lixo recolhido, saco novo colocado, área de trabalho arrumada pra quem abre amanhã.", "prio": false, "bloco": "fechamento", "setor": "bar", "freq": "diaria", "minutos": 5, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}, {"id": "fch_trancar", "t": "Trancar geladeiras e armários", "d": "Itens sensíveis guardados e travados antes de sair.", "prio": false, "bloco": "fechamento", "setor": "bar", "freq": "diaria", "minutos": 2, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}], "periodica": [{"id": "per_maquina_gelo", "t": "Esvaziar e higienizar a máquina de gelo", "d": "Gelo velho fora, máquina limpa por dentro. Era item de fechamento diário e virou semanal — diariamente ninguém fazia de verdade, e meia rotina cumprida vale menos que uma rotina inteira.", "prio": true, "bloco": "periodica", "setor": "bar", "freq": "semanal:1", "minutos": 30, "evidencia": "foto", "funcao": "bartender", "origem": "fixa"}, {"id": "per_validades", "t": "Revisão geral de validades e etiquetas", "d": "Varrer geladeira e prateleira inteiras, não só a bancada do dia. O que estiver sem etiqueta ou vencido, descarta e registra.", "prio": true, "bloco": "periodica", "setor": "bar", "freq": "semanal:1", "minutos": 25, "evidencia": "foto", "funcao": "bartender", "origem": "fixa"}, {"id": "per_geladeira", "t": "Limpeza profunda das geladeiras do bar", "d": "Tirar tudo, limpar por dentro, conferir borracha e temperatura.", "prio": false, "bloco": "periodica", "setor": "bar", "freq": "quinzenal:1", "minutos": 45, "evidencia": "foto", "funcao": "bartender", "origem": "fixa"}, {"id": "per_vidraria", "t": "Contagem de copos e vidraria", "d": "Contagem completa na tela de Contagem de copos — é o que mostra quebra que ninguém registrou.", "prio": false, "bloco": "periodica", "setor": "bar", "freq": "mensal:1", "minutos": 30, "evidencia": "nenhuma", "funcao": "bartender", "origem": "fixa"}]} /* ROTINAS:FIM */;
-  // --- Rotinas v3 (E5/E6): dia real por /api/rotinas, com fallback estático ---
-  // FASE decide os blocos: abertura mostra o que "quem abre" faz (abertura +
-  // mise en place + periódicas do dia); fechamento mostra só o fechamento
-  // (a divisão por turno, no worker, já separa por BLOCO_TURNO — aqui só
-  // decide quais blocos ESTA página exibe).
-  function blocosDaFase() {
-    // 'durante' entra nas duas: os dois turnos fazem (BLOCO_TURNO='todos' no
-    // gerador), e task pontual sem bloco escolhido nasce em 'durante'
-    // (default do worker) — sem isso ela não apareceria em página nenhuma.
-    return FASE === 'abertura'
-      ? ['abertura', 'mise_en_place', 'durante', 'periodica']
-      : ['fechamento', 'durante'];
+  // --- Rotinas v3 (E5/E6) + v4 (E1): dia real por /api/rotinas, fallback estático ---
+  // blocosDaFase / normalizaTurnoLabel / diaOperacional vêm agora do módulo
+  // compartilhado rotinas-comum.js (window.RotinasComum) — antes viviam
+  // copiados aqui e em mais 5 páginas de turno. FASE decide os blocos desta.
+  var RC = window.RotinasComum;
+  if (!RC) {
+    var _bnRC = document.getElementById('tv-fila-banner');
+    if (_bnRC) {
+      _bnRC.className = 'fila-banner erro on';
+      _bnRC.textContent = 'Um recurso da página não carregou direito. Recarregue (puxe a tela pra baixo) e tente de novo.';
+    }
+    return;
   }
   // Fallback SEM rede/sessão: junta os blocos fixos embutidos no próprio
   // arquivo (ROTINAS, injetado por bento/injeta_rotinas.py). Não tem
@@ -491,13 +523,11 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
   // produção com quantidade — degradação declarada, nunca tela vazia.
   function itensEstaticosFallback() {
     var out = [];
-    blocosDaFase().forEach(function (b) { (ROTINAS[b] || []).forEach(function (it) { out.push(it); }); });
+    RC.blocosDaFase(FASE).forEach(function (b) { (ROTINAS[b] || []).forEach(function (it) { out.push(it); }); });
     return out;
   }
   var ITENS = itensEstaticosFallback();
   var rotinasHoje = null;   // resposta cheia de GET /api/rotinas, se carregou
-
-  function normalizaTurnoLabel(t) { return t === 'Jantar' ? 'Noite' : 'Dia'; }
 
   // id -> nome (dono) | null (sem dono definido) | undefined (ainda não se sabe —
   // sem turno escolhido, ou API não respondeu). O undefined é o que faz a tag
@@ -506,7 +536,7 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
   function donoPorItem() {
     var mapa = {};
     if (!rotinasHoje || !rotinasHoje.hoje || !turnoSel) return mapa;
-    var turnoNorm = normalizaTurnoLabel(turnoSel);
+    var turnoNorm = RC.normalizaTurnoLabel(turnoSel);
     var divisao = (rotinasHoje.hoje.divisao || {})[turnoNorm] || {};
     Object.keys(divisao).forEach(function (pessoa) {
       (divisao[pessoa] || []).forEach(function (id) { mapa[id] = pessoa; });
@@ -540,14 +570,15 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
         if (!d || !d.hoje || !d.itens) return;  // 401/404/fora do horizonte — segue no fallback estático já na tela
         rotinasHoje = d;
         var ids = [];
-        blocosDaFase().forEach(function (b) { (d.hoje.blocos[b] || []).forEach(function (id) { ids.push(id); }); });
+        RC.blocosDaFase(FASE).forEach(function (b) { (d.hoje.blocos[b] || []).forEach(function (id) { ids.push(id); }); });
         var novos = ids.map(function (id) { return d.itens[id]; }).filter(Boolean);
         var tarefasDoBloco = (d.tarefas || [])
-          .filter(function (tr) { return blocosDaFase().indexOf(tr.bloco) >= 0; })
+          .filter(function (tr) { return RC.blocosDaFase(FASE).indexOf(tr.bloco) >= 0; })
           .map(tarefaParaItem);
         if (novos.length) ITENS = novos.concat(tarefasDoBloco);
         if (d.foco_do_dia) document.getElementById('tv-foco-txt').textContent = d.foco_do_dia;
         renderChecklist(); atualizaProgresso();
+        montaIdentidade(); renderCobranca();
       })
       .catch(function () { /* sem rede — fica no fallback estático, já renderizado */ });
   }
@@ -563,11 +594,20 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
 
   document.getElementById('tv-foco-txt').textContent = ROTINAS.foco_do_dia || 'Sem recado do Rodrigo hoje.';
 
-  function hoje() {
-    var d = new Date();
-    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  // E2/D3 (PLANO_TURNO_V4): a data é o DIA OPERACIONAL (corte 05:00, horário de
+  // Goiânia), travada — não é mais uma escolha. RC.diaOperacional vem de
+  // rotinas-comum.js e faz a conversão de fuso explícita.
+  function aplicaDataOperacional() {
+    var iso = RC.diaOperacional();
+    document.getElementById('tv-data').value = iso;
+    var p = iso.split('-');
+    var d = new Date(+p[0], (+p[1]) - 1, +p[2]);
+    var ext = d.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+    ext = ext.charAt(0).toUpperCase() + ext.slice(1);
+    var elExt = document.getElementById('tv-data-ext');
+    if (elExt) elExt.innerHTML = '<b>' + ext + '</b> &middot; não é uma escolha, é o dia de hoje.';
   }
-  document.getElementById('tv-data').value = hoje();
+  aplicaDataOperacional();
 
   document.querySelectorAll('#tv-turno-pills .tu-pill').forEach(function (b) {
     b.onclick = function () {
@@ -575,6 +615,7 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
       document.querySelectorAll('#tv-turno-pills .tu-pill').forEach(function (x) { x.classList.remove('on'); });
       b.classList.add('on');
       renderChecklist();   // re-renderiza pra mostrar o dono de cada item neste turno
+      montaIdentidade();   // a lista de nomes depende do turno escolhido
     };
   });
   document.querySelectorAll('#tv-gelo-pills .gelo-pill').forEach(function (b) {
@@ -669,7 +710,8 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
   }
   renderChecklist();
   atualizaProgresso();
-  document.getElementById('tv-data').addEventListener('change', carregaDia);
+  // E2/D3: a data é travada no dia operacional — não há mais troca de dia,
+  // então o listener de 'change' que recarregava o dia saiu.
   carregaDia();
 
   // --- inclusão de tarefa pontual (maitres/admin) -----------------------------
@@ -801,11 +843,104 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
   }
   atualizaBotaoEnviar();
 
-  // --- senha individual --------------------------------------------------------
+  // --- identidade: lista de nomes + senha só na 1ª vez (PLANO_TURNO_V4 E4/D1) --
+  // A lista de nomes só DECLARA quem fez; a senha guardada no aparelho PROVA.
+  // O envio manda os dois e o worker recusa (403 erro_codigo:"pessoa_divergente")
+  // se o nome escolhido não bater com o que a senha resolve. Sem escala
+  // utilizável, cai no campo de senha livre de sempre (armadilha 9).
   var SENHA_KEY = 'bento_pessoa_senha';
   var elSenha = document.getElementById('tv-senha');
+  var elSenhaWrap = document.getElementById('tv-senha-wrap');
+  var elPessoaSel = document.getElementById('tv-pessoa-sel');
+  var elIdentLbl = document.getElementById('tv-ident-lbl');
+  var elIdentMsg = document.getElementById('tv-ident-msg');
   var senhaSalva = localStorage.getItem(SENHA_KEY);
   if (senhaSalva) elSenha.value = senhaSalva;
+  var pessoaDeclarada = '';        // nome escolhido na lista ('' quando sem lista)
+  var forcarSenhaLivre = false;    // ligado após 403 pessoa_divergente
+
+  // Nomes escalados para o turno escolhido; [] quando não há escala utilizável.
+  function nomesEscalados() {
+    if (forcarSenhaLivre || !rotinasHoje || !rotinasHoje.hoje || !turnoSel) return [];
+    if (rotinasHoje.hoje.escala_origem === 'indisponivel') return [];
+    var turnoNorm = RC.normalizaTurnoLabel(turnoSel);
+    var lista = (rotinasHoje.hoje.escala || {})[turnoNorm] || [];
+    return Array.isArray(lista) ? lista.slice() : [];
+  }
+
+  function montaIdentidade() {
+    if (!elPessoaSel) return;
+    var nomes = nomesEscalados();
+    var temLista = nomes.length > 0;
+    var temSenha = !!localStorage.getItem(SENHA_KEY);
+
+    if (!temLista) {
+      // Fallback obrigatório: sem escala, volta ao campo de senha livre.
+      elPessoaSel.hidden = true;
+      elSenhaWrap.hidden = false;
+      elIdentLbl.textContent = 'Sua senha individual';
+      pessoaDeclarada = '';
+      elIdentMsg.textContent = (turnoSel && rotinasHoje && !forcarSenhaLivre)
+        ? 'Sem escala publicada para este turno — informe sua senha.'
+        : (forcarSenhaLivre ? 'Este aparelho estava salvo no nome de outra pessoa — digite a sua senha.' : '');
+      return;
+    }
+
+    var atual = elPessoaSel.value;
+    elPessoaSel.innerHTML = '<option value="">Selecione seu nome…</option>' +
+      nomes.map(function (n) { return '<option value="' + esc(n) + '">' + esc(n) + '</option>'; }).join('');
+    if (atual && nomes.indexOf(atual) >= 0) elPessoaSel.value = atual;
+    pessoaDeclarada = elPessoaSel.value;
+    elPessoaSel.hidden = false;
+    elIdentLbl.textContent = 'Quem está enviando';
+
+    if (temSenha) {
+      // O campo fica escondido mas PRECISA carregar a senha guardada — é ela
+      // que vai no payload como prova (senha_pessoa). Sem isto o envio sairia
+      // sem senha e o worker recusaria.
+      elSenha.value = localStorage.getItem(SENHA_KEY) || '';
+      elSenhaWrap.hidden = true;
+      elIdentMsg.textContent = 'Aparelho salvo — só confirme seu nome na lista.';
+    } else {
+      elSenhaWrap.hidden = false;
+      elIdentMsg.textContent = 'Primeira vez neste aparelho: escolha seu nome e digite sua senha uma vez.';
+    }
+  }
+
+  if (elPessoaSel) {
+    elPessoaSel.addEventListener('change', function () { pessoaDeclarada = elPessoaSel.value; });
+  }
+  montaIdentidade();
+
+  // --- E5: cobrança dos 4 envios do dia (Almoço/Jantar x abertura/fechamento) --
+  // Informação, nunca trava (padrão da casa: conselho, não muro). Some inteiro
+  // se turnos_enviados não veio (worker antigo / D1 fora) — nunca bloco vazio.
+  function renderCobranca() {
+    var el = document.getElementById('tv-cobranca');
+    if (!el) return;
+    var lista = rotinasHoje && rotinasHoje.turnos_enviados;
+    if (!Array.isArray(lista)) { el.hidden = true; el.innerHTML = ''; return; }
+    var feito = {};
+    lista.forEach(function (r) { if (r && r.turno && r.fase) feito[r.turno + '|' + r.fase] = r; });
+    var pares = [
+      { turno: 'Dia', fase: 'abertura', rot: 'Almoço · abertura' },
+      { turno: 'Dia', fase: 'fechamento', rot: 'Almoço · fechamento' },
+      { turno: 'Noite', fase: 'abertura', rot: 'Jantar · abertura' },
+      { turno: 'Noite', fase: 'fechamento', rot: 'Jantar · fechamento' }
+    ];
+    var okIc = '<svg class="cb-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+    var faltaIc = '<svg class="cb-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/></svg>';
+    el.innerHTML = '<h4>Envios de hoje</h4><ul>' + pares.map(function (p) {
+      var r = feito[p.turno + '|' + p.fase];
+      if (r) {
+        return '<li class="cb-ok">' + okIc + esc(p.rot) +
+          (r.pessoa ? ' <span style="color:var(--text-3)">· ' + esc(r.pessoa) + '</span>' : '') + '</li>';
+      }
+      return '<li class="cb-falta">' + faltaIc + esc(p.rot) + ' <span style="color:var(--text-3)">· falta</span></li>';
+    }).join('') + '</ul>';
+    el.hidden = false;
+  }
+  renderCobranca();
 
   // --- rascunho (só campos de texto — foto/checklist não persistem) -----------
   function chaveRascunho() { return 'bento_turno_' + FASE + '_rascunho'; }
@@ -822,7 +957,8 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
     if (!raw) return;
     try {
       var dados = JSON.parse(raw);
-      if (dados.data) document.getElementById('tv-data').value = dados.data;
+      // E2/D3: a data é travada no dia operacional — NÃO se restaura do rascunho
+      // (um rascunho de ontem traria a data errada pro payload).
       if (dados.turno) {
         turnoSel = dados.turno;
         document.querySelectorAll('#tv-turno-pills .tu-pill').forEach(function (b) {
@@ -842,6 +978,7 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
     } catch (e) { /* rascunho corrompido, ignora */ }
   }
   restaurarRascunho();
+  montaIdentidade();   // rascunho pode ter restaurado o turno -> a lista depende dele
   form.addEventListener('input', salvarRascunho);
 
   // --- fila offline — via fila-offline.js (módulo compartilhado com o Registro
@@ -877,8 +1014,23 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
         return { remover: false, reagendar: false };
       }
       if (status === 403) {
+        // Dois 403 diferentes, distinguidos pela mensagem do servidor (E4/D1):
+        //  - erro_codigo "pessoa_divergente": a senha guardada é de OUTRA pessoa.
+        //    Sem tratar à parte, isto vira loop de login (a casca antiga trata
+        //    todo 403 como senha inválida). Limpa a senha, força o campo livre.
+        //  - senão: senha individual mesmo errada, comportamento de sempre.
         localStorage.removeItem(SENHA_KEY);
         elSenha.value = '';
+        if (json && json.erro_codigo === 'pessoa_divergente') {
+          forcarSenhaLivre = true;
+          montaIdentidade();
+          bannerErro('Este aparelho estava salvo no nome de outra pessoa — digite a sua senha. O relatório continua guardado aqui e vai sozinho depois disso.');
+          // NÃO remove da fila (revisão adversarial 2026-09-07): remover apagaria
+          // a FOTO e o checklist junto, e o rascunho só guarda campo de texto.
+          // Fica guardado e drena sozinho quando a senha certa for digitada.
+          return { remover: false, reagendar: false };
+        }
+        montaIdentidade();
         bannerErro('Senha individual inválida — peça a sua ao Rodrigo. O restante do relatório não foi perdido, só reenvie após corrigir a senha.');
         return { remover: true, sucesso: false };
       }
@@ -887,7 +1039,18 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
         return { remover: true, sucesso: false };
       }
       if (status === 400) {
-        bannerErro('O servidor não aceitou este relatório (dado inválido). Confira os campos e reenvie.');
+        // Surfaça a mensagem do servidor quando houver (ex.: data fora da janela
+        // operacional, erro_codigo "data_fora_da_janela") em vez do genérico.
+        // `data_fora_da_janela` é o ÚNICO 400 em que o servidor recusa pelo
+        // TEMPO, não pelo conteúdo — o relatório é válido, só envelheceu na
+        // fila. Descartar aqui destrói foto e checklist de um turno que ACONTECEU
+        // (achado ALTO da revisão adversarial de 2026-09-07). Fica na fila, para
+        // de tentar sozinho, e a coordenação libera.
+        if (json && json.erro_codigo === 'data_fora_da_janela') {
+          bannerErro((json && json.erro) || 'Relatório fora da janela do dia — continua guardado neste aparelho.');
+          return { remover: false, reagendar: false };
+        }
+        bannerErro((json && json.erro) || 'O servidor não aceitou este relatório (dado inválido). Confira os campos e reenvie.');
         return { remover: true, sucesso: false };
       }
       if (status >= 200 && status < 300 && json && json.ok) {
@@ -896,7 +1059,7 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
       // outro erro/5xx: mantém na fila, tenta de novo no próximo gatilho/tick de 8s
       return { remover: false, reagendar: true };
     },
-    onSucesso: function (item) { localStorage.setItem(SENHA_KEY, item.senha_pessoa); },
+    onSucesso: function (item) { localStorage.setItem(SENHA_KEY, item.senha_pessoa); forcarSenhaLivre = false; },
     onMudou: function (n) { bannerRender(n); }
   });
   bannerRender();
@@ -907,6 +1070,7 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
     ITENS.forEach(function (it) { if (!checkState[it.id]) pendentes.push(it.t); });
     var body = {
       chave: CHAVE, _idemp: filaTurno.uuid(), senha_pessoa: senha, fase: FASE,
+      pessoa_declarada: pessoaDeclarada,
       data: document.getElementById('tv-data').value, turno: turnoSel,
       checklist: { total: ITENS.length, feitos: ITENS.length - pendentes.length, pendentes: pendentes },
       gelo_pct: geloSel === null ? null : geloSel,
@@ -928,6 +1092,11 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
     if (!turnoSel) {
       status.textContent = 'Escolha o turno (Almoço ou Jantar).'; status.className = 'status erro';
       document.getElementById('tv-turno-pills').scrollIntoView({ block: 'center' });
+      return;
+    }
+    if (elPessoaSel && !elPessoaSel.hidden && !pessoaDeclarada) {
+      status.textContent = 'Escolha seu nome na lista.'; status.className = 'status erro';
+      elPessoaSel.focus();
       return;
     }
     var senha = elSenha.value.trim();
@@ -956,13 +1125,14 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
           // rede aqui, a marcação simplesmente não vai — não bloqueia o que já
           // foi confirmado, e a pessoa pode marcar de novo depois.
           (function () {
-            var turnoNorm = normalizaTurnoLabel(turnoSel);
+            var turnoNorm = RC.normalizaTurnoLabel(turnoSel);
             ITENS.forEach(function (it) {
               if (!checkState[it.id]) return;
               fetch(WORKER_URL + '/api/rotina/concluir', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                  chave: CHAVE, senha_pessoa: senha, dia: body.data, turno: turnoNorm,
+                  chave: CHAVE, senha_pessoa: senha, pessoa_declarada: pessoaDeclarada,
+                  dia: body.data, turno: turnoNorm,
                   item_id: it.id, feito: true,
                   valor: it.evidencia === 'numero' && valorState[it.id] != null ? valorState[it.id] : null
                 })
@@ -970,9 +1140,11 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
             });
           })();
           form.reset(); turnoSel = null; geloSel = null; checkState = {}; valorState = {}; fotoBlob = null; fotoUploadId = null;
+          pessoaDeclarada = '';
           document.querySelectorAll('.tu-pill, .gelo-pill').forEach(function (b) { b.classList.remove('on'); });
           renderChecklist(); atualizaProgresso(); atualizaFotoUI(); atualizaBotaoEnviar();
-          document.getElementById('tv-data').value = hoje();
+          montaIdentidade(); renderCobranca();
+          aplicaDataOperacional();
           localStorage.removeItem(chaveRascunho());
         } else {
           status.textContent = 'Não foi possível confirmar o envio agora — ver aviso acima.';

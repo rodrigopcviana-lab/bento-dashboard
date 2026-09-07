@@ -30,7 +30,7 @@
  * páginas). Assim toda publicação nova nasce com um cache NOVO e o `activate`
  * abaixo apaga o anterior — a casca (ícones, logo, fila-offline.js) fica
  * fresca sozinha, sem custar uma ida à rede a cada carregamento. */
-const CACHE = "bento-portal-f0ea97247721";
+const CACHE = "bento-portal-c2da92057f32";
 const HTML_RACE_MS = 350;
 const CORE = [
   "index.html",
@@ -42,6 +42,7 @@ const CORE = [
   "icon-512-maskable.png",
   "apple-touch-icon.png",
   "fila-offline.js",
+  "rotinas-comum.js",
 ];
 
 /* Busca da REDE de verdade, furando o cache HTTP do navegador (o Pages manda
