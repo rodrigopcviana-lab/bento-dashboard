@@ -27,6 +27,56 @@
       : ['fechamento', 'durante'];
   }
 
+  // --- frequência legível ----------------------------------------------
+  // `freq` vem como 'diaria' | 'semanal:<N>' | 'quinzenal:<N>' | 'mensal:<D>'
+  // (N = dia ISO da semana; D = dia do mês). Item diário NÃO ganha etiqueta:
+  // devolve null e a linha fica no silêncio, que é o normal. O resto vira só
+  // a palavra ('semanal'/'quinzenal'/'mensal'), sem o número — a linha diz a
+  // cadência, não o dia exato.
+  function freqLegivel(freq) {
+    var base = (typeof freq === 'string' ? freq.trim() : '').split(':')[0];
+    if (base === 'semanal' || base === 'quinzenal' || base === 'mensal') return base;
+    return null;
+  }
+
+  // --- agrupamento do checklist por bloco -----------------------------
+  // `itens`      = a lista que a página já monta (fixos do dia + tarefas
+  //                pontuais + ordens de produção); cada um traz `.bloco`.
+  // `blocosMeta` = ROTINAS.blocos: [{chave, rotulo, ordem}] — a fonte do
+  //                RÓTULO de cada seção (não inventar rótulo próprio).
+  // `fase`       = 'abertura' | 'fechamento'.
+  // A ORDEM e o CONJUNTO das seções vêm de blocosDaFase(fase) — é a função
+  // que decide quais blocos esta fase mostra e em que sequência (a abertura
+  // segue a ordem de ROTINAS.blocos; o fechamento vem primeiro na fase de
+  // fechamento, à frente do 'durante').
+  // Devolve [{chave, rotulo, itens:[...]}] só com as seções não vazias. Item
+  // cujo bloco não é desta fase (ou está ausente) cai na PRIMEIRA seção da
+  // fase — nunca some da tela.
+  function agrupaChecklist(itens, blocosMeta, fase) {
+    var daFase = blocosDaFase(fase);
+    var meta = Array.isArray(blocosMeta) ? blocosMeta : [];
+    function rotuloDe(ch) {
+      for (var i = 0; i < meta.length; i++) {
+        if (meta[i] && meta[i].chave === ch && typeof meta[i].rotulo === 'string' && meta[i].rotulo) {
+          return meta[i].rotulo;
+        }
+      }
+      return ch;
+    }
+    var indice = {};
+    var grupos = daFase.map(function (ch, i) {
+      indice[ch] = i;
+      return { chave: ch, rotulo: rotuloDe(ch), itens: [] };
+    });
+    if (!grupos.length) return [];
+    (itens || []).forEach(function (it) {
+      var b = it && it.bloco;
+      var g = (b != null && indice.hasOwnProperty(b)) ? indice[b] : 0;
+      grupos[g].itens.push(it);
+    });
+    return grupos.filter(function (g) { return g.itens.length > 0; });
+  }
+
   // --- grafia do turno ---------------------------------------------------
   // As páginas falam 'Almoço'/'Jantar'; a escala e o D1 falam 'Dia'/'Noite'.
   // Espelha `normalizaTurnoRotina` do worker (worker/src/index.ts): entrada
@@ -123,6 +173,8 @@
 
   window.RotinasComum = {
     blocosDaFase: blocosDaFase,
+    freqLegivel: freqLegivel,
+    agrupaChecklist: agrupaChecklist,
     normalizaTurnoLabel: normalizaTurnoLabel,
     hoje: hoje,
     diaOperacional: diaOperacional,

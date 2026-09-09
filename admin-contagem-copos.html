@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#2b2620"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black"><meta name="apple-mobile-web-app-title" content="Bento">
-<title>Contagem de copos e taças · Portal do Bar | Bento</title>
+<title>Contagem de copos, taças e outros itens · Portal do Bar | Bento</title>
 <style>
   :root {
     --bg: #2b2620; --card: #342e26; --card-2: #3b342a;
@@ -56,6 +56,9 @@
   .linha:last-child { border-bottom: none; }
   .linha .nome { flex: 1; font-size: 14px; min-width: 0; }
   .linha .lastro { display: block; font-size: 11px; color: var(--text-3); margin-top: 1px; }
+  .grupo-cab { font-size: 13px; font-weight: 600; color: var(--text-2);
+               margin: 20px 0 4px; padding-top: 14px; border-top: 1px solid var(--border); }
+  .grupo-cab:first-child { margin-top: 2px; padding-top: 0; border-top: none; }
 
   .stepper { display: flex; align-items: center; gap: 6px; flex: none; }
   .stepper button { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border);
@@ -218,7 +221,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 </div>
 <script>
 (function () {
-  var BUILD = 'c2da92057f32';
+  var BUILD = '9da33f064f3c';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
@@ -318,8 +321,8 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
   <a class="prm-card prm-so" href="admin-quebras.html"><span class="prm-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10l-1.15 15.1a2 2 0 0 1-2 1.9h-3.7a2 2 0 0 1-2-1.9L7 4z"/><path d="M9.7 8.4l3.1 2.2-2.2 2.1 2.7 2.3"/></svg></span><span class="prm-t">Quebras</span></a>
 </div>
 
-<h1>Copos e taças</h1>
-<p class="sub">Conte o que tem agora, por tipo. O "lastro" ao lado é o valor de referência (par) de cada um.</p>
+<h1>Copos, taças e outros itens</h1>
+<p class="sub">Conte o que tem agora, item por item, dentro de cada grupo. O "lastro" ao lado é o valor de referência (par) do item; nem todo item tem um.</p>
 
 <form id="form-copos" class="panel" novalidate>
   <div class="top-fields">
@@ -331,7 +334,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
     </label>
   </div>
   <div id="lista-copos"></div>
-  <button class="enviar" type="submit">Salvar contagem de copos e taças</button>
+  <button class="enviar" type="submit">Salvar contagem</button>
   <p class="status" data-status-for="copos"></p>
 </form>
 
@@ -352,12 +355,11 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
   var WORKER_URL = 'https://bento-portal-contagem.rodrigopcviana.workers.dev';
   var CHAVE = '52d20056e7bbf3bcc08092123cdde44d';
 
-  var COPOS = [
-    ['Caneca chopp', 108], ['Copo baixo liso', 24], ['Long Drink soho', 24],
-    ['Taça Mistic Coupe', 24], ['Caneca cobre', 12], ['Tulipa', 60],
-    ['Leafy', 18], ['Taça Gin', 72], ['Shot', 48],
-    ['Copo Baixo Soho', 36], ['Aruba', 48], ['Copo Haus', 18]
-  ];
+  // Cadastro dos itens contados: config/copos_bento.json, injetado aqui por
+  // bento/injeta_copos.py (passo 1a de bento/publicar.sh). NAO editar a lista
+  // abaixo a mao -- editar o JSON. Cada item: {nome, lastro (number|null),
+  // grupo (copo|equipamento|outro, so agrupa a tela)}.
+  var COPOS = /* COPOS:INICIO */ [{"nome": "Caneca chopp", "lastro": 108, "grupo": "copo"}, {"nome": "Copo baixo liso", "lastro": 24, "grupo": "copo"}, {"nome": "Long Drink soho", "lastro": 24, "grupo": "copo"}, {"nome": "Taça Mistic Coupe", "lastro": 24, "grupo": "copo"}, {"nome": "Caneca cobre", "lastro": 12, "grupo": "copo"}, {"nome": "Tulipa", "lastro": 60, "grupo": "copo"}, {"nome": "Leafy", "lastro": 18, "grupo": "copo"}, {"nome": "Taça Gin", "lastro": 72, "grupo": "copo"}, {"nome": "Shot", "lastro": 48, "grupo": "copo"}, {"nome": "Copo Baixo Soho", "lastro": 36, "grupo": "copo"}, {"nome": "Aruba", "lastro": 48, "grupo": "copo"}, {"nome": "Copo Haus", "lastro": 18, "grupo": "copo"}, {"nome": "Pano chopp", "lastro": null, "grupo": "outro"}] /* COPOS:FIM */;
 
 /* CONTAGEM-FIX v1 */
   // Nome do campo derivado do NOME do produto (antes era o índice: inserir um
@@ -385,7 +387,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 
   function linhaComStepper(nome, inputName, lastro) {
     var nomeSpan = el('span', { class: 'nome' }, [document.createTextNode(nome)]);
-    if (lastro) {
+    if (typeof lastro === 'number' && lastro > 0) {
       var l = el('span', { class: 'lastro' }, [document.createTextNode('lastro: ' + lastro)]);
       nomeSpan.appendChild(l);
     }
@@ -409,8 +411,19 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 
   function montarCopos() {
     var host = document.getElementById('lista-copos');
-    COPOS.forEach(function (par, i) {
-      host.appendChild(linhaComStepper(par[0], campoDe(par[0]), par[1]));
+    var rotulos = { copo: 'Copos e taças', equipamento: 'Equipamentos', outro: 'Outros itens' };
+    var ordem = ['copo', 'equipamento', 'outro'];
+    var porGrupo = { copo: [], equipamento: [], outro: [] };
+    COPOS.forEach(function (c) {
+      var g = ordem.indexOf(c.grupo) === -1 ? 'outro' : c.grupo;
+      porGrupo[g].push(c);
+    });
+    ordem.forEach(function (g) {
+      if (!porGrupo[g].length) return;
+      host.appendChild(el('div', { class: 'grupo-cab' }, [document.createTextNode(rotulos[g])]));
+      porGrupo[g].forEach(function (c) {
+        host.appendChild(linhaComStepper(c.nome, campoDe(c.nome), c.lastro));
+      });
     });
   }
 
@@ -586,8 +599,8 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
   }
 
   configurarForm('copos', function (fd) {
-    return COPOS.map(function (par, i) {
-      return { item: par[0], lastro: par[1], contagem: leCampo(fd, par[0]) };
+    return COPOS.map(function (c) {
+      return { item: c.nome, lastro: (typeof c.lastro === 'number' ? c.lastro : null), contagem: leCampo(fd, c.nome) };
     });
   });
 })();

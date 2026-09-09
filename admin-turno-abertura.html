@@ -109,6 +109,13 @@
                       border: 1px solid #5fae7a; color: #8fd1a3; margin-left: 6px; vertical-align: 1px; }
   .ck-cancelar { font-size: 11px; color: #e0967a; background: none; border: none; cursor: pointer;
                  padding: 2px 0; margin-top: 4px; text-decoration: underline; }
+  .ck-secao { display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+              margin: 16px 0 6px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+  .ck-secao:first-child { margin-top: 2px; }
+  .ck-secao-nome { font-size: 12px; font-weight: 700; color: var(--text-2); }
+  .ck-secao-cont { flex: none; font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+  .ck-tag-freq { font-size: 9.5px; font-weight: 700; padding: 1px 6px; border-radius: 99px;
+                 border: 1px solid var(--border-2); color: var(--text-2); margin-left: 6px; vertical-align: 1px; }
   .nt-painel { display: none; }
   .nt-painel.on { display: block; }
   .nt-campo { margin-bottom: 8px; }
@@ -291,7 +298,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 </div>
 <script>
 (function () {
-  var BUILD = 'c2da92057f32';
+  var BUILD = '9da33f064f3c';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
@@ -492,7 +499,11 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
   // compartilhado rotinas-comum.js (window.RotinasComum) — antes viviam
   // copiados aqui e em mais 5 páginas de turno. FASE decide os blocos desta.
   var RC = window.RotinasComum;
-  if (!RC) {
+  // Guarda: nao basta o modulo EXISTIR — um rotinas-comum.js VELHO em cache
+  // (service worker serve .js cache-first) tem RC mas nao tem as funcoes novas,
+  // e ai renderChecklist lancava e matava a IIFE inteira em silencio: check list
+  // vazio, sem banner, com o botao Enviar visivel e inerte.
+  if (!RC || typeof RC.agrupaChecklist !== 'function' || typeof RC.freqLegivel !== 'function') {
     var _bnRC = document.getElementById('tv-fila-banner');
     if (_bnRC) {
       _bnRC.className = 'fila-banner erro on';
@@ -540,7 +551,7 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
     if (t.responsavel) extra.push('para ' + t.responsavel);
     var desc = (t.descricao || '').trim();
     if (extra.length) desc = (desc ? desc + ' — ' : '') + extra.join(' · ');
-    return { id: t.id, t: t.titulo, d: desc, prio: !!t.prio, evidencia: 'nenhuma', origem: 'pontual' };
+    return { id: t.id, t: t.titulo, d: desc, prio: !!t.prio, evidencia: 'nenhuma', origem: 'pontual', bloco: t.bloco };
   }
 
   function carregaDia() {
@@ -611,9 +622,13 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
 
   // --- checklist -------------------------------------------------------------
   var elChecklist = document.getElementById('tv-checklist');
-  function renderChecklist() {
-    var donos = donoPorItem();
-    elChecklist.innerHTML = ITENS.map(function (it) {
+  var gruposChecklist = [];
+  function feitosNaSecao(g) {
+    var n = 0;
+    g.itens.forEach(function (it) { if (checkState[it.id]) n++; });
+    return n;
+  }
+  function linhaChecklist(it, donos) {
       var temDono = donos.hasOwnProperty(it.id);
       var dono = temDono ? donos[it.id] : undefined;
       var donoTag = !temDono ? '' :
@@ -625,14 +640,26 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
         : '';
       var pontualTag = it.origem === 'pontual' ? '<span class="ck-tag-pontual">Tarefa</span>' : '';
       var producaoTag = it.origem === 'producao' ? '<span class="ck-tag-producao">Produção de hoje</span>' : '';
+      var freqTxt = RC.freqLegivel(it.freq);
+      var freqTag = freqTxt ? '<span class="ck-tag-freq">' + esc(freqTxt) + '</span>' : '';
       var cancelarBtn = (it.origem === 'pontual' && GESTAO)
         ? '<button type="button" class="ck-cancelar" data-id="' + it.id + '">cancelar tarefa</button>' : '';
       return '<div class="ck-item" data-id="' + it.id + '">' +
         '<span class="ck-chk' + (checkState[it.id] ? ' on' : '') + '" data-id="' + it.id + '"><span class="box"></span></span>' +
         '<div class="ck-corpo" data-id="' + it.id + '">' +
-        '<div class="ck-t">' + esc(it.t) + (it.prio ? '<span class="ck-badge">!</span>' : '') + pontualTag + producaoTag + donoTag + '</div>' +
+        '<div class="ck-t">' + esc(it.t) + (it.prio ? '<span class="ck-badge">!</span>' : '') + pontualTag + producaoTag + freqTag + donoTag + '</div>' +
         (it.d ? '<div class="ck-d">' + esc(it.d) + '</div>' : '') + numInput + cancelarBtn + '</div>' +
         (it.d ? '<span class="ck-seta">&#9662;</span>' : '') + '</div>';
+  }
+  function renderChecklist() {
+    var donos = donoPorItem();
+    gruposChecklist = RC.agrupaChecklist(ITENS, (ROTINAS && ROTINAS.blocos) || [], FASE);
+    elChecklist.innerHTML = gruposChecklist.map(function (g) {
+      var cab = '<div class="ck-secao">' +
+        '<span class="ck-secao-nome">' + esc(g.rotulo) + '</span>' +
+        '<span class="ck-secao-cont" data-bloco="' + esc(g.chave) + '">' +
+        feitosNaSecao(g) + '/' + g.itens.length + '</span></div>';
+      return cab + g.itens.map(function (it) { return linhaChecklist(it, donos); }).join('');
     }).join('');
     elChecklist.querySelectorAll('.ck-chk').forEach(function (el) {
       el.onclick = function (ev) {
@@ -681,7 +708,14 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
       };
     });
   }
+  function atualizaContadoresSecao() {
+    gruposChecklist.forEach(function (g) {
+      var el = elChecklist.querySelector('.ck-secao-cont[data-bloco="' + g.chave + '"]');
+      if (el) el.textContent = feitosNaSecao(g) + '/' + g.itens.length;
+    });
+  }
   function atualizaProgresso() {
+    atualizaContadoresSecao();
     var feitos = 0;
     ITENS.forEach(function (it) { if (checkState[it.id]) feitos++; });
     var total = ITENS.length;
