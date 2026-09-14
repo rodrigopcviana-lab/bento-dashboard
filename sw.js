@@ -30,7 +30,7 @@
  * páginas). Assim toda publicação nova nasce com um cache NOVO e o `activate`
  * abaixo apaga o anterior — a casca (ícones, logo, fila-offline.js) fica
  * fresca sozinha, sem custar uma ida à rede a cada carregamento. */
-const CACHE = "bento-portal-9da33f064f3c";
+const CACHE = "bento-portal-2f6ec7b6102e";
 const HTML_RACE_MS = 350;
 const CORE = [
   "index.html",
