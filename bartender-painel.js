@@ -111,7 +111,86 @@
     return o === "publicada" || o === "pontual";
   }
 
+  /* --- O que já está feito NESTE turno ---------------------------------
+     `RotinasComum.progressoDoDia` conta conclusão de QUALQUER turno: se o
+     Almoço marcou 10 itens, a abertura do Jantar aparece 10/19 antes de a
+     equipe da noite fazer qualquer coisa. As conclusões são gravadas por
+     (dia, TURNO, item) — o F1 do formulário já filtra certo, e aqui é a
+     mesma régua. Não alterei o módulo compartilhado porque ele é usado por
+     outras telas; a lógica correta mora aqui, testada. */
+  function feitosNoTurno(payload, turno) {
+    var fora = {};
+    var alvo = normTurno(turno);
+    if (!alvo) return fora;
+    var concs = (payload && payload.conclusoes) || [];
+    for (var i = 0; i < concs.length; i++) {
+      var c = concs[i] || {};
+      if (!c.item_id) continue;
+      if (!(c.feito === 1 || c.feito === true || c.feito === "1")) continue;
+      if (normTurno(c.turno) !== alvo) continue;
+      fora[c.item_id] = { pessoa: c.pessoa || "", em: c.atualizado_em || "" };
+    }
+    return fora;
+  }
+
+  function normTurno(t) {
+    var s = String(t == null ? "" : t).trim();
+    if (s === "Dia" || s === "Almoço" || s === "Almoco") return "Dia";
+    if (s === "Noite" || s === "Jantar") return "Noite";
+    return "";
+  }
+
+  /* Ids da fase, na ordem dos blocos, sem repetir. `blocos` vem de
+     RotinasComum.blocosDaFase(fase) — passado de fora para este módulo não
+     duplicar aquela decisão. */
+  function idsDaFase(payload, blocos) {
+    var fora = [], vistos = {};
+    var doDia = (payload && payload.hoje && payload.hoje.blocos) || {};
+    (blocos || []).forEach(function (b) {
+      (doDia[b] || []).forEach(function (id) {
+        if (id && !vistos[id]) { vistos[id] = true; fora.push(id); }
+      });
+    });
+    return fora;
+  }
+
+  function progressoDoTurno(payload, blocos, turno) {
+    var ids = idsDaFase(payload, blocos);
+    if (!ids.length) return { feitos: 0, total: 0, pct: 0 };
+    var feitos = feitosNoTurno(payload, turno);
+    var n = 0;
+    ids.forEach(function (id) { if (feitos[id]) n++; });
+    return { feitos: n, total: ids.length, pct: Math.round(n / ids.length * 100) };
+  }
+
+  /* Os próximos `n` itens ainda não marcados neste turno.
+     PRIORITÁRIOS PRIMEIRO, e dentro de cada grupo na ordem do dia. O campo
+     `prio` está no cadastro de rotinas desde sempre e nenhuma tela usava:
+     dezenove itens numa lista plana são uma parede; "os 3 que importam
+     agora" é uma tarefa. Item sem entrada no catálogo é PULADO — nunca
+     inventar texto de rotina. */
+  function proximos(payload, blocos, turno, n) {
+    var catalogo = (payload && payload.itens) || {};
+    var feitos = feitosNoTurno(payload, turno);
+    var pend = [];
+    idsDaFase(payload, blocos).forEach(function (id) {
+      if (feitos[id]) return;
+      var it = catalogo[id];
+      if (!it || !it.t) return;
+      pend.push({ id: it.id || id, t: it.t, d: it.d || "", prio: !!it.prio,
+                  minutos: typeof it.minutos === "number" ? it.minutos : null,
+                  bloco: it.bloco || "" });
+    });
+    var prio = pend.filter(function (x) { return x.prio; });
+    var resto = pend.filter(function (x) { return !x.prio; });
+    return prio.concat(resto).slice(0, typeof n === "number" && n > 0 ? n : 3);
+  }
+
   var api = {
+    feitosNoTurno: feitosNoTurno,
+    idsDaFase: idsDaFase,
+    progressoDoTurno: progressoDoTurno,
+    proximos: proximos,
     turnoDoMomento: turnoDoMomento,
     faseDoMomento: faseDoMomento,
     escaladosHoje: escaladosHoje,

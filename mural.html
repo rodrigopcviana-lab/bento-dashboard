@@ -863,6 +863,25 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
   .pb-outro { display: flex; align-items: center; justify-content: center; min-height: 42px;
               margin-top: -4px; font-size: 13px; color: var(--text-2); text-decoration: none;
               border: 1px dashed var(--border-2); border-radius: 12px; }
+  /* Os próximos itens, marcáveis por toque. FORA do .pb-agora, que é um <a>
+     inteiro — âncora dentro de âncora quebra o layout (mesma lição do
+     .pb-outro). Só aparece quando dá para marcar em UM toque, ou seja, quando
+     a senha individual já está guardada neste aparelho: oferecer a marcação e
+     então pedir senha seria pior que não oferecer. */
+  .pb-prox { display: flex; flex-direction: column; gap: 6px; margin-top: -4px; }
+  .pb-prox-cab { font-size: 11.5px; color: var(--text-3); padding: 0 2px; }
+  .pb-prox-it { display: flex; align-items: center; gap: 11px; min-height: 48px;
+                padding: 9px 12px; border-radius: 12px; border: 1px solid var(--border);
+                background: var(--card); color: var(--text); font-family: inherit;
+                font-size: 13.5px; text-align: left; cursor: pointer; width: 100%; }
+  .pb-prox-it .cx { width: 20px; height: 20px; border-radius: 6px; flex: none;
+                    border: 1.5px solid var(--border-2); }
+  .pb-prox-it[data-prio="1"] .cx { border-color: var(--ambar); }
+  .pb-prox-it .tt { flex: 1; min-width: 0; line-height: 1.25; }
+  .pb-prox-it[disabled] { opacity: .5; }
+  .pb-prox-it.ok { border-color: var(--verde); color: var(--verde); }
+  .pb-prox-it.ok .cx { background: var(--verde); border-color: var(--verde); }
+  .pb-prox-erro { font-size: 11.5px; color: var(--coral); padding: 0 2px; }
   .pb-senha { display: flex; gap: 11px; align-items: flex-start; background: var(--ambar-bg);
               border: 1px solid var(--ambar); border-radius: 12px; padding: 12px; }
   .pb-senha .t { font-size: 13.5px; font-weight: 600; color: var(--ambar-2); display: block; }
@@ -910,6 +929,8 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
     <span class="go" id="pb-agora-go">Começar <svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></span>
   </a>
 
+  <div class="pb-prox" id="pb-prox" hidden></div>
+
   <a class="pb-outro" id="pb-outro" href="turno.html" hidden></a>
 
   <div class="pb-senha" id="pb-senha" hidden>
@@ -943,8 +964,8 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
     <a href="#home-areas"><span class="ic"><svg class="ic" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></span>Todas as<br>páginas</a>
   </div>
 </div>
-<script src="rotinas-comum.js?v=7db625d4ece4"></script>
-<script src="bartender-painel.js?v=7db625d4ece4"></script>
+<script src="rotinas-comum.js?v=918d9c2100b9"></script>
+<script src="bartender-painel.js?v=918d9c2100b9"></script>
 <script>
 /* Preenchimento do Painel do Bartender. DEGRADAÇÃO GRACIOSA é requisito duro:
    sem sessão, sem rede ou com 404 de rotinas, a casca acima já é utilizável —
@@ -954,6 +975,10 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
   var W = window.BENTO_WORKER, RC = window.RotinasComum, BP = window.BartenderPainel;
   var NOME_KEY = 'bento_bartender_nome', SENHA_KEY = 'bento_pessoa_senha',
       AVISO_KEY = 'bento_aviso_senha_ok';
+  /* Mesma chave de formulário que o Mural já carrega (o publicar.sh substitui
+     52d20056e7bbf3bcc08092123cdde44d em *mural.html desde 2026-07-23). Nenhuma exposição
+     nova: ela já vai em registro.html, que é do tier mais baixo. */
+  var CHAVE_FORM = '52d20056e7bbf3bcc08092123cdde44d';
   function ls(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
   function txt(id, v) { var e = document.getElementById(id); if (e) e.textContent = v; }
@@ -1091,8 +1116,15 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
     txt('pb-agora-tt', ehAbertura ? 'Abertura' : 'Fechamento');
     txt('pb-agora-go', ehAbertura ? 'Começar a abertura' : 'Fazer o fechamento');
 
+    /* Progresso POR TURNO, não por dia. `RC.progressoDoDia` conta conclusão de
+       qualquer turno — se o Almoço marcou 10, a abertura do Jantar aparecia
+       10/19 antes de a equipe da noite fazer nada. `BP.progressoDoTurno` é a
+       mesma régua do checklist do formulário (F1). O módulo compartilhado
+       ficou intacto: ele serve outras telas. */
+    var blocos = RC.blocosDaFase(st.fase);
     var prog = null;
-    try { prog = RC.progressoDoDia(d, st.fase); } catch (e) { prog = null; }
+    try { prog = BP.progressoDoTurno(d, blocos, t); } catch (e) { prog = null; }
+    montaProximos(d, blocos, t, st);
     if (prog && prog.total) {
       txt('pb-agora-sub', prog.feitos + ' de ' + prog.total + ' feitos');
       var fill = document.getElementById('pb-agora-fill');
@@ -1102,6 +1134,94 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
       txt('pb-agora-sub', 'Checklist guiado, foto e identificação');
       mostra('pb-agora-bar', false);
     }
+  }
+
+  /* --- Os próximos itens, marcáveis no próprio mural (F2) --------------
+     A rota /api/rotina/concluir já existia e marca UM item por vez; até aqui
+     só o formulário de turno a usava, e como efeito colateral do envio — ou
+     seja, a marcação só acontecia no fim, em bloco. Aqui ela acontece durante
+     o trabalho.
+     NÃO substitui o envio do turno: a prova continua sendo a foto, que só o
+     formulário coleta. Isto adianta o checklist. */
+  function montaProximos(d, blocos, turno, st) {
+    var cx = document.getElementById('pb-prox');
+    if (!cx) return;
+    cx.innerHTML = '';
+    if (st.concluido) { cx.hidden = true; return; }
+
+    /* Só aparece quando dá para marcar em UM toque. Sem a senha guardada, a
+       lista viraria uma promessa que cobra senha no primeiro toque — e a
+       faixa de aviso logo abaixo já trata esse caso. */
+    var senha = ls(SENHA_KEY);
+    if (!senha) { cx.hidden = true; return; }
+
+    var itens = [];
+    /* DOIS, não três. Medido na página real a 375px: com três, o painel vai a
+       692px e termina em 764 — a tela útil de um iPhone 13 mini no Safari é
+       ~640. Cada item custa ~48px + gap. Dois é o que cabe mantendo escala,
+       frentes e atalhos. Mexer neste número exige remedir, não achar. */
+    try { itens = BP.proximos(d, blocos, turno, 2); } catch (e) { itens = []; }
+    if (!itens.length) { cx.hidden = true; return; }
+
+    var cab = document.createElement('div');
+    cab.className = 'pb-prox-cab';
+    var min = 0, temMin = false;
+    itens.forEach(function (i) { if (i.minutos) { min += i.minutos; temMin = true; } });
+    cab.textContent = 'Marque aqui mesmo' + (temMin ? ' · uns ' + min + ' min' : '');
+    cx.appendChild(cab);
+
+    itens.forEach(function (it) { cx.appendChild(botaoItem(it, d, turno, blocos, st)); });
+    cx.hidden = false;
+  }
+
+  function botaoItem(it, d, turno, blocos, st) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'pb-prox-it';
+    b.setAttribute('data-prio', it.prio ? '1' : '0');
+    var cx = document.createElement('span'); cx.className = 'cx';
+    var tt = document.createElement('span'); tt.className = 'tt'; tt.textContent = it.t;
+    b.appendChild(cx); b.appendChild(tt);
+    b.addEventListener('click', function () {
+      if (b.disabled) return;
+      b.disabled = true;
+      fetch(W + '/api/rotina/concluir', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chave: CHAVE_FORM, senha_pessoa: ls(SENHA_KEY) || '',
+          dia: RC.diaOperacional(), turno: turno, item_id: it.id, feito: true
+        })
+      }).then(function (r) { return r.json().then(function (j) { return { s: r.status, j: j }; }); })
+        .then(function (res) {
+          if (res.s !== 200 || !res.j.ok) {
+            /* Falha VISÍVEL. "Parece que marcou" sem ter marcado é pior que
+               não marcar: a pessoa segue confiando num registro que não
+               existe, e quem cobra depois cobra sem razão. */
+            b.disabled = false;
+            var e = document.createElement('div');
+            e.className = 'pb-prox-erro';
+            e.textContent = res.j && res.j.erro ? res.j.erro : 'Não consegui marcar agora.';
+            b.parentNode.appendChild(e);
+            return;
+          }
+          b.classList.add('ok');
+          /* Recarrega o dia para o progresso e a lista virem do SERVIDOR, não
+             de um palpite local — se outra pessoa marcou no mesmo minuto, a
+             tela mostra a verdade dela também. */
+          fetch(W + '/api/rotinas?dia=' + RC.diaOperacional(), { headers: { 'X-Token': s.token } })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (novo) { if (novo) desenhaAgora(novo, turno); })
+            .catch(function () {});
+        })
+        .catch(function () {
+          b.disabled = false;
+          var e = document.createElement('div');
+          e.className = 'pb-prox-erro';
+          e.textContent = 'Sem conexão — não marcou. Tente de novo com sinal.';
+          b.parentNode.appendChild(e);
+        });
+    });
+    return b;
   }
 })();
 </script>
@@ -1370,7 +1490,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
   <div class="sino-lista" id="sino-lista-nov" hidden></div>
 </div>
 
-<p class="nota">Portal do Bar · Bento · atualizado em 14/09/2026.
+<p class="nota">Portal do Bar · Bento · atualizado em 15/09/2026.
 Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à mão.</p>
 <script>if (window.FilaOffline) window.FilaOffline.iniciarSelo({"elId": "fila-selo", "destinos": {"registro": "registro.html", "turno": "turno.html"}});</script>
 
@@ -1398,7 +1518,7 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
 </div>
 <script>
 (function () {
-  var BUILD = '7db625d4ece4';
+  var BUILD = '918d9c2100b9';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
