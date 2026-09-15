@@ -78,6 +78,34 @@
                 text-decoration: none; }
   .nivel-pill b { color: var(--ambar-2); font-weight: 600; }
   .nivel-pill:hover { color: var(--text-2); }
+
+  /* Reconciliação da vidraria (F4 do PLANO_MURAL_MAITRE.md). Escopado .rc-*
+     e reusando .panel/.status da própria página — não inventar um segundo
+     sistema visual dentro de uma página mantida à mão. */
+  .rc-h { font-size: 16px; margin: 0 0 4px; }
+  .rc-sub { font-size: 13px; color: var(--text-2); margin: 0 0 14px; line-height: 1.5; }
+  .rc-eq { display: grid; grid-template-columns: 1fr 1fr 1.1fr; gap: 7px; text-align: center; }
+  .rc-eq div { padding: 9px 4px; border-radius: 10px; border: 1px solid var(--border); }
+  .rc-eq .v { font-size: 20px; font-weight: 600; line-height: 1.15; }
+  .rc-eq .l { font-size: 11.5px; color: var(--text-3); margin-top: 2px; line-height: 1.3; }
+  .rc-eq .fim { background: var(--coral-bg); border-color: var(--coral); }
+  .rc-eq .fim .v, .rc-eq .fim .l { color: var(--coral); }
+  .rc-lin { display: flex; align-items: center; gap: 11px; padding: 10px 0;
+            border-bottom: 1px solid var(--border); }
+  .rc-lin .big { width: 46px; text-align: center; flex: none; }
+  .rc-lin .big .v { font-size: 19px; font-weight: 600; line-height: 1.1; color: var(--coral); }
+  .rc-lin.med .big .v { color: var(--ambar-2); }
+  .rc-lin .big .l { font-size: 11px; color: var(--text-3); }
+  .rc-lin .nm { font-size: 13.5px; font-weight: 600; }
+  .rc-lin .sb { font-size: 11.5px; color: var(--text-2); margin-top: 2px; }
+  .rc-lin .lb { margin-left: auto; text-align: right; flex: none; font-size: 12.5px; }
+  .rc-lin .lb .mini { font-size: 11px; color: var(--text-3); }
+  .rc-quieto { font-size: 12.5px; color: var(--text-3); text-align: center; padding: 11px;
+               border: 1px dashed var(--border); border-radius: 10px; margin-top: 12px; }
+  .rc-nota { font-size: 11.5px; color: var(--text-3); margin-top: 12px; line-height: 1.5; }
+  .rc-cta { display: inline-block; margin-top: 12px; padding: 11px 16px; border-radius: 10px;
+            border: 1px solid var(--ambar); background: var(--ambar-bg); color: var(--ambar-2);
+            text-decoration: none; font-size: 14px; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -206,7 +234,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 </div>
 <script>
 (function () {
-  var BUILD = 'a9debebea969';
+  var BUILD = 'edde45654a94';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
@@ -321,6 +349,12 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 
 <h1>Histórico de quebras</h1>
 <p class="sub">Quantos copos, taças e louças quebraram, mês a mês — direto do histórico do Notion. Mostra até 6 meses recentes.</p>
+
+<div class="panel" id="rc-box">
+<h2 class="rc-h">Reconciliação da vidraria</h2>
+<p class="rc-sub">O que sumiu entre as duas últimas contagens, contra o que foi reportado aqui embaixo. A diferença é quebra que ninguém registrou.</p>
+<div id="rc-corpo"><p class="status">Carregando…</p></div>
+</div>
 
 <p class="status" id="status-historico">Carregando…</p>
 <div id="meses"></div>
@@ -440,6 +474,142 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
   }
 
   carregar();
+})();
+</script>
+<script src="reconcilia-vidraria.js"></script>
+<script>
+/* Reconciliação da vidraria — F4 do PLANO_MURAL_MAITRE.md.
+   O cálculo inteiro mora em reconcilia-vidraria.js (função pura, 77 asserções
+   em bento/testa_reconcilia_vidraria.mjs, provadas por mutação). Aqui só se
+   busca e se pinta.
+
+   Bloco INDEPENDENTE do histórico logo abaixo, de propósito: se a contagem
+   falhar, o histórico de quebras continua inteiro, e vice-versa. As duas
+   chamadas saem em PARALELO, então a página não fica mais lenta do que já era
+   — só uma requisição a mais. */
+(function () {
+  var host = document.getElementById('rc-corpo');
+  if (!host || !window.ReconciliaVidraria) return;
+  var RV = window.ReconciliaVidraria;
+  var PREFIXO = 'admin-';
+  /* WORKER_URL e CHAVE do script do histórico são `var` DENTRO do IIFE dele —
+     closure, não global. Este bloco é outro IIFE e não os enxerga: pego a URL
+     de window.BENTO_WORKER (essa sim é global) e declaro o próprio
+     placeholder de chave, que o publicar.sh substitui no arquivo inteiro.
+     Achado ao abrir a página de verdade; nenhum teste de estrutura pegaria. */
+  var W = window.BENTO_WORKER || '';
+  var CH = '2436ca47933b3c17a90886daa8fec616';
+
+  function h(tag, cls, txt) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (txt !== undefined) e.textContent = txt;
+    return e;
+  }
+  function limpa() { while (host.firstChild) host.removeChild(host.firstChild); }
+  function aviso(t) { limpa(); host.appendChild(h('p', 'status', t)); }
+
+  function post(rota, corpo) {
+    return fetch(W + rota, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(corpo)
+    }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+  }
+
+  if (!W || W.indexOf('SEU-SUBDOMINIO') !== -1) { aviso('Backend não configurado.'); return; }
+
+  Promise.all([
+    post('/api/contagem/historico', { chave: CH, semanas: 26 }),
+    post('/api/quebras/historico', { chave: CH, meses: 12 })
+  ]).then(function (r) {
+    var cont = r[0], queb = r[1];
+    if (!cont) { aviso('Não consegui ler as contagens agora.'); return; }
+    desenha(RV.reconciliaVidraria({
+      semanas: (cont && cont.semanas) || [],
+      meses: (queb && queb.meses) || []
+    }));
+  }).catch(function () { aviso('Sem conexão para calcular a reconciliação.'); });
+
+  function desenha(rec) {
+    limpa();
+
+    /* Sem par de contagens não se afirma NADA. Texto de implantação, não de
+       erro: para quem chega, "ainda não contado" é tarefa, não falha. */
+    if (!rec.ok) {
+      var p = h('p', 'rc-sub');
+      p.textContent = rec.motivo === 'uma_contagem_so'
+        ? 'Só existe uma contagem de vidraria registrada. A conta do que sumiu precisa de duas — a próxima já destrava esta tela.'
+        : 'Ainda não há contagem de vidraria registrada. É a contagem que faz esta conta existir.';
+      host.appendChild(p);
+      var a = h('a', 'rc-cta', 'Contar a vidraria');
+      a.setAttribute('href', PREFIXO + 'contagem-copos.html');
+      host.appendChild(a);
+      return;
+    }
+
+    var t = rec.totais;
+    var eq = h('div', 'rc-eq');
+    [[String(t.sumiu), 'sumiram', ''],
+     ['-' + t.reportado, 'reportadas', ''],
+     [String(t.semExplicacao), 'sem explicação', 'fim']].forEach(function (c) {
+      var d = h('div', c[2]);
+      d.appendChild(h('div', 'v', c[0]));
+      d.appendChild(h('div', 'l', c[1]));
+      eq.appendChild(d);
+    });
+    host.appendChild(eq);
+
+    var comDiv = rec.itens.filter(function (i) { return i.semExplicacao > 0; });
+    comDiv.forEach(function (i) {
+      var lin = h('div', 'rc-lin' + (i.semExplicacao > 2 ? '' : ' med'));
+      var big = h('div', 'big');
+      big.appendChild(h('div', 'v', String(i.semExplicacao)));
+      big.appendChild(h('div', 'l', 's/ expl.'));
+      lin.appendChild(big);
+      var meio = h('div');
+      meio.appendChild(h('div', 'nm', i.nome));
+      meio.appendChild(h('div', 'sb', 'sumiram ' + i.sumiu + ' · ' +
+        (i.reportado ? i.reportado + ' reportadas' : 'nada reportado')));
+      lin.appendChild(meio);
+      var lb = h('div', 'lb');
+      lb.appendChild(h('div', null, i.contado + (i.lastro == null ? '' : '/' + i.lastro)));
+      if (i.lastro != null && i.lastro > i.contado) {
+        lb.appendChild(h('div', 'mini', '-' + (i.lastro - i.contado) + ' do lastro'));
+      }
+      lin.appendChild(lb);
+      host.appendChild(lin);
+    });
+
+    var limpos = rec.itens.length - comDiv.length;
+    if (limpos > 0) {
+      host.appendChild(h('div', 'rc-quieto', limpos === 1
+        ? '1 modelo fechou certo'
+        : limpos + ' modelos fecharam certo'));
+    }
+    if (!comDiv.length) {
+      host.appendChild(h('div', 'rc-quieto', 'Nenhuma peça sumiu sem reporte neste período.'));
+    }
+
+    /* Declarar o que NÃO entrou na conta é parte do resultado: item sem par de
+       contagens e quebra de nome que não casa com o catálogo ficam de fora de
+       propósito, e esconder isso faria o total parecer mais completo do que é. */
+    var notas = [];
+    notas.push('Entre a contagem de ' + rec.janela.de + ' e a de ' + rec.janela.ate + '.');
+    if (rec.incomparaveis.length) {
+      notas.push(rec.incomparaveis.length + ' item(ns) fora da conta por aparecer em só uma das contagens.');
+    }
+    if (rec.naoCasadas.length) {
+      notas.push(rec.naoCasadas.length + ' quebra(s) de item que não está na contagem (louça, ou nome digitado livre) não entram aqui.');
+    }
+    var inconsistentes = rec.itens.filter(function (i) { return i.inconsistente; });
+    if (inconsistentes.length) {
+      notas.push(inconsistentes.length + ' item(ns) com mais quebras reportadas do que peças a menos — contagem a conferir.');
+    }
+    if (t.custoIncompleto) {
+      notas.push('Custo não aparece: nem todo modelo tem preço cadastrado, e preço ausente não vira zero.');
+    }
+    host.appendChild(h('p', 'rc-nota', notas.join(' ')));
+  }
 })();
 </script>
 <script src="fila-offline.js"></script>
