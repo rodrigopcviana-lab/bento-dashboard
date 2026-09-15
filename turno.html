@@ -98,6 +98,7 @@
   .ck-item.aberto .ck-d { display: block; }
   .ck-seta { flex: none; font-size: 11px; color: var(--text-3); margin-top: 2px; }
   .ck-dono { font-size: 11px; font-weight: 400; color: var(--text-3); margin-left: 6px; white-space: nowrap; }
+  .ck-secao-min { font-size: 11px; color: var(--text-3); margin-left: 8px; font-weight: 400; }
   /* Item JÁ MARCADO antes deste formulário — pela ronda do maître, por um
      colega, ou por um envio anterior do dia. Vem de `conclusoes` em
      /api/rotinas, que esta página buscava e IGNORAVA (F1 do
@@ -318,7 +319,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 </div>
 <script>
 (function () {
-  var BUILD = '918d9c2100b9';
+  var BUILD = '3e042833d1e7';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
@@ -726,8 +727,18 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
     var donos = donoPorItem();
     gruposChecklist = RC.agrupaChecklist(ITENS, (ROTINAS && ROTINAS.blocos) || [], FASE);
     elChecklist.innerHTML = gruposChecklist.map(function (g) {
+      // Minutos QUE FALTAM, não os do bloco inteiro: encolhem conforme a
+      // pessoa marca, que é o ponto. `minutos` está no cadastro de rotinas
+      // desde sempre e nenhuma tela mostrava. Sem minuto cadastrado, some —
+      // estimativa inventada é pior que nenhuma.
+      var minFalta = 0;
+      g.itens.forEach(function (it) {
+        if (feitoAqui(it.id)) return;
+        if (typeof it.minutos === 'number' && it.minutos > 0) minFalta += it.minutos;
+      });
+      var tempoTag = minFalta > 0 ? '<span class="ck-secao-min">~' + minFalta + ' min</span>' : '';
       var cab = '<div class="ck-secao">' +
-        '<span class="ck-secao-nome">' + esc(g.rotulo) + '</span>' +
+        '<span class="ck-secao-nome">' + esc(g.rotulo) + '</span>' + tempoTag +
         '<span class="ck-secao-cont" data-bloco="' + esc(g.chave) + '">' +
         feitosNaSecao(g) + '/' + g.itens.length + '</span></div>';
       return cab + g.itens.map(function (it) { return linhaChecklist(it, donos); }).join('');
@@ -798,7 +809,11 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
     document.getElementById('tv-prog-lbl').textContent = feitos + '/' + total;
     document.getElementById('tv-prog-fill').style.width = (total ? (feitos / total * 100) : 0) + '%';
     var pend = total - feitos;
-    enviarBtn.textContent = pend > 0 ? 'Enviar com ' + pend + ' pendência' + (pend > 1 ? 's' : '') : 'Enviar relatório';
+    // A ação vem primeiro, a contagem depois. Antes o botão principal
+    // anunciava "Enviar com 19 pendências" ANTES de a pessoa tocar em nada —
+    // o estado inicial normal vinha rotulado como falha. A informação é a
+    // mesma; a ordem é que muda quem está sendo descrito.
+    enviarBtn.textContent = pend > 0 ? 'Enviar relatório · faltam ' + pend : 'Enviar relatório';
     enviarBtn.classList.toggle('pend', pend > 0);
   }
   renderChecklist();

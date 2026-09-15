@@ -964,8 +964,8 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
     <a href="#home-areas"><span class="ic"><svg class="ic" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></span>Todas as<br>páginas</a>
   </div>
 </div>
-<script src="rotinas-comum.js?v=918d9c2100b9"></script>
-<script src="bartender-painel.js?v=918d9c2100b9"></script>
+<script src="rotinas-comum.js?v=3e042833d1e7"></script>
+<script src="bartender-painel.js?v=3e042833d1e7"></script>
 <script>
 /* Preenchimento do Painel do Bartender. DEGRADAÇÃO GRACIOSA é requisito duro:
    sem sessão, sem rede ou com 404 de rotinas, a casca acima já é utilizável —
@@ -1074,7 +1074,12 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
       txt('pb-escala-t', noMeuTurno ? 'Pela escala padrão, você está ' + porExtenso
                                     : 'Pela escala padrão, hoje não é seu dia');
     }
-    txt('pb-escala-d', colegas.length ? 'Com ' + colegas.join(' e ') : 'Sem mais ninguém na escala de hoje');
+    /* "A e B e C" não é português. Vírgula até o penúltimo, "e" antes do
+       último — com dois nomes vira só "A e B", que é o caso mais comum. */
+    var comQuem = colegas.length > 1
+      ? colegas.slice(0, -1).join(', ') + ' e ' + colegas[colegas.length - 1]
+      : colegas[0];
+    txt('pb-escala-d', colegas.length ? 'Com ' + comQuem : 'Sem mais ninguém na escala de hoje');
     mostra('pb-escala', true);
     desenhaAgora(d, turno);
   }
@@ -1126,7 +1131,14 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
     try { prog = BP.progressoDoTurno(d, blocos, t); } catch (e) { prog = null; }
     montaProximos(d, blocos, t, st);
     if (prog && prog.total) {
-      txt('pb-agora-sub', prog.feitos + ' de ' + prog.total + ' feitos');
+      /* O subtítulo diz o que fazer AGORA, não o tamanho da dívida. "0 de 19
+         feitos" é uma parede e não indica por onde começar; "comece pelos 5 de
+         prioridade · uns 25 min" é uma tarefa. A fração continua na barra,
+         que é onde ela informa sem cobrar. */
+      var resumo = null;
+      try { resumo = BP.resumoDoQueFalta(d, blocos, t); } catch (e) { resumo = null; }
+      txt('pb-agora-sub', resumo ? BP.textoDoQueFalta(resumo)
+                                 : prog.feitos + ' de ' + prog.total + ' feitos');
       var fill = document.getElementById('pb-agora-fill');
       if (fill) fill.style.width = prog.pct + '%';
       mostra('pb-agora-bar', true);
@@ -1518,7 +1530,7 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
 </div>
 <script>
 (function () {
-  var BUILD = '918d9c2100b9';
+  var BUILD = '3e042833d1e7';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;

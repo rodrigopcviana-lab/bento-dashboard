@@ -186,7 +186,48 @@
     return prio.concat(resto).slice(0, typeof n === "number" && n > 0 ? n : 3);
   }
 
+  /* O que falta, em linguagem de tarefa e não de dívida.
+     O card dizia "0 de 19 feitos": dezenove é uma parede, e o número não
+     diz por onde começar nem quanto custa. `prio` e `minutos` estão no
+     cadastro de rotinas desde sempre e nenhuma tela usava.
+     Os minutos são os que FALTAM, não os do bloco inteiro — encolhem
+     conforme a pessoa marca, que é o ponto.
+     Sem minutos cadastrados devolve `minutos: null` e quem monta o texto
+     omite: estimativa inventada é pior que nenhuma. */
+  function resumoDoQueFalta(payload, blocos, turno) {
+    var catalogo = (payload && payload.itens) || {};
+    var feitos = feitosNoTurno(payload, turno);
+    var pend = 0, prio = 0, min = 0, temMin = false;
+    idsDaFase(payload, blocos).forEach(function (id) {
+      if (feitos[id]) return;
+      var it = catalogo[id];
+      if (!it || !it.t) return;
+      pend++;
+      if (it.prio) prio++;
+      if (typeof it.minutos === "number" && it.minutos > 0) { min += it.minutos; temMin = true; }
+    });
+    return { pendentes: pend, prioritarios: prio, minutos: temMin ? min : null };
+  }
+
+  /* A frase do card. Ordem deliberada: primeiro o que fazer agora, depois
+     quanto custa. "Tudo feito" só quando não sobra nada — nunca arredondar
+     para cima um trabalho incompleto. */
+  function textoDoQueFalta(resumo) {
+    if (!resumo || !resumo.pendentes) return "tudo marcado neste turno";
+    var quanto = resumo.minutos ? " · uns " + resumo.minutos + " min" : "";
+    if (resumo.prioritarios > 0) {
+      return resumo.prioritarios === 1
+        ? "comece pelo item de prioridade" + quanto
+        : "comece pelos " + resumo.prioritarios + " de prioridade" + quanto;
+    }
+    return resumo.pendentes === 1
+      ? "falta 1 item" + quanto
+      : "faltam " + resumo.pendentes + " itens" + quanto;
+  }
+
   var api = {
+    resumoDoQueFalta: resumoDoQueFalta,
+    textoDoQueFalta: textoDoQueFalta,
     feitosNoTurno: feitosNoTurno,
     idsDaFase: idsDaFase,
     progressoDoTurno: progressoDoTurno,
