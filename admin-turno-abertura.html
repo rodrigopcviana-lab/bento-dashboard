@@ -90,6 +90,18 @@
   .ck-item.aberto .ck-d { display: block; }
   .ck-seta { flex: none; font-size: 11px; color: var(--text-3); margin-top: 2px; }
   .ck-dono { font-size: 11px; font-weight: 400; color: var(--text-3); margin-left: 6px; white-space: nowrap; }
+  /* Item JÁ MARCADO antes deste formulário — pela ronda do maître, por um
+     colega, ou por um envio anterior do dia. Vem de `conclusoes` em
+     /api/rotinas, que esta página buscava e IGNORAVA (F1 do
+     PLANO_ROTINA_NO_MURAL.md). Fica travado de propósito: ver por quê no
+     comentário de `recalculaJaFeitos`. */
+  .ck-item.ck-feito { opacity: .78; }
+  .ck-item.ck-feito .ck-chk { cursor: default; }
+  /* SEM white-space:nowrap, ao contrário do .ck-dono ao lado. Copiei o nowrap
+     de lá e a página passou a rolar 15px de lado a 375px: "já marcado por
+     <nome>" é bem mais longo que um nome sozinho e não cabe na linha do
+     título. Medido na página real — o harness não veria. */
+  .ck-ja { font-size: 11px; font-weight: 600; color: var(--verde); margin-left: 6px; }
   .ck-dono.ck-semdono { color: #e0967a; }
   .ck-num { margin-top: 8px; display: flex; align-items: center; gap: 6px; }
   .ck-num input { width: 88px; padding: 7px 9px; font-size: 14px; border-radius: 7px;
@@ -298,7 +310,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 </div>
 <script>
 (function () {
-  var BUILD = '08b9ff655061';
+  var BUILD = '7db625d4ece4';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
@@ -563,6 +575,7 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
       .then(function (d) {
         if (!d || !d.hoje || !d.itens) return;  // 401/404/fora do horizonte — segue no fallback estático já na tela
         rotinasHoje = d;
+        conclusoesDoDia = d.conclusoes || [];
         var ids = [];
         RC.blocosDaFase(FASE).forEach(function (b) { (d.hoje.blocos[b] || []).forEach(function (id) { ids.push(id); }); });
         var novos = ids.map(function (id) { return d.itens[id]; }).filter(Boolean);
@@ -584,6 +597,13 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
   var turnoSel = null;
   var geloSel = null;
   var checkState = {};
+  // O que JÁ estava marcado quando esta tela abriu: { item_id: {pessoa, em} }.
+  // Preenchido de `conclusoes`, que /api/rotinas sempre devolveu e esta página
+  // nunca leu — então a ronda do maître, o colega do outro turno e o envio
+  // anterior do dia eram todos invisíveis aqui, e o checklist começava em 0/19
+  // mesmo com trabalho já registrado.
+  var jaFeitos = {};
+  var conclusoesDoDia = [];
   var valorState = {};
 
   document.getElementById('tv-foco-txt').textContent = ROTINAS.foco_do_dia || 'Sem recado do Rodrigo hoje.';
@@ -609,6 +629,10 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
       document.querySelectorAll('#tv-turno-pills .tu-pill').forEach(function (x) { x.classList.remove('on'); });
       b.classList.add('on');
       renderChecklist();   // re-renderiza pra mostrar o dono de cada item neste turno
+      // O progresso passou a depender do TURNO (as conclusões são por turno),
+      // e este handler nunca o recalculava — a tela mostrava os itens marcados
+      // e "0/16" no contador ao mesmo tempo. Visto na página real.
+      atualizaProgresso();
       montaIdentidade();   // a lista de nomes depende do turno escolhido
     };
   });
@@ -625,7 +649,7 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
   var gruposChecklist = [];
   function feitosNaSecao(g) {
     var n = 0;
-    g.itens.forEach(function (it) { if (checkState[it.id]) n++; });
+    g.itens.forEach(function (it) { if (feitoAqui(it.id)) n++; });
     return n;
   }
   function linhaChecklist(it, donos) {
@@ -644,14 +668,45 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
       var freqTag = freqTxt ? '<span class="ck-tag-freq">' + esc(freqTxt) + '</span>' : '';
       var cancelarBtn = (it.origem === 'pontual' && GESTAO)
         ? '<button type="button" class="ck-cancelar" data-id="' + it.id + '">cancelar tarefa</button>' : '';
-      return '<div class="ck-item" data-id="' + it.id + '">' +
-        '<span class="ck-chk' + (checkState[it.id] ? ' on' : '') + '" data-id="' + it.id + '"><span class="box"></span></span>' +
+      var jaTag = jaFeitos[it.id]
+        ? '<span class="ck-ja">&middot; j\u00e1 marcado' +
+          (jaFeitos[it.id].pessoa ? ' por ' + esc(jaFeitos[it.id].pessoa) : '') + '</span>'
+        : '';
+      return '<div class="ck-item' + (jaFeitos[it.id] ? ' ck-feito' : '') + '" data-id="' + it.id + '">' +
+        '<span class="ck-chk' + (feitoAqui(it.id) ? ' on' : '') + '" data-id="' + it.id + '"><span class="box"></span></span>' +
         '<div class="ck-corpo" data-id="' + it.id + '">' +
-        '<div class="ck-t">' + esc(it.t) + (it.prio ? '<span class="ck-badge">!</span>' : '') + pontualTag + producaoTag + freqTag + donoTag + '</div>' +
+        '<div class="ck-t">' + esc(it.t) + (it.prio ? '<span class="ck-badge">!</span>' : '') + pontualTag + producaoTag + freqTag + donoTag + jaTag + '</div>' +
         (it.d ? '<div class="ck-d">' + esc(it.d) + '</div>' : '') + numInput + cancelarBtn + '</div>' +
         (it.d ? '<span class="ck-seta">&#9662;</span>' : '') + '</div>';
   }
+  // As conclusões são por (dia, TURNO, item) — então o que já está feito muda
+  // quando a pessoa troca Almoço/Jantar. Recalcular aqui, e não uma vez só no
+  // fetch, é o que faz a troca de turno mostrar a verdade daquele turno.
+  // (O seletor de turno já chama renderChecklist; nenhum gancho novo.)
+  function recalculaJaFeitos() {
+    jaFeitos = {};
+    var alvo = RC.normalizaTurnoLabel(turnoSel);
+    if (!alvo) return;   // sem turno escolhido não dá para afirmar nada
+    conclusoesDoDia.forEach(function (c) {
+      if (!c || !c.item_id || !c.feito) return;
+      if (RC.normalizaTurnoLabel(c.turno) !== alvo) return;
+      jaFeitos[c.item_id] = { pessoa: c.pessoa || '', em: c.atualizado_em || '' };
+    });
+  }
+
+  // DE PROPÓSITO não escreve em `checkState`. Se escrevesse, o envio
+  // reenviaria esses itens para /api/rotina/concluir — que é upsert e grava
+  // `pessoa = quem enviou`. Resultado: quem marcou de verdade perderia o
+  // crédito para quem fechou o turno. Contar como feito sem marcar preserva
+  // o autor, e é por isso que `feito` aqui é sempre (checkState || jaFeitos).
+  function feitoAqui(id) { return !!(checkState[id] || jaFeitos[id]); }
+
+  // Chamado no fim de renderChecklist: o seletor de turno re-renderiza o
+  // checklist mas NÃO chamava atualizaProgresso — antes dava no mesmo, porque
+  // o progresso não dependia do turno. Agora depende, e sem isto a tela
+  // mostrava os itens marcados e "0/16" no contador ao mesmo tempo.
   function renderChecklist() {
+    recalculaJaFeitos();
     var donos = donoPorItem();
     gruposChecklist = RC.agrupaChecklist(ITENS, (ROTINAS && ROTINAS.blocos) || [], FASE);
     elChecklist.innerHTML = gruposChecklist.map(function (g) {
@@ -665,6 +720,11 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
       el.onclick = function (ev) {
         ev.stopPropagation();
         var id = el.dataset.id;
+        // Item já registrado não se desmarca aqui: esta tela não tem como
+        // dizer "não foi feito" para algo que já está gravado com autor e
+        // hora. Corrigir é ato deliberado da coordenação, mesma régua da
+        // ronda do maître.
+        if (jaFeitos[id]) return;
         checkState[id] = !checkState[id];
         el.classList.toggle('on', !!checkState[id]);
         atualizaProgresso();
@@ -717,7 +777,7 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
   function atualizaProgresso() {
     atualizaContadoresSecao();
     var feitos = 0;
-    ITENS.forEach(function (it) { if (checkState[it.id]) feitos++; });
+    ITENS.forEach(function (it) { if (feitoAqui(it.id)) feitos++; });
     var total = ITENS.length;
     document.getElementById('tv-prog-lbl').textContent = feitos + '/' + total;
     document.getElementById('tv-prog-fill').style.width = (total ? (feitos / total * 100) : 0) + '%';
@@ -1084,7 +1144,7 @@ mantida à mão (não faz parte da geração automática das demais páginas).</
   // --- envio -------------------------------------------------------------------
   function montarBody(senha, anexoId) {
     var pendentes = [];
-    ITENS.forEach(function (it) { if (!checkState[it.id]) pendentes.push(it.t); });
+    ITENS.forEach(function (it) { if (!feitoAqui(it.id)) pendentes.push(it.t); });
     var body = {
       chave: CHAVE, _idemp: filaTurno.uuid(), senha_pessoa: senha, fase: FASE,
       pessoa_declarada: pessoaDeclarada,
