@@ -881,7 +881,8 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 <div class="pb" id="pb-painel">
   <div class="pb-quem" id="pb-quem" hidden>
     <div class="t">Quem está no bar?</div>
-    <div class="d" id="pb-quem-d">Escolha o seu nome — fica guardado neste aparelho.</div>
+    <div class="d" id="pb-quem-d">Escolha o seu nome — fica guardado neste aparelho.
+      Se você entrar com a sua senha pessoal, nem precisa escolher.</div>
     <div class="pb-nomes" id="pb-quem-nomes"></div>
   </div>
 
@@ -904,9 +905,10 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
   <div class="pb-senha" id="pb-senha" hidden>
     <span style="color:var(--ambar);margin-top:1px"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>
     <span>
-      <span class="t">No fim do turno o envio pede a sua senha individual</span>
-      <span class="d">Não é a senha de entrada. Se você ainda não tem a sua, peça ao Rodrigo
-      antes de começar — sem ela o envio é recusado na última tela.</span>
+      <span class="t">Você entrou pela senha compartilhada do bar</span>
+      <span class="d">No fim do turno o envio pede a sua senha PESSOAL, a que está no seu
+      cartão — a compartilhada não serve e o envio é recusado. Entrar com a sua já resolve:
+      o nome vai preenchido e o envio assina sozinho.</span>
       <button type="button" id="pb-senha-ok">Já tenho a minha</button>
     </span>
   </div>
@@ -931,8 +933,8 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
     <a href="#home-areas"><span class="ic"><svg class="ic" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></span>Todas as<br>páginas</a>
   </div>
 </div>
-<script src="rotinas-comum.js?v=583f86776b23"></script>
-<script src="bartender-painel.js?v=583f86776b23"></script>
+<script src="rotinas-comum.js?v=a9debebea969"></script>
+<script src="bartender-painel.js?v=a9debebea969"></script>
 <script>
 /* Preenchimento do Painel do Bartender. DEGRADAÇÃO GRACIOSA é requisito duro:
    sem sessão, sem rede ou com 404 de rotinas, a casca acima já é utilizável —
@@ -960,6 +962,19 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
   if (!W || !RC || !BP || typeof window.sessaoBentoLer !== 'function') return;
   var s = window.sessaoBentoLer();
   if (!s || !s.token) return;
+
+  /* CORREÇÃO 2026-09-14, depois de medir: os quatro bartenders JÁ TÊM login
+     individual no D1 (commit bdff27d) — testado, os quatro devolvem 200 com
+     `pessoa`. A primeira versão deste painel assumiu que não tinham, e por
+     isso perguntava o nome e avisava sobre a senha para todo mundo.
+     Quem entra com a PRÓPRIA senha não precisa de nenhum dos dois: o nome
+     vem provado no token, e a mesma senha assina o turno (resolvePessoa
+     consulta o D1). O seletor e o aviso passam a ser SÓ para quem entrou
+     pela senha compartilhada do silo, que não carrega identidade. */
+  if (s.pessoa) {
+    lsSet(NOME_KEY, s.pessoa);
+    mostra('pb-senha', false);
+  }
 
   var dia = RC.diaOperacional();
   fetch(W + '/api/rotinas?dia=' + dia, { headers: { 'X-Token': s.token } })
@@ -1359,7 +1374,7 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
 </div>
 <script>
 (function () {
-  var BUILD = '583f86776b23';
+  var BUILD = 'a9debebea969';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
