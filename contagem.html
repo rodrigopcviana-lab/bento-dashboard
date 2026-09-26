@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#2b2620"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black"><meta name="apple-mobile-web-app-title" content="Bento">
-<title>Contagem semanal · Portal do Bar | Bento</title>
+<title>Contagens semanais · Portal do Bar | Bento</title>
 <style>
   :root {
     --bg: #2b2620; --card: #342e26; --card-2: #3b342a;
@@ -77,22 +77,61 @@
 <script>
 window.BENTO_WORKER = "https://bento-portal-contagem.rodrigopcviana.workers.dev";
 window.SESSAO_BENTO_LS = 'bento_sessao';
+// Modo prévia (admin-ver-como.html, 2026-09-25): o admin abre o mural de
+// outro nível numa moldura e a página se comporta como se o acesso fosse
+// daquele nível — sem trocar de login. Só liga quando AS DUAS coisas valem:
+// a sessão REAL é admin, e o topo da aba é admin-ver-como.html do MESMO site
+// (topo de outro domínio lança exceção ao ler location → sem prévia). Nenhum
+// nível ganha acesso que não tinha: o admin já vê tudo isso nas páginas dele,
+// e o token continua sendo o do admin — o worker decide pelo token real.
+window.previaBento = function () {
+  try {
+    if (window.self === window.top) return null;
+    if (window.top.location.pathname.split('/').pop() !== 'admin-ver-como.html') return null;
+    var p = window.top.bentoPrevia;
+    return p && p.nivel ? p : null;
+  } catch (e) { return null; }
+};
 window.sessaoBentoLer = function () {
   try {
     var raw = localStorage.getItem(window.SESSAO_BENTO_LS);
     if (!raw) return null;
     var s = JSON.parse(raw);
     if (!s || !s.token || !s.exp || Date.now() > s.exp) return null;
+    var pv = s.nivel === 'admin' ? window.previaBento() : null;
+    if (pv) return { nivel: pv.nivel, pessoa: pv.pessoa || null, token: s.token, exp: s.exp, previa: true };
     return s;
   } catch (e) { return null; }
 };
+// Faixa fixa dentro da moldura: a prévia nunca pode ser confundida com a tela
+// real, e o que se envia daqui GRAVA DE VERDADE (decisão do Rodrigo).
+(function () {
+  var s = window.sessaoBentoLer();
+  if (!s || !s.previa) return;
+  var nomes = { equipe: 'Equipe de Bar', maitres: 'Maîtres', rh: 'RH' };
+  function faixa() {
+    if (document.getElementById('previa-faixa')) return;
+    var f = document.createElement('div');
+    f.id = 'previa-faixa';
+    f.setAttribute('role', 'status');
+    f.style.cssText = 'position:sticky;top:0;z-index:99;background:#5a3fa0;color:#fff;font:600 12px/1.35 -apple-system,sans-serif;padding:7px 12px;text-align:center';
+    f.textContent = 'Modo prévia · vendo como ' + (nomes[s.nivel] || s.nivel) +
+      (s.pessoa ? ' (' + s.pessoa + ')' : '') + ' — o que você enviar aqui é gravado de verdade';
+    document.body.insertBefore(f, document.body.firstChild);
+  }
+  if (document.body) faixa(); else document.addEventListener('DOMContentLoaded', faixa);
+})();
 // `pessoa` passou a ser guardada (2026-07-25): o worker já devolvia, mas a
 // sessão descartava — e sem ela a página de Acessos não sabe quem está
 // decidindo. Campo opcional: sessão de silo (sem pessoa) continua igual.
+// Dentro da prévia, "Trocar acesso" ou um login na moldura NÃO podem mexer na
+// sessão real do admin — o localStorage é o mesmo da aba de fora.
 window.sessaoBentoSalvar = function (nivel, token, exp, pessoa) {
+  if (window.previaBento()) return;
   try { localStorage.setItem(window.SESSAO_BENTO_LS, JSON.stringify({ nivel: nivel, token: token, exp: exp, pessoa: pessoa || null })); } catch (e) {}
 };
 window.sessaoBentoLimpar = function () {
+  if (window.previaBento()) return;
   try { localStorage.removeItem(window.SESSAO_BENTO_LS); } catch (e) {}
 };
 window.loginSenhaBento = function (senha) {
@@ -124,9 +163,21 @@ window.exigirNivel = function (niveisOk, slug) {
   var s = window.sessaoBentoLer();
   if (s && niveisOk.indexOf(s.nivel) >= 0) return { ok: true, sessao: s };
   if (!s) { window.irParaLoginBento(); return { ok: false, redirecionou: true }; }
-  document.body.innerHTML = '<div class="capa-wrap capa-centro"><p class="capa-sub">'
+  document.body.innerHTML = '<div id="acesso-negado" class="capa-wrap capa-centro"><p class="capa-sub">'
     + 'Seu acesso atual não abre esta página. '
     + '<a href="index.html?trocar=1">Trocar acesso</a>.</p></div>';
+  // Esta função roda DURANTE a leitura do HTML: trocar o <body> não impede o
+  // navegador de continuar lendo o resto da página e montá-lo embaixo da
+  // mensagem (achado 2026-09-25 — toda página do site mostrava a casca
+  // inteira pra quem não tinha acesso; dado não vazava, o worker confere o
+  // token). Duas camadas: parar o carregamento (o resto nem é montado nem
+  // executado) e, de reserva, esconder tudo que não for a mensagem.
+  try {
+    var st = document.createElement('style');
+    st.textContent = 'body > :not(#acesso-negado) { display: none !important; }';
+    (document.head || document.documentElement).appendChild(st);
+  } catch (e) {}
+  try { window.stop(); } catch (e) {}
   return { ok: false, nivelAtual: s.nivel };
 };
 // Injeta um fragmento vindo de /api/protegido/<chave> (vendas/ranking/
@@ -197,7 +248,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 </div>
 <script>
 (function () {
-  var BUILD = '3e042833d1e7';
+  var BUILD = '0de075351ad1';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
@@ -297,9 +348,12 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
   <a class="prm-card prm-so" href="quebras.html"><span class="prm-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10l-1.15 15.1a2 2 0 0 1-2 1.9h-3.7a2 2 0 0 1-2-1.9L7 4z"/><path d="M9.7 8.4l3.1 2.2-2.2 2.1 2.7 2.3"/></svg></span><span class="prm-t">Quebras</span></a>
 </div>
 
-<h1>Contagem semanal</h1>
-<p class="sub">Escolha o que vai contar agora. Cada uma salva sozinha, direto no histórico do Notion.</p>
+<h1>Contagens semanais</h1>
+<p class="sub">Toda semana (segunda a domingo) tem uma contagem de insumos, uma de produções e uma de copos esperando. Conte, confirme, e ela vai sozinha para o Notion, organizada por mês e semana.</p>
 
+<!-- CONTAGENS-SEMANAIS: desenhado por contagens-semanais.js (PLANO_CONTAGENS_SEMANAIS.md).
+     Os 3 cartões abaixo são o plano B: se o script não carregar, contar continua a um toque. -->
+<div id="contagens-semanais">
 <div class="cards">
 <a class="card" href="contagem-insumos.html"><div class="t"><span class="tic"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M7 8V6a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2"/></svg></span>Insumos</div>
 <div class="d">Águas, cervejas, energéticos e refrigerantes da geladeira.</div></a>
@@ -307,9 +361,26 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 <div class="d">Xaropes, sucos, espumas e pré-batches feitos no bar.</div></a>
 <a class="card" href="contagem-copos.html"><div class="t"><span class="tic"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-8 9z"/><path d="M12 14v6M8 20h8"/></svg></span>Copos e taças</div>
 <div class="d">Contagem por tipo, com o lastro de referência de cada um.</div></a>
+</div>
+</div>
+
+<h2 style="font-size:11px;letter-spacing:.12em;color:var(--text-3);margin:26px 0 8px;font-weight:400">MAIS</h2>
+<div class="cards">
 <a class="card" href="quebras.html"><div class="t"><span class="tic"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4h10l-1.15 15.1a2 2 0 0 1-2 1.9h-3.7a2 2 0 0 1-2-1.9L7 4z"/><path d="M9.7 8.4l3.1 2.2-2.2 2.1 2.7 2.3"/></svg></span>Reportar quebra</div>
 <div class="d">Quebrou um copo ou taça? Reporte em segundos.</div></a>
 </div>
+
+<script src="contagens-semanais.js"></script>
+<script>
+if (window.ContagensSemanais) {
+  window.ContagensSemanais.montar({
+    worker: window.BENTO_WORKER,
+    prefixo: "",
+    chave: "52d20056e7bbf3bcc08092123cdde44d",
+    chaveHistorico: ""
+  });
+}
+</script>
 
 <p class="nota">Dúvida com algum item da contagem?
 <a href="https://wa.me/556281483511?text=Ol%C3%A1%20Rodrigo!%20D%C3%BAvida%20na%20contagem%20do%20Portal%20do%20Bento%3A%20">avise o Rodrigo no WhatsApp</a>.</p>

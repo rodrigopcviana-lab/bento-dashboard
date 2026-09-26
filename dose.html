@@ -656,22 +656,61 @@
 <script>
 window.BENTO_WORKER = "https://bento-portal-contagem.rodrigopcviana.workers.dev";
 window.SESSAO_BENTO_LS = 'bento_sessao';
+// Modo prévia (admin-ver-como.html, 2026-09-25): o admin abre o mural de
+// outro nível numa moldura e a página se comporta como se o acesso fosse
+// daquele nível — sem trocar de login. Só liga quando AS DUAS coisas valem:
+// a sessão REAL é admin, e o topo da aba é admin-ver-como.html do MESMO site
+// (topo de outro domínio lança exceção ao ler location → sem prévia). Nenhum
+// nível ganha acesso que não tinha: o admin já vê tudo isso nas páginas dele,
+// e o token continua sendo o do admin — o worker decide pelo token real.
+window.previaBento = function () {
+  try {
+    if (window.self === window.top) return null;
+    if (window.top.location.pathname.split('/').pop() !== 'admin-ver-como.html') return null;
+    var p = window.top.bentoPrevia;
+    return p && p.nivel ? p : null;
+  } catch (e) { return null; }
+};
 window.sessaoBentoLer = function () {
   try {
     var raw = localStorage.getItem(window.SESSAO_BENTO_LS);
     if (!raw) return null;
     var s = JSON.parse(raw);
     if (!s || !s.token || !s.exp || Date.now() > s.exp) return null;
+    var pv = s.nivel === 'admin' ? window.previaBento() : null;
+    if (pv) return { nivel: pv.nivel, pessoa: pv.pessoa || null, token: s.token, exp: s.exp, previa: true };
     return s;
   } catch (e) { return null; }
 };
+// Faixa fixa dentro da moldura: a prévia nunca pode ser confundida com a tela
+// real, e o que se envia daqui GRAVA DE VERDADE (decisão do Rodrigo).
+(function () {
+  var s = window.sessaoBentoLer();
+  if (!s || !s.previa) return;
+  var nomes = { equipe: 'Equipe de Bar', maitres: 'Maîtres', rh: 'RH' };
+  function faixa() {
+    if (document.getElementById('previa-faixa')) return;
+    var f = document.createElement('div');
+    f.id = 'previa-faixa';
+    f.setAttribute('role', 'status');
+    f.style.cssText = 'position:sticky;top:0;z-index:99;background:#5a3fa0;color:#fff;font:600 12px/1.35 -apple-system,sans-serif;padding:7px 12px;text-align:center';
+    f.textContent = 'Modo prévia · vendo como ' + (nomes[s.nivel] || s.nivel) +
+      (s.pessoa ? ' (' + s.pessoa + ')' : '') + ' — o que você enviar aqui é gravado de verdade';
+    document.body.insertBefore(f, document.body.firstChild);
+  }
+  if (document.body) faixa(); else document.addEventListener('DOMContentLoaded', faixa);
+})();
 // `pessoa` passou a ser guardada (2026-07-25): o worker já devolvia, mas a
 // sessão descartava — e sem ela a página de Acessos não sabe quem está
 // decidindo. Campo opcional: sessão de silo (sem pessoa) continua igual.
+// Dentro da prévia, "Trocar acesso" ou um login na moldura NÃO podem mexer na
+// sessão real do admin — o localStorage é o mesmo da aba de fora.
 window.sessaoBentoSalvar = function (nivel, token, exp, pessoa) {
+  if (window.previaBento()) return;
   try { localStorage.setItem(window.SESSAO_BENTO_LS, JSON.stringify({ nivel: nivel, token: token, exp: exp, pessoa: pessoa || null })); } catch (e) {}
 };
 window.sessaoBentoLimpar = function () {
+  if (window.previaBento()) return;
   try { localStorage.removeItem(window.SESSAO_BENTO_LS); } catch (e) {}
 };
 window.loginSenhaBento = function (senha) {
@@ -703,9 +742,21 @@ window.exigirNivel = function (niveisOk, slug) {
   var s = window.sessaoBentoLer();
   if (s && niveisOk.indexOf(s.nivel) >= 0) return { ok: true, sessao: s };
   if (!s) { window.irParaLoginBento(); return { ok: false, redirecionou: true }; }
-  document.body.innerHTML = '<div class="capa-wrap capa-centro"><p class="capa-sub">'
+  document.body.innerHTML = '<div id="acesso-negado" class="capa-wrap capa-centro"><p class="capa-sub">'
     + 'Seu acesso atual não abre esta página. '
     + '<a href="index.html?trocar=1">Trocar acesso</a>.</p></div>';
+  // Esta função roda DURANTE a leitura do HTML: trocar o <body> não impede o
+  // navegador de continuar lendo o resto da página e montá-lo embaixo da
+  // mensagem (achado 2026-09-25 — toda página do site mostrava a casca
+  // inteira pra quem não tinha acesso; dado não vazava, o worker confere o
+  // token). Duas camadas: parar o carregamento (o resto nem é montado nem
+  // executado) e, de reserva, esconder tudo que não for a mensagem.
+  try {
+    var st = document.createElement('style');
+    st.textContent = 'body > :not(#acesso-negado) { display: none !important; }';
+    (document.head || document.documentElement).appendChild(st);
+  } catch (e) {}
+  try { window.stop(); } catch (e) {}
   return { ok: false, nivelAtual: s.nivel };
 };
 // Injeta um fragmento vindo de /api/protegido/<chave> (vendas/ranking/
@@ -1114,7 +1165,7 @@ sozinho quanto saiu.</p>
   <div class="sino-lista" id="sino-lista-nov" hidden></div>
 </div>
 
-<p class="nota">Portal do Bar · Bento · atualizado em 15/09/2026.
+<p class="nota">Portal do Bar · Bento · atualizado em 26/09/2026.
 Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à mão.</p>
 <script>if (window.FilaOffline) window.FilaOffline.iniciarSelo({"elId": "fila-selo", "destinos": {"registro": "registro.html", "turno": "turno.html"}});</script>
 
@@ -1142,7 +1193,7 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
 </div>
 <script>
 (function () {
-  var BUILD = '3e042833d1e7';
+  var BUILD = '0de075351ad1';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
