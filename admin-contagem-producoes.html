@@ -114,7 +114,8 @@ window.sessaoBentoLer = function () {
 (function () {
   var s = window.sessaoBentoLer();
   if (!s || !s.previa) return;
-  var nomes = { equipe: 'Equipe de Bar', maitres: 'Maîtres', rh: 'RH' };
+  var nomes = { equipe: 'Equipe de Bar', maitres: 'Maîtres', rh: 'RH', suprimentos: 'Suprimentos',
+                controladoria: 'Controladoria', diretoria: 'Diretoria' };
   function faixa() {
     if (document.getElementById('previa-faixa')) return;
     var f = document.createElement('div');
@@ -254,7 +255,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 </div>
 <script>
 (function () {
-  var BUILD = '0de075351ad1';
+  var BUILD = 'c2dfe987c054';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
@@ -356,7 +357,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 
 <h1>Produções (feitas no bar)</h1>
 <p class="sub">Conte quanto tem pronto de cada produção — xaropes, sucos, espumas e pré-batches.
-Salva sozinho, direto no histórico do Notion.</p>
+O que você digita fica guardado neste aparelho e só vai para o Notion quando você confirma.</p>
 
 <form id="form-producoes" class="panel" novalidate>
   <div class="top-fields">
@@ -657,6 +658,214 @@ identificado. Dúvida com algum item?
   });
 })();
 </script>
+<!-- CONTAGEM-UX:INICIO -->
+<style>
+  /* CONTAGEM-UX v2 — ver bento/injeta_contagem_ux.py */
+  header.brand { padding: 4px 0 10px; }
+  .brand .logo { height: 54px; }
+  .linha { padding: 7px 0; }
+  .stepper button { width: 44px; height: 44px; font-size: 20px; border-radius: 10px; }
+  .stepper input { width: 62px; height: 44px; font-size: 17px; }
+  .linha .nome .ct-v { display: none; color: #9fdcae; margin-left: 5px; font-size: 13px; }
+  .linha.ct-ok .nome { color: var(--text-2); }
+  .linha.ct-ok .nome .ct-v { display: inline; }
+  .linha.ct-ok .stepper input { border-color: #5f9a72; }
+  .ct-grp { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 12px;
+            font-weight: 400; color: var(--text-3); margin-left: 8px; font-variant-numeric: tabular-nums; }
+  .ct-grp.ct-cheio { color: #9fdcae; }
+  .ct-dica { font-size: 12.5px; color: var(--text-3); line-height: 1.45; margin: -4px 0 10px; }
+  .top-fields label { min-width: 128px; }
+  .pr-mini { margin: 8px 0 12px; }
+  a.prm-card { min-height: 34px; padding: 5px 9px 5px 10px; }
+  @media (max-width: 480px) { h1 { font-size: 23px; } .sub { margin-bottom: 14px; } .panel { padding: 14px; } }
+  .ct-progresso { display: none !important; }
+  body.ct-com-barra { padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px)); }
+  .ct-barra { position: fixed; left: 0; right: 0; bottom: 0; z-index: 90; background: var(--card-2);
+              border-top: 1px solid var(--border-2); box-shadow: 0 -6px 18px rgba(0,0,0,.35);
+              padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px)); }
+  .ct-barra-in { max-width: 980px; margin: 0 auto; display: flex; align-items: center; gap: 8px; }
+  .ct-info { flex: 1; min-width: 0; display: grid; gap: 6px; }
+  .ct-txt { font-size: 13px; color: var(--text-2); line-height: 1.35; }
+  .ct-txt b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .ct-txt.ok { color: #9fdcae; }
+  .ct-txt.erro { color: #f09b9b; }
+  .ct-trilho { display: block; height: 4px; border-radius: 4px; background: var(--border); overflow: hidden; }
+  .ct-trilho i { display: block; height: 100%; width: 0; background: var(--ambar); transition: width .2s; }
+  .ct-barra.ct-completo .ct-trilho i { background: #6fae84; }
+  .ct-prox, .ct-conf { flex: none; font: inherit; font-size: 13px; font-weight: 600; min-height: 44px;
+                       padding: 0 14px; border-radius: 999px; cursor: pointer; }
+  .ct-prox { background: none; color: var(--ambar-2); border: 1px solid var(--border-2); }
+  .ct-conf { background: var(--ambar); color: #2b2117; border: none; }
+  .ct-conf:disabled { opacity: .55; cursor: default; }
+  .ct-prox:focus-visible, .ct-conf:focus-visible, .stepper button:focus-visible { outline: 2px solid var(--ambar-2); outline-offset: 2px; }
+  @media (max-width: 370px) { .ct-prox { padding: 0 10px; } .ct-conf { padding: 0 12px; } }
+  @media (prefers-reduced-motion: reduce) { .ct-trilho i { transition: none; } }
+</style>
+<script>
+(function () {
+  var form = document.querySelector('form[id^="form-"]');
+  if (!form || form.getAttribute('data-ct-ux')) return;
+  form.setAttribute('data-ct-ux', '2');
+  var campos = Array.prototype.slice.call(form.querySelectorAll('.linha input[type=number]'));
+  if (!campos.length) return;
+  var envio = form.querySelector('.enviar');
+  var statusEl = form.querySelector('.status');
+  var resp = form.querySelector('input[name="responsavel"]');
+  var suave = !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  function preenchido(i) { return (i.value || '').trim() !== ''; }
+
+  // Linhas: "—" no lugar do "0" fantasma, ✓ quando contada, Enter = próximo.
+  campos.forEach(function (i) {
+    i.placeholder = '—';
+    i.setAttribute('enterkeyhint', 'next');
+    var linha = i.closest('.linha'), nome = linha && linha.querySelector('.nome');
+    if (nome && !nome.querySelector('.ct-v')) {
+      var v = document.createElement('span');
+      v.className = 'ct-v'; v.setAttribute('aria-hidden', 'true'); v.textContent = '✓';
+      nome.insertBefore(v, nome.childNodes[1] || null);
+    }
+    i.addEventListener('focus', function () {
+      if (preenchido(i)) setTimeout(function () { try { i.select(); } catch (e) {} }, 0);
+    });
+  });
+
+  // Grupos: insumos/produções aninham as linhas em .grupo; copos usa um
+  // cabeçalho .grupo-cab seguido das linhas soltas.
+  var grupos = [];
+  form.querySelectorAll('.grupo').forEach(function (g) {
+    var h = g.querySelector('h3');
+    if (h) grupos.push({ cab: h, campos: Array.prototype.slice.call(g.querySelectorAll('.linha input[type=number]')) });
+  });
+  form.querySelectorAll('.grupo-cab').forEach(function (cab) {
+    var cs = [], n = cab.nextElementSibling;
+    while (n && !n.classList.contains('grupo-cab')) {
+      var i = n.classList.contains('linha') && n.querySelector('input[type=number]');
+      if (i) cs.push(i);
+      n = n.nextElementSibling;
+    }
+    grupos.push({ cab: cab, campos: cs });
+  });
+  grupos.forEach(function (g) {
+    if (!g.cab.querySelector('.ct-grp')) {
+      g.selo = document.createElement('span'); g.selo.className = 'ct-grp'; g.cab.appendChild(g.selo);
+    } else g.selo = g.cab.querySelector('.ct-grp');
+  });
+
+  var topo = form.querySelector('.top-fields');
+  if (topo && !form.querySelector('.ct-dica')) {
+    var dica = document.createElement('p');
+    dica.className = 'ct-dica';
+    dica.textContent = 'Em branco = não contei. Não tem nenhum? Toque em – ou digite 0.';
+    topo.parentNode.insertBefore(dica, topo.nextSibling);
+  }
+
+  // Quem contou: a pessoa da sessão (senha individual) ou o último nome usado aqui.
+  if (resp && !resp.value.trim()) {
+    var nome = '';
+    try {
+      var s = JSON.parse(localStorage.getItem(window.SESSAO_BENTO_LS || 'bento_sessao') || 'null');
+      nome = (s && s.pessoa) || '';
+    } catch (e) {}
+    if (!nome) { try { nome = localStorage.getItem('bento_contagem_nome') || ''; } catch (e) {} }
+    if (nome) { resp.value = nome; resp.dispatchEvent(new Event('input', { bubbles: true })); }
+  }
+  form.addEventListener('submit', function () {
+    try { if (resp && resp.value.trim()) localStorage.setItem('bento_contagem_nome', resp.value.trim()); } catch (e) {}
+  });
+
+  function proximoVazio(depoisDe) {
+    var idx = campos.indexOf(depoisDe);
+    for (var k = 1; k <= campos.length; k++) {
+      var c = campos[(idx + k + campos.length) % campos.length];
+      if (!preenchido(c)) return c;
+    }
+    return null;
+  }
+  function vaiPara(c) {
+    if (!c) return false;
+    try { c.focus({ preventScroll: true }); } catch (e) { c.focus(); }
+    c.scrollIntoView({ block: 'center', behavior: suave ? 'smooth' : 'auto' });
+    return true;
+  }
+
+  // Enter no meio da contagem enviava o formulário; agora anda para o próximo em branco.
+  form.addEventListener('keydown', function (ev) {
+    if (ev.key !== 'Enter' || ev.isComposing) return;
+    var alvo = ev.target;
+    var ehCampo = campos.indexOf(alvo) !== -1;
+    if (!ehCampo && alvo !== resp) return;
+    ev.preventDefault();
+    if (!vaiPara(proximoVazio(ehCampo ? alvo : null))) alvo.blur();
+  });
+
+  // Barra fixa: andamento + próximo em branco + confirmar, e a resposta do envio.
+  var barra = document.createElement('div');
+  barra.className = 'ct-barra';
+  barra.setAttribute('role', 'region');
+  barra.setAttribute('aria-label', 'Andamento da contagem');
+  barra.innerHTML = '<div class="ct-barra-in"><div class="ct-info"><span class="ct-txt" aria-live="polite"></span>'
+    + '<span class="ct-trilho"><i></i></span></div>'
+    + '<button type="button" class="ct-prox">Próximo em branco</button>'
+    + '<button type="button" class="ct-conf">Confirmar</button></div>';
+  document.body.appendChild(barra);
+  document.body.classList.add('ct-com-barra');
+  var txt = barra.querySelector('.ct-txt'), trilho = barra.querySelector('.ct-trilho i');
+  var bProx = barra.querySelector('.ct-prox'), bConf = barra.querySelector('.ct-conf');
+  var mensagem = '';
+
+  function atualiza() {
+    var n = 0;
+    campos.forEach(function (i) {
+      var ok = preenchido(i);
+      if (ok) n++;
+      var l = i.closest('.linha');
+      if (l) l.classList.toggle('ct-ok', ok);
+    });
+    grupos.forEach(function (g) {
+      var m = g.campos.filter(preenchido).length;
+      g.selo.textContent = m + '/' + g.campos.length;
+      g.selo.classList.toggle('ct-cheio', m === g.campos.length && m > 0);
+    });
+    var total = campos.length;
+    trilho.style.width = Math.round(100 * n / total) + '%';
+    barra.classList.toggle('ct-completo', n === total);
+    bProx.hidden = n === total;
+    if (!mensagem) {
+      txt.className = 'ct-txt';
+      txt.innerHTML = n < total ? '<b>' + n + '/' + total + '</b> contados' : '<b>Tudo contado</b> ✓';
+    }
+  }
+
+  // Espelha o status do formulário (Enviando… / confirmado / erro) na barra,
+  // que é onde o dedo está quando a pessoa toca em Confirmar.
+  function espelhaStatus() {
+    var t = statusEl ? (statusEl.textContent || '').trim() : '';
+    mensagem = t;
+    if (!t) { atualiza(); return; }
+    txt.textContent = t;
+    txt.className = 'ct-txt' + (statusEl.classList.contains('ok') ? ' ok' : statusEl.classList.contains('erro') ? ' erro' : '');
+  }
+  if (window.MutationObserver) {
+    if (statusEl) new MutationObserver(espelhaStatus).observe(statusEl,
+      { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+    if (envio) new MutationObserver(function () { bConf.disabled = envio.disabled; })
+      .observe(envio, { attributes: true, attributeFilter: ['disabled'] });
+  }
+
+  form.addEventListener('input', function () { mensagem = ''; atualiza(); });
+  bProx.addEventListener('click', function () {
+    var atual = campos.indexOf(document.activeElement) !== -1 ? document.activeElement : null;
+    vaiPara(proximoVazio(atual));
+  });
+  bConf.addEventListener('click', function () {
+    if (form.requestSubmit) form.requestSubmit(envio || undefined);
+    else if (envio) envio.click();
+  });
+  atualiza();
+})();
+</script>
+<!-- CONTAGEM-UX:FIM -->
 <script src="fila-offline.js"></script>
 <script>if (window.FilaOffline) window.FilaOffline.iniciarSelo({"elId": "fila-selo", "destinos": {"registro": "admin-registro.html", "turno": "admin-turno.html"}});</script>
 <script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){});});}</script></body>

@@ -1,0 +1,719 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Bento — Vendas de Bebidas</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg:#2b2620; --card:#342e26; --card2:#3b342a; --border:#4a4133;
+    --text:#f0e7d8; --text-2:#b3a68f; --text-3:#8f8370;
+    --acc:#d5a05c; --acc-txt:#241a06; --verde:#9fdcae; --amarelo:#e0b273; --verm:#f09b9b;
+    --serif: Georgia, "Times New Roman", serif;
+    color-scheme: dark;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text);
+    margin:0; padding:20px 20px 90px; max-width:1180px; margin-inline:auto; }
+  h1 { font-family:var(--serif); font-size:22px; font-weight:500; margin:0 0 4px; }
+  h3 { font-size:14px; margin:18px 0 8px; color:var(--text-2); }
+  .kicker { font-size:11px; letter-spacing:.18em; color:var(--acc); text-transform:uppercase; margin-bottom:6px; }
+  .sub { font-size:12.5px; color:var(--text-3); margin-bottom:14px; }
+  .nota { font-size:12px; color:var(--text-3); margin:10px 0 16px; border-left:2px solid var(--border); padding-left:10px; }
+
+  .estado-tabs { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:20px; position:sticky; top:0;
+    background:var(--bg); padding:10px 0; z-index:50; border-bottom:1px solid var(--border); }
+  .estado-tabs button { background:none; border:1px solid var(--border); color:var(--text-2); font-size:12.5px;
+    padding:7px 12px; border-radius:999px; cursor:pointer; min-height:34px; }
+  .estado-tabs button.on { border-color:var(--acc); color:var(--acc); background:color-mix(in srgb, var(--acc) 10%, transparent); }
+  .estado-tabs button .qtd-badge { display:inline-block; margin-left:5px; padding:1px 7px; border-radius:999px;
+    background:var(--verm); color:#241010; font-size:10.5px; font-weight:700; }
+  .painel { display:none; } .painel.on { display:block; }
+
+  .selo { display:inline-flex; align-items:center; gap:7px; font-size:12px; padding:6px 12px; border-radius:999px;
+    border:1px solid color-mix(in srgb, var(--verde) 45%, transparent); color:var(--verde);
+    background:color-mix(in srgb, var(--verde) 8%, transparent); margin-bottom:14px; }
+  .selo.aten { border-color:color-mix(in srgb, var(--amarelo) 45%, transparent); color:var(--amarelo);
+    background:color-mix(in srgb, var(--amarelo) 8%, transparent); }
+  .selo.ruim { border-color:color-mix(in srgb, var(--verm) 50%, transparent); color:var(--verm);
+    background:color-mix(in srgb, var(--verm) 10%, transparent); }
+  .selo .sdot { width:8px; height:8px; border-radius:50%; background:currentColor; }
+
+  .sel-periodo { display:inline-flex; gap:4px; border:1px solid var(--border); border-radius:999px; padding:3px; margin:10px 0 4px; }
+  .sel-periodo button { background:none; border:none; color:var(--text-2); font-size:12.5px; padding:7px 14px;
+    border-radius:999px; cursor:pointer; min-height:34px; }
+  .sel-periodo button.on { background:var(--acc); color:var(--acc-txt); font-weight:600; }
+
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin:14px 0; }
+  .kpi { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
+  .kpi .k-lab { font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--text-3); }
+  .kpi .k-val { font-size:22px; font-variant-numeric:tabular-nums; margin-top:4px; font-family:var(--serif); }
+  .kpi .k-sub { font-size:11.5px; color:var(--text-2); margin-top:3px; }
+  .kpi.destaque { border-color:color-mix(in srgb, var(--acc) 50%, transparent); }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px 18px; margin-bottom:12px; }
+  .card h4 { margin:0 0 10px; font-size:13.5px; color:var(--text-2); font-weight:600; }
+  table.limpa { width:100%; border-collapse:collapse; font-size:13px; }
+  table.limpa th { text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-3);
+    padding:6px 8px; border-bottom:1px solid var(--border); font-weight:600; white-space:nowrap; }
+  table.limpa td { padding:8px; border-bottom:1px solid color-mix(in srgb, var(--border) 55%, transparent); }
+  table.limpa tr:last-child td { border-bottom:none; }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .scroll-x { overflow-x:auto; }
+  .chip-cat { font-size:10.5px; padding:2px 8px; border-radius:999px; border:1px solid var(--border); color:var(--text-2); white-space:nowrap; }
+  .abc { display:inline-block; width:20px; height:20px; border-radius:6px; text-align:center; line-height:20px; font-size:11px; font-weight:700; }
+  .abc-A { background:color-mix(in srgb, var(--verde) 18%, transparent); color:var(--verde); }
+  .abc-B { background:color-mix(in srgb, var(--amarelo) 18%, transparent); color:var(--amarelo); }
+  .abc-C { background:color-mix(in srgb, var(--verm) 15%, transparent); color:var(--verm); }
+
+  .barh { display:flex; align-items:center; gap:10px; margin:7px 0; font-size:12.5px; }
+  .barh .bh-nome { width:180px; flex:none; color:var(--text-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .barh .bh-track { flex:1; display:block; height:14px; border-radius:7px; background:color-mix(in srgb, var(--border) 40%, transparent); overflow:hidden; }
+  .barh .bh-fill { display:block; height:100%; border-radius:7px; background:var(--acc); opacity:.85; }
+  .barh .bh-val { width:110px; flex:none; text-align:right; font-variant-numeric:tabular-nums; }
+
+  .banner-cob { border:1px solid color-mix(in srgb, var(--amarelo) 40%, transparent);
+    background:color-mix(in srgb, var(--amarelo) 7%, transparent);
+    border-radius:12px; padding:12px 15px; font-size:12.5px; color:var(--text-2); margin-bottom:14px; }
+  .banner-cob b { color:var(--amarelo); }
+  .banner-cob.ok { border-color:color-mix(in srgb, var(--verde) 40%, transparent);
+    background:color-mix(in srgb, var(--verde) 7%, transparent); }
+  .banner-cob.ok b { color:var(--verde); }
+  .banner-cob.ruim { border-color:color-mix(in srgb, var(--verm) 45%, transparent);
+    background:color-mix(in srgb, var(--verm) 9%, transparent); }
+  .banner-cob.ruim b { color:var(--verm); }
+  .grid-insights { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:10px; }
+  .card-insight { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
+  .card-insight.ruim { border-left:3px solid var(--verm); }
+  .card-insight.bom { border-left:3px solid var(--verde); }
+  .card-insight.info { border-left:3px solid var(--acc); }
+  .ins-prod { font-weight:600; font-size:14px; margin-bottom:5px; }
+  .ins-num { font-size:12.5px; color:var(--text-2); }
+  .ins-acao { font-size:12.5px; margin-top:9px; color:var(--text-2); }
+  .ins-acao b { color:var(--text); }
+  .tag-tipo { display:inline-block; font-size:10.5px; padding:3px 9px; border-radius:999px; margin-right:6px; margin-bottom:6px;
+    border:1px solid var(--border); color:var(--text-2); }
+  .farol { display:inline-block; width:10px; height:10px; border-radius:50%; }
+  .f-ok { background:var(--verde); } .f-aten { background:var(--amarelo); } .f-ruim { background:var(--verm); }
+  .farol-vermelho { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:600; color:var(--verm); }
+  .farol-vermelho .fv-dot { width:8px; height:8px; border-radius:50%; background:var(--verm);
+    box-shadow:0 0 6px 1px color-mix(in srgb, var(--verm) 70%, transparent); }
+  .vazio { font-size:12.5px; color:var(--text-3); padding:8px 0; }
+
+  .fluxo { display:flex; flex-wrap:wrap; gap:8px; align-items:center; font-size:12px; color:var(--text-2); margin:12px 0; }
+  .fluxo .et { border:1px solid var(--border); border-radius:9px; padding:8px 11px; background:var(--card); }
+  .fluxo .seta { color:var(--acc); }
+  code { font-size:11.5px; background:var(--card2); border:1px solid var(--border); padding:1.5px 6px; border-radius:6px; color:var(--text-2); }
+
+  .proj-linha { display:flex; justify-content:space-between; gap:12px; padding:10px 0; font-size:13.5px;
+    border-bottom:1px solid color-mix(in srgb, var(--border) 55%, transparent); }
+  .proj-linha:last-child { border-bottom:none; }
+  .proj-linha .pl-val { font-variant-numeric:tabular-nums; font-weight:600; white-space:nowrap; }
+  .proj-final { border-top:2px solid var(--acc); margin-top:4px; padding-top:12px; font-size:15px; }
+  .coef { text-align:center; }
+  .coef .c-val { font-size:24px; font-family:var(--serif); margin:4px 0; }
+  .coef .c-lab { font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--text-3); }
+  .coef .c-sub { font-size:11.5px; color:var(--text-2); }
+
+  .busca-row { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; align-items:center; }
+  .busca-row input[type=text] { flex:1; min-width:180px; background:var(--card2); border:1px solid var(--border);
+    border-radius:9px; padding:9px 12px; color:var(--text); font-size:13px; }
+  .busca-row select { background:var(--card2); border:1px solid var(--border); border-radius:9px; padding:9px 10px;
+    color:var(--text); font-size:12.5px; }
+  .toggle-qr { display:inline-flex; gap:4px; border:1px solid var(--border); border-radius:999px; padding:3px; }
+  .toggle-qr button { background:none; border:none; color:var(--text-2); font-size:12px; padding:6px 12px; border-radius:999px; cursor:pointer; }
+  .toggle-qr button.on { background:var(--acc); color:var(--acc-txt); font-weight:600; }
+
+  @media (max-width:640px) {
+    body { padding:14px 12px 70px; }
+    .kpi .k-val { font-size:19px; }
+    .barh .bh-nome { width:110px; }
+  }
+</style>
+</head>
+<body>
+
+<script>
+window.BENTO_WORKER = "https://bento-portal-contagem.rodrigopcviana.workers.dev";
+window.SESSAO_BENTO_LS = 'bento_sessao';
+// Modo prévia (admin-ver-como.html, 2026-09-25): o admin abre o mural de
+// outro nível numa moldura e a página se comporta como se o acesso fosse
+// daquele nível — sem trocar de login. Só liga quando AS DUAS coisas valem:
+// a sessão REAL é admin, e o topo da aba é admin-ver-como.html do MESMO site
+// (topo de outro domínio lança exceção ao ler location → sem prévia). Nenhum
+// nível ganha acesso que não tinha: o admin já vê tudo isso nas páginas dele,
+// e o token continua sendo o do admin — o worker decide pelo token real.
+window.previaBento = function () {
+  try {
+    if (window.self === window.top) return null;
+    if (window.top.location.pathname.split('/').pop() !== 'admin-ver-como.html') return null;
+    var p = window.top.bentoPrevia;
+    return p && p.nivel ? p : null;
+  } catch (e) { return null; }
+};
+window.sessaoBentoLer = function () {
+  try {
+    var raw = localStorage.getItem(window.SESSAO_BENTO_LS);
+    if (!raw) return null;
+    var s = JSON.parse(raw);
+    if (!s || !s.token || !s.exp || Date.now() > s.exp) return null;
+    var pv = s.nivel === 'admin' ? window.previaBento() : null;
+    if (pv) return { nivel: pv.nivel, pessoa: pv.pessoa || null, token: s.token, exp: s.exp, previa: true };
+    return s;
+  } catch (e) { return null; }
+};
+// Faixa fixa dentro da moldura: a prévia nunca pode ser confundida com a tela
+// real, e o que se envia daqui GRAVA DE VERDADE (decisão do Rodrigo).
+(function () {
+  var s = window.sessaoBentoLer();
+  if (!s || !s.previa) return;
+  var nomes = { equipe: 'Equipe de Bar', maitres: 'Maîtres', rh: 'RH', suprimentos: 'Suprimentos',
+                controladoria: 'Controladoria', diretoria: 'Diretoria' };
+  function faixa() {
+    if (document.getElementById('previa-faixa')) return;
+    var f = document.createElement('div');
+    f.id = 'previa-faixa';
+    f.setAttribute('role', 'status');
+    f.style.cssText = 'position:sticky;top:0;z-index:99;background:#5a3fa0;color:#fff;font:600 12px/1.35 -apple-system,sans-serif;padding:7px 12px;text-align:center';
+    f.textContent = 'Modo prévia · vendo como ' + (nomes[s.nivel] || s.nivel) +
+      (s.pessoa ? ' (' + s.pessoa + ')' : '') + ' — o que você enviar aqui é gravado de verdade';
+    document.body.insertBefore(f, document.body.firstChild);
+  }
+  if (document.body) faixa(); else document.addEventListener('DOMContentLoaded', faixa);
+})();
+// `pessoa` passou a ser guardada (2026-07-25): o worker já devolvia, mas a
+// sessão descartava — e sem ela a página de Acessos não sabe quem está
+// decidindo. Campo opcional: sessão de silo (sem pessoa) continua igual.
+// Dentro da prévia, "Trocar acesso" ou um login na moldura NÃO podem mexer na
+// sessão real do admin — o localStorage é o mesmo da aba de fora.
+window.sessaoBentoSalvar = function (nivel, token, exp, pessoa) {
+  if (window.previaBento()) return;
+  try { localStorage.setItem(window.SESSAO_BENTO_LS, JSON.stringify({ nivel: nivel, token: token, exp: exp, pessoa: pessoa || null })); } catch (e) {}
+};
+window.sessaoBentoLimpar = function () {
+  if (window.previaBento()) return;
+  try { localStorage.removeItem(window.SESSAO_BENTO_LS); } catch (e) {}
+};
+window.loginSenhaBento = function (senha) {
+  return fetch(window.BENTO_WORKER + '/api/nivel', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ senha: senha }),
+  }).then(function (r) {
+    if (r.status === 401) return { ok: false, status: 401 };
+    if (!r.ok) return { ok: false, status: r.status };
+    return r.json().then(function (d) {
+      if (d.token) window.sessaoBentoSalvar(d.nivel, d.token, d.exp, d.pessoa);
+      return { ok: true, nivel: d.nivel, token: d.token, pessoa: d.pessoa || null };
+    });
+  }).catch(function () { return { ok: false, status: 0 }; });
+};
+// Gate padrão das páginas protegidas: sem sessão -> manda pra home logar,
+// com volta automática pra cá. "volta" é o NOME DO ARQUIVO atual (lido de
+// location.pathname, não o slug de nav — mural.html/maitres-mural.html/
+// admin-mural.html compartilham o mesmo slug "mural" pro nav, mas são
+// arquivos diferentes; voltar pro slug errado abriria o silo errado depois
+// do login). Sessão de nível diferente do exigido (ex.: Equipe abrindo
+// maitres-mural.html direto por URL) -> NÃO redireciona (senão a home
+// logada devolveria pra cá e viraria loop); mostra mensagem.
+window.irParaLoginBento = function () {
+  var atual = location.pathname.split('/').pop().replace(/\.html$/, '') || 'index';
+  location.replace('index.html?volta=' + encodeURIComponent(atual) + '#acesso');
+};
+window.exigirNivel = function (niveisOk, slug) {
+  var s = window.sessaoBentoLer();
+  if (s && niveisOk.indexOf(s.nivel) >= 0) return { ok: true, sessao: s };
+  if (!s) { window.irParaLoginBento(); return { ok: false, redirecionou: true }; }
+  document.body.innerHTML = '<div id="acesso-negado" class="capa-wrap capa-centro"><p class="capa-sub">'
+    + 'Seu acesso atual não abre esta página. '
+    + '<a href="index.html?trocar=1">Trocar acesso</a>.</p></div>';
+  // Esta função roda DURANTE a leitura do HTML: trocar o <body> não impede o
+  // navegador de continuar lendo o resto da página e montá-lo embaixo da
+  // mensagem (achado 2026-09-25 — toda página do site mostrava a casca
+  // inteira pra quem não tinha acesso; dado não vazava, o worker confere o
+  // token). Duas camadas: parar o carregamento (o resto nem é montado nem
+  // executado) e, de reserva, esconder tudo que não for a mensagem.
+  try {
+    var st = document.createElement('style');
+    st.textContent = 'body > :not(#acesso-negado) { display: none !important; }';
+    (document.head || document.documentElement).appendChild(st);
+  } catch (e) {}
+  try { window.stop(); } catch (e) {}
+  return { ok: false, nivelAtual: s.nivel };
+};
+// Injeta um fragmento vindo de /api/protegido/<chave> (vendas/ranking/
+// equipe-vendas/feedback-nutricionista — dado que embutido direto no HTML
+// público vazaria por URL sem senha, ver PLANO_LOGIN_TOKEN_BENTO.md seção 3).
+// innerHTML NÃO executa <script> injetado — recria os nós pra rodar mesmo.
+window.injetaProtegido = function (el, htmlTexto) {
+  el.innerHTML = htmlTexto;
+  el.querySelectorAll('script').forEach(function (velho) {
+    var novo = document.createElement('script');
+    if (velho.src) novo.src = velho.src; else novo.textContent = velho.textContent;
+    velho.replaceWith(novo);
+  });
+};
+window.carregaProtegido = function (chave, containerId) {
+  var el = document.getElementById(containerId);
+  var s = window.sessaoBentoLer();
+  if (!s || !el) return;
+  fetch(window.BENTO_WORKER + '/api/protegido/' + chave, { headers: { 'X-Token': s.token } })
+    .then(function (r) {
+      if (r.status === 401) { el.innerHTML = '<div class="panel"><p>Sua sessão não abre este conteúdo. <a href="index.html?trocar=1">Trocar acesso</a>.</p></div>'; return null; }
+      if (!r.ok) { el.innerHTML = '<div class="panel"><p>Falha ao carregar — tente de novo.</p></div>'; return null; }
+      return r.json();
+    })
+    .then(function (d) { if (d && d.conteudo) window.injetaProtegido(el, d.conteudo); })
+    .catch(function () { el.innerHTML = '<div class="panel"><p>Sem conexão — tente de novo.</p></div>'; });
+};
+// Variante pra quando o protegido é DADO (JSON), não HTML pronto — caso da
+// página de Vendas (bento/templates/vendas.html): o template já sabia
+// renderizar a partir de uma const D populada no load; aqui só troca de
+// onde D vem (const embutida -> fetch autenticado) e chama de volta com o
+// dado já parseado, sem reimplementar a renderização em si.
+window.carregaProtegidoJSON = function (chave, callback, onErro) {
+  var s = window.sessaoBentoLer();
+  if (!s) return;
+  fetch(window.BENTO_WORKER + '/api/protegido/' + chave, { headers: { 'X-Token': s.token } })
+    .then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
+    .then(function (d) { callback(JSON.parse(d.conteudo)); })
+    .catch(function (e) { if (onErro) onErro(e); });
+};
+</script>
+
+<script>window.exigirNivel(["diretoria"], "vendas");</script>
+
+<div class="kicker">Vendas de bebidas</div>
+<h1>Bento</h1>
+<div class="sub" id="periodoLine"></div>
+
+<div class="estado-tabs">
+  <button class="on" onclick="aba('p-resumo', this)">Resumo</button>
+  <button onclick="aba('p-comp', this)">Completo</button>
+  <button onclick="aba('p-concl', this)">Conclusões</button>
+  <button onclick="aba('p-proj', this)">Projeção</button>
+  <button onclick="aba('p-selo', this)">Conferência <span id="qtdDivergTab"></span></button>
+</div>
+
+<!-- ═══ RESUMO ═══ -->
+<div class="painel on" id="p-resumo">
+  <span class="selo" id="seloResumo"><span class="sdot"></span>…</span>
+  <div>
+    <div class="sel-periodo" id="selPeriodo">
+      <button class="on" data-per="mes" onclick="periodo('mes', this)">Mês</button>
+      <button data-per="tri" onclick="periodo('tri', this)">Trimestre</button>
+      <button data-per="sem" onclick="periodo('sem', this)">Semestre</button>
+      <button data-per="ano" onclick="periodo('ano', this)">Ano</button>
+    </div>
+    <div class="sub" style="margin:4px 0 0">Período: <b id="perLabel" style="color:var(--text)"></b>
+      · <span id="perNMeses"></span> · abre sempre no mês mais recente</div>
+  </div>
+  <div class="kpis">
+    <div class="kpi destaque"><div class="k-lab">Receita no período</div><div class="k-val" id="perReceita"></div></div>
+    <div class="kpi"><div class="k-lab">Variação</div><div class="k-val" id="perVar"></div><div class="k-sub" id="perVarSub"></div></div>
+    <div class="kpi"><div class="k-lab">Produtos vendidos</div><div class="k-val" id="perNProd"></div></div>
+  </div>
+  <div class="card"><h4>Receita por mês</h4><canvas id="revChart" height="90"></canvas><p class="nota" id="obsReceita" style="margin:8px 0 0"></p></div>
+  <div class="card"><h4>Top 5 produtos do período</h4>
+    <div class="scroll-x"><table class="limpa">
+      <thead><tr><th>Produto</th><th>Categoria</th><th class="num">Receita</th></tr></thead>
+      <tbody id="perTop"></tbody>
+    </table></div>
+  </div>
+</div>
+
+<!-- ═══ COMPLETO ═══ -->
+<div class="painel" id="p-comp">
+  <div class="card"><h4>Receita por categoria (período completo)</h4><div id="compCatBars"></div></div>
+  <div class="card">
+    <h4>Todos os produtos</h4>
+    <div class="busca-row">
+      <input type="text" id="compBusca" placeholder="Buscar produto ou categoria…" oninput="renderCompleto()">
+      <select id="compCatFiltro" onchange="renderCompleto()"><option value="">Todas as categorias</option></select>
+      <select id="compAbcFiltro" onchange="renderCompleto()">
+        <option value="">Todas as curvas</option><option value="A">Curva A</option><option value="B">Curva B</option><option value="C">Curva C</option>
+      </select>
+      <div class="toggle-qr">
+        <button class="on" data-qr="r" onclick="setQR('r', this)">R$</button>
+        <button data-qr="q" onclick="setQR('q', this)">Qtde</button>
+      </div>
+    </div>
+    <div class="scroll-x"><table class="limpa" id="compTabela"></table></div>
+    <p class="nota" id="compCount" style="margin:8px 0 0"></p>
+  </div>
+</div>
+
+<!-- ═══ CONCLUSÕES ═══ -->
+<div class="painel" id="p-concl">
+  <p class="nota">Falhas, acertos e orientações <b>computados por regra</b>, a partir de vendas × custo × CMV.</p>
+  <div id="conclCobertura"></div>
+  <h3>🔴 Alertas — CMV acima da meta</h3>
+  <div class="grid-insights" id="conclAlertas"></div>
+  <h3>🟢 Acertos — margem saudável</h3>
+  <div class="grid-insights" id="conclAcertos"></div>
+  <h3 id="conclMixTitulo" style="display:none">📦 Mix em queda — curva A caindo 2 meses seguidos</h3>
+  <div class="grid-insights" id="conclMix"></div>
+  <h3 id="conclTreinoTitulo" style="display:none">🎓 Treinamento</h3>
+  <div class="grid-insights" id="conclTreino"></div>
+  <h3>Por item — custo e CMV na própria página</h3>
+  <div class="card"><div class="scroll-x"><table class="limpa" id="conclTabela"></table></div></div>
+  <h3>Pendências de dados</h3>
+  <div class="card"><div class="scroll-x"><table class="limpa" id="conclPendencias"></table></div></div>
+</div>
+
+<!-- ═══ PROJEÇÃO ═══ -->
+<div class="painel" id="p-proj">
+  <p class="nota">Preditivo com base no histórico + coeficiente de calendário (peso por dia da semana) + sazonalidade
+  amortecida + piso anti-inflação + reajuste de cardápio.</p>
+  <div id="projConteudo"></div>
+</div>
+
+<!-- ═══ CONFERÊNCIA ═══ -->
+<div class="painel" id="p-selo">
+  <div class="fluxo">
+    <span class="et">1 · Total oficial<br><small>rodapé TOTAL GERAL do relatório</small></span><span class="seta">⇄</span>
+    <span class="et">2 · Total ingerido<br><small>soma do parquet</small></span><span class="seta">⇄</span>
+    <span class="et">3 · Total publicado<br><small>o que esta página mostra</small></span>
+  </div>
+  <div id="conferConteudo"></div>
+</div>
+
+<script>
+// Casca SEM dado embutido (PLANO_LOGIN_TOKEN_BENTO.md, 2026-07-17) — D
+// chega por fetch autenticado (ver carregaProtegidoJSON no fim do arquivo),
+// não mais por const literal no HTML. INSIGHTS/PROJECAO/CONFERENCIA já vêm
+// calculados do gerador (bento/dashboard_gen.py); nada é computado aqui
+// além do seletor de período (reamostragem, não cálculo novo).
+let D = null;
+const MESES_ORDEM = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+
+function fmtR(v){ return 'R$ ' + (v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtPct(v,dec){ dec=dec===undefined?1:dec; if(v===null||v===undefined) return '—';
+  return (v>0?'+':'') + v.toLocaleString('pt-BR',{minimumFractionDigits:dec,maximumFractionDigits:dec}) + '%'; }
+function tituloCase(s){ return (s||'').toLowerCase().replace(/(^|\s)\S/g, c=>c.toUpperCase()); }
+function mesKey(m){ const [n,a]=m.split('/'); return parseInt(a,10)*100+MESES_ORDEM.indexOf(n); }
+
+function aba(id, btn) {
+  document.querySelectorAll('.painel').forEach(p => p.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+  document.querySelectorAll('.estado-tabs > button').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  window.scrollTo({top:0});
+}
+
+// ── RESUMO / seletor de período ──
+function janelaPeriodo(n) {
+  const meses = (D.MESES_R || []).slice().sort((a,b)=>mesKey(a)-mesKey(b));
+  const janela = meses.slice(-n);
+  return { meses, janela };
+}
+function somaReceitaMes(m) {
+  const i = D.MESES_R.indexOf(m);
+  return i < 0 ? 0 : (D.RECEITA_MES[i] || 0);
+}
+function periodo(chave, btn) {
+  document.querySelectorAll('#selPeriodo button').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  const n = {mes:1, tri:3, sem:6, ano:12}[chave];
+  const { meses, janela } = janelaPeriodo(n);
+  if (!janela.length) return;
+  const receita = janela.reduce((s,m)=>s+somaReceitaMes(m), 0);
+  const label = janela.length === 1 ? janela[0] : `${janela[0]} – ${janela[janela.length-1]}`;
+
+  const idx0 = meses.indexOf(janela[0]);
+  const anterior = meses.slice(Math.max(0, idx0-n), idx0);
+  let varPct = null;
+  if (anterior.length === n) {
+    const receitaAnt = anterior.reduce((s,m)=>s+somaReceitaMes(m), 0);
+    if (receitaAnt) varPct = Math.round((receita - receitaAnt) / receitaAnt * 1000) / 10;
+  }
+
+  const porProduto = {};
+  (D.ALL_PRODS||[]).forEach(p => {
+    let soma = 0;
+    janela.forEach(m => soma += (p.receita_mes||{})[m] || 0);
+    if (soma > 0) porProduto[p.nome] = { nome:p.nome, cat:p.cat, receita:soma };
+  });
+  const top5 = Object.values(porProduto).sort((a,b)=>b.receita-a.receita).slice(0,5);
+
+  document.getElementById('perLabel').textContent = label;
+  document.getElementById('perNMeses').textContent = janela.length + (janela.length>1?' meses':' mês');
+  document.getElementById('perReceita').textContent = fmtR(receita);
+  document.getElementById('perVar').textContent = varPct===null ? '—' : fmtPct(varPct);
+  document.getElementById('perVarSub').textContent = varPct===null ? 'sem período anterior completo' : 'vs período anterior equivalente';
+  document.getElementById('perNProd').textContent = Object.keys(porProduto).length;
+  document.getElementById('perTop').innerHTML = top5.map(t =>
+    `<tr><td>${tituloCase(t.nome)}</td><td><span class="chip-cat">${tituloCase(t.cat)}</span></td>` +
+    `<td class="num">${fmtR(t.receita)}</td></tr>`
+  ).join('') || '<tr><td colspan="3" class="vazio">Sem vendas no período.</td></tr>';
+}
+
+function initResumo() {
+  const c = D.CONFERENCIA || {};
+  const seloEl = document.getElementById('seloResumo');
+  if (c.disponivel) {
+    const cls = c.selo_geral === 'ruim' ? ' ruim' : c.selo_geral === 'ok' ? '' : ' aten';
+    seloEl.className = 'selo' + cls;
+    seloEl.innerHTML = `<span class="sdot"></span>` +
+      (c.selo_geral === 'ruim'
+        ? `${(c.falhas||[]).length} divergência(s) real(is) sem explicação — ver aba Conferência`
+        : c.selo_geral === 'ok'
+          ? `Números conferidos com o relatório original · ${new Date(c.gerado_em).toLocaleDateString('pt-BR')}`
+          : `Mês mais recente (${c.mes_mais_recente}) ainda não conferido — ver aba Conferência`);
+  } else {
+    seloEl.className = 'selo aten';
+    seloEl.innerHTML = `<span class="sdot"></span>Conferência ainda não disponível`;
+  }
+  const tabBadge = document.getElementById('qtdDivergTab');
+  const nFalhas = c.disponivel ? (c.falhas||[]).length : 0;
+  tabBadge.innerHTML = nFalhas > 0 ? `<span class="qtd-badge">${nFalhas}</span>` : '';
+
+  periodo('mes', document.querySelector('#selPeriodo button[data-per="mes"]'));
+  drawBarChart('revChart', D.MESES_R, D.RECEITA_MES, () => 'rgba(213,160,92,0.75)', {pad:{l:56,r:8,t:8,b:24}, prefix:'R$'});
+  document.getElementById('obsReceita').textContent = D.OBS_RECEITA || '';
+}
+
+// ── COMPLETO ──
+let qrModo = 'r';
+function setQR(v, btn) {
+  qrModo = v;
+  btn.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  renderCompleto();
+}
+function initCompleto() {
+  const cats = [...new Set((D.ALL_PRODS||[]).map(p=>p.cat))].sort();
+  const sel = document.getElementById('compCatFiltro');
+  sel.innerHTML = '<option value="">Todas as categorias</option>' + cats.map(c=>`<option value="${c}">${tituloCase(c)}</option>`).join('');
+
+  const catTotal = D.CAT_TOTAL_ALL || [];
+  const max = Math.max(...catTotal.map(c=>c[1]), 1);
+  document.getElementById('compCatBars').innerHTML = catTotal.map(([n,v]) =>
+    `<div class="barh"><span class="bh-nome">${tituloCase(n)}</span>` +
+    `<span class="bh-track"><span class="bh-fill" style="width:${(v/max*100).toFixed(1)}%"></span></span>` +
+    `<span class="bh-val">${fmtR(v)}</span></div>`
+  ).join('');
+
+  renderCompleto();
+}
+function renderCompleto() {
+  const q = (document.getElementById('compBusca').value||'').toLowerCase();
+  const catF = document.getElementById('compCatFiltro').value;
+  const abcF = document.getElementById('compAbcFiltro').value;
+  const meses = D.MESES || [];
+  const data = (D.ALL_PRODS||[]).filter(p =>
+    (!q || p.nome.toLowerCase().includes(q) || p.cat.toLowerCase().includes(q)) &&
+    (!catF || p.cat===catF) && (!abcF || p.abc===abcF)
+  );
+  const head = '<thead><tr><th>Produto</th><th>Categoria</th>' +
+    meses.map(m=>`<th class="num">${m}</th>`).join('') + '<th class="num">Total</th><th>ABC</th></tr></thead>';
+  const body = '<tbody>' + data.map(p => {
+    const serie = qrModo === 'r' ? (p.receita_mes||{}) : (p.qtde_mes||{});
+    const cells = meses.map(m => {
+      const v = serie[m] || 0;
+      return `<td class="num">${qrModo==='r' ? fmtR(v) : v.toLocaleString('pt-BR')}</td>`;
+    }).join('');
+    const total = qrModo === 'r' ? fmtR(p.receita) : p.qtde.toLocaleString('pt-BR');
+    return `<tr><td>${tituloCase(p.nome)}</td><td><span class="chip-cat">${tituloCase(p.cat)}</span></td>` +
+      `${cells}<td class="num"><b>${total}</b></td><td><span class="abc abc-${p.abc}">${p.abc}</span></td></tr>`;
+  }).join('') + '</tbody>';
+  document.getElementById('compTabela').innerHTML = head + body;
+  document.getElementById('compCount').textContent = `${data.length} de ${(D.ALL_PRODS||[]).length} produto(s)`;
+}
+
+// ── CONCLUSÕES ──
+function cardInsight(x, cls) {
+  return `<div class="card-insight ${cls}"><div class="ins-prod">${x.nome}</div>` +
+    (x.cmv_pct !== undefined
+      ? `<div class="ins-num">CMV <b>${x.cmv_pct.toLocaleString('pt-BR')}%</b> · custo ${fmtR(x.custo)}${x.venda!==null&&x.venda!==undefined?' · venda ~'+fmtR(x.venda):''}</div>`
+      : x.meses ? `<div class="ins-num">${x.meses.join(' → ')}: ${x.valores.map(fmtR).join(' → ')}</div>`
+      : `<div class="ins-num">${fmtR(x.receita)} de receita</div>`) +
+    `<div class="ins-acao">→ ${x.mensagem}</div></div>`;
+}
+function initConclusoes() {
+  const ins = D.INSIGHTS || {};
+  const cob = ins.cobertura || {};
+  document.getElementById('conclCobertura').innerHTML =
+    `<div class="banner-cob"><b>Cobertura de custo hoje:</b> ${cob.n_com_custo||0} de ${cob.n_produtos||0} produtos ` +
+    `com custo real (${(cob.pct_produtos_com_custo||0).toLocaleString('pt-BR')}% dos itens, ` +
+    `${(cob.pct_receita_coberta||0).toLocaleString('pt-BR')}% da receita). Conclusão de CMV só sobre o que tem custo — ` +
+    `o resto vira <b>pendência de dados</b>, nunca chute.</div>`;
+
+  const alertas = ins.alertas || [];
+  document.getElementById('conclAlertas').innerHTML = alertas.length
+    ? alertas.slice(0,8).map(x=>cardInsight(x,'ruim')).join('')
+    : '<p class="vazio">Nenhum item com CMV acima da meta entre os que têm custo conhecido.</p>';
+
+  const acertos = ins.acertos || [];
+  document.getElementById('conclAcertos').innerHTML = acertos.length
+    ? acertos.slice(0,8).map(x=>cardInsight(x,'bom')).join('')
+    : '<p class="vazio">Nenhum item com margem destacada ainda entre os que têm custo conhecido.</p>';
+
+  const mix = ins.mix || [];
+  if (mix.length) {
+    document.getElementById('conclMixTitulo').style.display = '';
+    document.getElementById('conclMix').innerHTML = mix.slice(0,6).map(x=>cardInsight(x,'ruim')).join('');
+  }
+
+  if (ins.treinamento) {
+    document.getElementById('conclTreinoTitulo').style.display = '';
+    document.getElementById('conclTreino').innerHTML = cardInsight(ins.treinamento, 'info');
+  }
+
+  const comCusto = [...alertas, ...acertos].sort((a,b)=>b.cmv_pct-a.cmv_pct);
+  const headTab = '<tr><th>Produto</th><th class="num">Custo</th><th class="num">Venda</th><th class="num">CMV</th><th>Farol</th></tr>';
+  const bodyTab = comCusto.map(x => {
+    const farol = x.cmv_pct > 50 ? 'f-ruim' : x.cmv_pct > 30 ? 'f-aten' : 'f-ok';
+    return `<tr><td>${x.nome}</td><td class="num">${fmtR(x.custo)}</td><td class="num">${x.venda!=null?fmtR(x.venda):'—'}</td>` +
+      `<td class="num"><b>${x.cmv_pct.toLocaleString('pt-BR')}%</b></td><td><span class="farol ${farol}"></span></td></tr>`;
+  }).join('');
+  document.getElementById('conclTabela').innerHTML = headTab + (bodyTab || '<tr><td colspan="5" class="vazio">Sem itens com custo conhecido ainda.</td></tr>');
+
+  const pend = ins.pendencias || [];
+  document.getElementById('conclPendencias').innerHTML =
+    '<tr><th>Produto</th><th>Categoria</th><th class="num">Receita</th></tr>' +
+    (pend.length
+      ? pend.map(p => `<tr><td>${p.nome}</td><td><span class="chip-cat">${tituloCase(p.categoria)}</span></td><td class="num">${fmtR(p.receita)}</td></tr>`).join('')
+      : '<tr><td colspan="3" class="vazio">Sem pendências relevantes — os itens de maior receita já têm custo.</td></tr>');
+}
+
+// ── PROJEÇÃO ──
+function initProjecao() {
+  const p = D.PROJECAO || {};
+  const el = document.getElementById('projConteudo');
+  if (!p.disponivel) {
+    el.innerHTML = `<div class="banner-cob"><b>Projeção indisponível:</b> ${p.motivo || 'sem histórico suficiente ainda'}.</div>`;
+    return;
+  }
+  const falta = p.piso_ipca !== null ? Math.round((p.projecao - p.piso_ipca) * 100) / 100 : null;
+  let alerta = '';
+  if (falta !== null) {
+    alerta = falta < 0
+      ? `<div class="banner-cob"><b>Alerta:</b> a projeção histórica fica ${fmtR(Math.abs(falta))} ABAIXO do piso anti-inflação — vender isso é encolher em termos reais.</div>`
+      : `<div class="banner-cob ok"><b>Acima do piso:</b> projeção ${fmtR(falta)} acima do piso anti-inflação — crescimento real, se confirmar.</div>`;
+  }
+  el.innerHTML = `
+    <div class="card"><h4>Projeção ${p.alvo}</h4>
+      <div class="kpis" style="margin-top:4px">
+        <div class="kpi coef"><div class="c-lab">Base histórica</div><div class="c-val">${fmtR(p.base)}</div>
+          <div class="c-sub">média ${p.base_meses.join(', ')}</div></div>
+        <div class="kpi coef"><div class="c-lab">Coef. sazonalidade</div><div class="c-val">${fmtPct(p.sazonalidade_amortecida_pct)}</div>
+          <div class="c-sub">${p.sazonalidade_bruta_pct===null?'sem mês-referência do ano passado':'histórico '+fmtPct(p.sazonalidade_bruta_pct)+' · amortecido '+(p.amortecimento*100).toFixed(0)+'%'}</div></div>
+        <div class="kpi coef"><div class="c-lab">Coef. calendário</div><div class="c-val">${fmtPct(p.coef_calendario_pct)}</div>
+          <div class="c-sub">composição de dias da semana de ${p.alvo} vs meses-base</div></div>
+      </div>
+      <div class="proj-linha"><span>Projeção base (histórico × sazonalidade amortecida × calendário)</span><span class="pl-val">${fmtR(p.projecao)}</span></div>
+      ${p.ref_valor!==null ? `<div class="proj-linha"><span>Referência: ${p.ref_ano_passado} real</span><span class="pl-val">${fmtR(p.ref_valor)}</span></div>` : `<div class="proj-linha"><span>Sem mês-referência do ano passado (${p.ref_ano_passado||'—'}) — projeção sem piso</span><span class="pl-val">—</span></div>`}
+      ${p.piso_ipca!==null ? `<div class="proj-linha"><span>Piso anti-inflação — ${p.ref_ano_passado} × IPCA 12m (${p.ipca_12m.toLocaleString('pt-BR')}%)</span><span class="pl-val">${fmtR(p.piso_ipca)}</span></div>` : ''}
+      <div class="proj-linha"><span>Reajuste de cardápio no ano</span><span class="pl-val" style="${p.reajuste_cardapio_pct?'':'color:var(--text-3)'}">${p.reajuste_cardapio_pct ? '+'+p.reajuste_cardapio_pct+'%' : '0% — a definir'}</span></div>
+      <div class="proj-linha proj-final"><span><b>Meta mínima do mês</b></span><span class="pl-val">${fmtR(p.meta_minima)}</span></div>
+    </div>
+    ${alerta}
+    <p class="nota">Sazonalidade amortecida em ${(p.amortecimento*100).toFixed(0)}% (só 1 ciclo anual de histórico ainda).
+    Pesos de calendário são propostos, não medidos — não existe venda por dia neste projeto (relatório é consolidado
+    mensal). Piso e IPCA vêm de <code>config/projecao.json</code>, nunca digitados aqui.</p>
+  `;
+}
+
+// ── CONFERÊNCIA ──
+function initConferencia() {
+  const c = D.CONFERENCIA || {};
+  const el = document.getElementById('conferConteudo');
+  if (!c.disponivel) {
+    el.innerHTML = `<div class="banner-cob"><b>Conferência indisponível:</b> ${c.motivo || 'ainda não rodou'}.</div>`;
+    return;
+  }
+
+  const falhas = c.falhas || [];
+  const bannerFalhas = falhas.length ? `
+    <div class="banner-cob ruim"><b>${falhas.length} divergência(s) real(is) sem explicação</b> — trava a
+    publicação até virar uma entrada em <code>config/conferencia_notas.json</code>.</div>
+    <div class="grid-insights">
+      ${falhas.map(f => `
+        <div class="card-insight ruim">
+          <div class="ins-prod"><span class="farol-vermelho"><span class="fv-dot"></span>${f.mes}</span></div>
+          <div class="ins-num">oficial ${fmtR(f.total_oficial)} · ingerido ${fmtR(f.total_ingerido)} ·
+            diferença <b>${fmtR(f.diferenca_oficial_ingerido)}</b></div>
+          <div class="ins-acao">${f.sugestao ? `<b>Sugestão:</b> ${f.sugestao}`
+            : '<span style="color:var(--text-3)">Sem sugestão registrada ainda.</span>'}</div>
+        </div>`).join('')}
+    </div>
+  ` : '';
+
+  const meses = Object.keys(c.meses).sort((a,b)=>mesKey(a)-mesKey(b)).reverse();
+  const linhas = meses.map(m => {
+    const item = c.meses[m];
+    const badge = {ok:'selo', nota:'selo aten', falha:'selo ruim', sem_verificacao:'selo aten'}[item.status];
+    const texto = {ok:'confere', nota:'nota', falha:'divergente', sem_verificacao:'nível B'}[item.status];
+    return `<tr><td>${m}</td><td class="num">${item.total_oficial!==null && item.total_oficial!==undefined ? fmtR(item.total_oficial) : '—'}</td>` +
+      `<td class="num">${fmtR(item.total_ingerido)}</td>` +
+      `<td class="num">${item.diferenca_oficial_ingerido!==undefined ? fmtR(item.diferenca_oficial_ingerido) : '—'}</td>` +
+      `<td><span class="${badge}"><span class="sdot"></span>${texto}</span></td>` +
+      `<td>${item.proveniencia ? `<code>${item.proveniencia.arquivo.split('/').pop()} · sha ${item.proveniencia.sha256.slice(0,12)}</code>` : '—'}</td></tr>`;
+  }).join('');
+  el.innerHTML = `
+    ${bannerFalhas}
+    <div class="card"><h4>Mês a mês — geração ${new Date(c.gerado_em).toLocaleString('pt-BR')}</h4>
+    <div class="scroll-x"><table class="limpa">
+      <tr><th>Mês</th><th class="num">Total oficial</th><th class="num">Total ingerido</th><th class="num">Diferença</th><th>Status</th><th>Arquivo</th></tr>
+      ${linhas}
+    </table></div></div>
+    <p class="nota">Nível A: o próprio relatório traz o TOTAL GERAL — conferência tripla. Nível B: sem total no
+    arquivo (relatório de quantidade, sem R$) — sem comparação independente. Tolerância: R$ ${c.tolerancia_rs.toLocaleString('pt-BR')}.</p>
+  `;
+}
+
+// ── gráfico simples (sem libs) ──
+function drawBarChart(id, labels, data, colorFn, opts={}, _tentativa) {
+  const canvas = document.getElementById(id); if(!canvas || !labels || !labels.length) return;
+  if (canvas.parentElement.offsetWidth < 100 && (_tentativa||0) < 5) {
+    requestAnimationFrame(()=>drawBarChart(id,labels,data,colorFn,opts,(_tentativa||0)+1));
+    return;
+  }
+  const W = canvas.parentElement.offsetWidth - 32;
+  canvas.width = W; canvas.height = parseInt(canvas.getAttribute('height')||'90');
+  const c = canvas.getContext('2d'), H = canvas.height;
+  const pad = opts.pad || {l:50,r:8,t:8,b:24};
+  const W2 = W-pad.l-pad.r, H2 = H-pad.t-pad.b;
+  const max = Math.max(...data.map(v=>v||0)) * 1.1 || 1;
+  const bw = W2/labels.length, gap = bw*.28, bwA = bw-gap;
+  c.strokeStyle = 'rgba(240,231,216,0.08)'; c.lineWidth = 1;
+  [.25,.5,.75,1].forEach(f=>{
+    const y = pad.t+H2-f*H2;
+    c.beginPath(); c.moveTo(pad.l,y); c.lineTo(pad.l+W2,y); c.stroke();
+    c.fillStyle = '#8f8370'; c.font = '9px system-ui'; c.textAlign = 'right';
+    const v = max*f, lbl = v>=1000 ? (v/1000).toFixed(0)+'k' : v.toFixed(0);
+    c.fillText((opts.prefix||'')+lbl, pad.l-4, y+3);
+  });
+  data.forEach((v,i)=>{
+    const x = pad.l+i*bw+gap/2, bh = (v||0)/max*H2, y = pad.t+H2-bh;
+    c.fillStyle = colorFn(i,v);
+    c.beginPath();
+    if (c.roundRect) c.roundRect(x,y,bwA,bh,[3,3,0,0]); else c.rect(x,y,bwA,bh);
+    c.fill();
+    c.fillStyle = '#8f8370'; c.font = '9px system-ui'; c.textAlign = 'center';
+    c.fillText(labels[i], x+bwA/2, H-pad.b+11);
+  });
+}
+
+// ── inicialização — D chega por fetch autenticado (exigirNivel já rodou
+// no topo do <body>; se a sessão não for admin, nunca chegamos aqui) ──
+const initFns = { 'p-resumo':initResumo, 'p-comp':initCompleto, 'p-concl':initConclusoes, 'p-proj':initProjecao, 'p-selo':initConferencia };
+const initialized = {};
+const _abaOrig = aba;
+aba = function(id, btn) {
+  _abaOrig(id, btn);
+  if (D && !initialized[id]) { initialized[id] = true; setTimeout(()=>initFns[id] && initFns[id](), 20); }
+};
+window.addEventListener('resize', () => { if (initialized['p-resumo']) initResumo(); });
+
+window.carregaProtegidoJSON('vendas-completo', function (dados) {
+  D = dados;
+  document.getElementById('periodoLine').textContent =
+    `${D.MESES[0]} → ${D.MESES[D.MESES.length-1]} · ${D.N_PRODUTOS} produtos · ${D.N_CATEGORIAS} categorias`;
+  initialized['p-resumo'] = true;
+  initResumo();
+}, function () {
+  document.getElementById('periodoLine').textContent = 'Falha ao carregar — recarregue a página.';
+});
+</script>
+</body>
+</html>

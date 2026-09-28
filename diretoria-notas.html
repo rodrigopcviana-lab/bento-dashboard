@@ -1,0 +1,1800 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#2b2620">
+<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black"><meta name="apple-mobile-web-app-title" content="Bento">
+<title>Minhas notas · Portal do Bar | Bento</title>
+<style>
+  /* Cross-document view transition (2026-07-11): navegadores que já suportam
+     (Safari 18+/iOS 18+, Chrome) fazem um cross-fade suave entre páginas do
+     app instalado (standalone) em vez da "piscada branca" do WebKit no MPA
+     puro — progressive enhancement, sem efeito nenhum em quem não suporta.
+     Não resolve a causa raiz (troca de documento em standalone), só
+     disfarça; a causa raiz não dá pra tirar sem virar SPA. */
+  @view-transition { navigation: auto; }
+  :root {
+    --bg: #2b2620; --card: #342e26; --card-2: #3b342a;
+    --border: #4a4133; --border-2: #5d5142;
+    --text: #f0e7d8; --text-2: #b3a68f; --text-3: #8f8370;
+    --ambar: #d5a05c; --ambar-2: #e0b273; --ambar-bg: rgba(213,160,92,.13);
+    /* Paleta semântica (E7B, sistema didático) — verde = feito/em dia,
+       âmbar = pendente/atenção, coral = falta real. Nunca decorativo. Mesmos
+       tons já usados inline pelo portal (status-ok/status-critico). */
+    --verde: #9fdcae; --verde-bg: rgba(80,170,110,.18);
+    --coral: #f09b9b; --coral-bg: rgba(226,75,74,.16);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--text);
+    padding: 16px 18px 24px; max-width: 980px; margin: 0 auto;
+  }
+  ::placeholder { color: var(--text-3); }
+  .ic { vertical-align: -3px; }
+  header.brand { display: flex; flex-direction: column; align-items: center; justify-content: center;
+                 gap: 4px; padding: 10px 0 14px; }
+  .brand .logo { height: 46px; width: auto; display: block; }
+  nav { display: flex; gap: 2px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+        scrollbar-width: none; border-top: 1px solid var(--border);
+        border-bottom: 1px solid var(--border); padding: 6px 0; margin-bottom: 24px; }
+  nav::-webkit-scrollbar { display: none; }
+  nav a { color: var(--text-2); text-decoration: none; font-size: 14px;
+          padding: 8px 12px; border-radius: 8px; white-space: nowrap; }
+  nav a.on { color: var(--ambar-2); background: var(--ambar-bg); font-weight: 600; }
+  nav a:hover { color: var(--ambar-2); }
+  h1 { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+       font-size: 27px; font-weight: 500; margin-bottom: 6px; }
+  .sub { color: var(--text-2); font-size: 14px; margin-bottom: 22px; line-height: 1.5; }
+  .voltar { display: inline-block; font-size: 13px; color: var(--text-2); text-decoration: none;
+            margin-bottom: 14px; }
+  .voltar:hover { color: var(--ambar-2); }
+  h2 { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+       font-size: 19px; font-weight: 500; margin: 22px 0 10px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  a.card { display: block; background: var(--card); border: 1px solid var(--border);
+           border-radius: 10px; padding: 12px 14px; text-decoration: none; color: var(--text); }
+  a.card:hover { border-color: var(--ambar); }
+  a.card .t { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+  a.card .t .tic { color: var(--ambar); margin-right: 5px; }
+  a.card .d { font-size: 12px; color: var(--text-2); line-height: 1.4; }
+  .lock { color: var(--ambar-2); font-size: 12px; font-weight: 600; }
+  .wa { display: inline-block; background: #25d366; color: #10331d; font-weight: 700;
+        font-size: 14px; padding: 10px 18px; border-radius: 999px; text-decoration: none;
+        margin-top: 8px; }
+  .nota { font-size: 12px; color: var(--text-3); margin-top: 30px; line-height: 1.5; }
+  .nota a { color: var(--ambar-2); }
+  /* Sistema didático (E7B): "Como funciona" recolhível + estado vazio que
+     explica o próximo passo. Globais — qualquer página de obrigação usa. */
+  .como-funciona { border: 1px solid var(--border); border-radius: 12px; background: var(--card);
+                   margin: 0 0 16px; overflow: hidden; }
+  .como-funciona > summary { list-style: none; cursor: pointer; padding: 11px 14px; font-size: 13.5px;
+                   color: var(--ambar-2); display: flex; align-items: center; gap: 8px; font-weight: 600; }
+  .como-funciona > summary::-webkit-details-marker { display: none; }
+  .como-funciona > summary .ic { color: var(--ambar); flex: none; }
+  .como-funciona .cf-corpo { padding: 0 14px 13px; font-size: 13px; color: var(--text-2); line-height: 1.55; }
+  .como-funciona .cf-corpo a { color: var(--ambar-2); white-space: nowrap; }
+  .estado-vazio { border: 1px dashed var(--border-2); border-radius: 12px; padding: 20px 16px;
+                  text-align: center; color: var(--text-2); font-size: 13.5px; background: var(--card); }
+  .estado-vazio .ev-dica { display: block; margin-top: 6px; font-size: 12.5px; color: var(--text-3); }
+  .ctrl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0; }
+  .ctrl input, .ctrl select { font: inherit; font-size: 14px; padding: 9px 12px; flex: 1;
+        min-width: 180px; border: 1px solid var(--border); border-radius: 8px;
+        background: var(--card); color: var(--text); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .chip { font: inherit; font-size: 13px; padding: 6px 12px; border: 1px solid var(--border);
+          border-radius: 999px; background: var(--card); color: var(--text-2); cursor: pointer; }
+  .chip.on { background: var(--ambar); border-color: var(--ambar); color: #2b2117; font-weight: 600; }
+  .cat-sec { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+             font-size: 15px; font-weight: 500; color: var(--ambar-2);
+             margin: 24px 0 10px; padding-bottom: 6px;
+             border-bottom: 1px solid var(--border); display: flex; align-items: baseline; }
+  .cat-sec:first-of-type { margin-top: 8px; }
+  .cat-sec .n { margin-left: 8px; color: var(--text-3); font-size: 12px; font-weight: 400;
+                font-variant-numeric: tabular-nums; }
+  .ficha { background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+           padding: 16px 18px; margin-bottom: 12px; }
+  .ficha header { margin-bottom: 8px; display: flex; justify-content: space-between;
+                  align-items: baseline; gap: 10px; }
+  .ficha h3 { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+              font-size: 17px; font-weight: 500; }
+  .ficha .badges { flex: none; }
+  .badge.preco { font-size: 12px; font-weight: 600; color: var(--ambar-2);
+                 border: 1px solid var(--ambar); border-radius: 999px;
+                 padding: 2px 9px; white-space: nowrap; }
+  /* Card em 2 tempos (fichas): fechado = foto+nome+preço+resumo; aberto = ficha completa */
+  .f-head { display: flex; align-items: center; gap: 12px; }
+  .ficha.exp { cursor: pointer; }
+  .ficha.exp:hover { border-color: var(--ambar); }
+  .ficha.exp:focus-visible { outline: 2px solid var(--ambar); outline-offset: 2px; }
+  .f-foto { flex: none; width: 60px; height: 60px; border-radius: 8px; object-fit: cover; }
+  .f-foto.vazia { display: flex; align-items: center; justify-content: center;
+                  color: var(--ambar-2); border: 1px dashed var(--border); }
+  .f-main { flex: 1; min-width: 0; }
+  .f-topo { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .f-resumo { margin-top: 3px; font-size: 13px; color: var(--text-3); line-height: 1.4;
+              overflow: hidden; text-overflow: ellipsis; display: -webkit-box;
+              -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .f-resumo.aviso { color: var(--ambar-2); }
+  .f-exp { flex: none; width: 11px; height: 11px; border-right: 2px solid var(--text-3);
+           border-bottom: 2px solid var(--text-3); transform: rotate(45deg);
+           transition: transform .18s; margin-right: 3px; }
+  .ficha.aberta .f-exp { transform: rotate(-135deg); }
+  .f-det { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .ficha.aberta .f-det { display: block; }
+  .preparo { margin-top: 12px; }
+  .preparo .lbl { font-size: 12px; text-transform: uppercase; letter-spacing: .05em;
+                  color: var(--text-3); margin-bottom: 4px; }
+  .preparo ol { margin: 0; padding-left: 20px; font-size: 13.5px; color: var(--text-2); line-height: 1.5; }
+  .preparo li { margin: 3px 0; }
+  /* Barra: chips de categoria + toggle Lista/Tabela */
+  .fichas-barra { display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+                  justify-content: space-between; margin-bottom: 14px; }
+  .fichas-barra .chips { margin-bottom: 0; }
+  .vtoggle { display: flex; border: 1px solid var(--border); border-radius: 999px;
+             overflow: hidden; flex: none; }
+  .vtoggle button { display: inline-flex; align-items: center; gap: 5px; font: inherit;
+                    font-size: 13px; padding: 6px 12px; background: var(--card);
+                    color: var(--text-2); border: none; cursor: pointer; }
+  .vtoggle button + button { border-left: 1px solid var(--border); }
+  .vtoggle button.on { background: var(--ambar); color: #2b2117; font-weight: 600; }
+  .vtoggle button svg { width: 15px; height: 15px; }
+  /* Visão em tabela */
+  .tabela-wrap { overflow-x: auto; }
+  table.fichas-tabela { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 520px; }
+  table.fichas-tabela thead th { text-align: left; font-size: 10.5px; letter-spacing: .06em;
+                    text-transform: uppercase; color: var(--text-3); padding: 8px 10px;
+                    border-bottom: 1px solid var(--border); }
+  table.fichas-tabela tbody td { padding: 9px 10px; border-bottom: 1px solid var(--border);
+                    vertical-align: top; }
+  table.fichas-tabela tbody tr { cursor: pointer; }
+  table.fichas-tabela tbody tr:hover { background: var(--card); }
+  table.fichas-tabela td.nome { font-family: Georgia, serif; font-size: 14px; color: var(--text);
+                    white-space: nowrap; }
+  table.fichas-tabela td.cat { color: var(--text-3); white-space: nowrap; }
+  table.fichas-tabela td.preco { color: var(--ambar-2); font-variant-numeric: tabular-nums;
+                    white-space: nowrap; }
+  table.fichas-tabela td.ing { color: var(--text-2); }
+  /* Busca de receitas no mural */
+  .mural-busca { position: relative; margin: 0 0 16px; }
+  .mural-busca input { width: 100%; box-sizing: border-box; padding: 11px 14px; font: inherit;
+                       font-size: 15px; border: 1px solid var(--border); border-radius: 10px;
+                       background: var(--card); color: var(--text); }
+  .ck-res { margin-top: 6px; border: 1px solid var(--border); border-radius: 10px;
+            background: var(--card); overflow: hidden; }
+  .ck-res a { display: block; padding: 10px 14px; color: var(--text); text-decoration: none;
+              font-size: 14px; border-bottom: 1px solid var(--border); }
+  .ck-res a:last-child { border-bottom: none; }
+  .ck-res a:hover { background: var(--ambar-bg); color: var(--ambar-2); }
+  .ck-vazio { padding: 10px 14px; margin: 0; font-size: 13px; color: var(--text-3); }
+  .ing { display: flex; gap: 12px; padding: 5px 0; border-bottom: 1px dashed var(--border);
+         font-size: 14px; }
+  .ing:last-of-type { border-bottom: none; }
+  .ing .dose { flex: none; min-width: 74px; text-align: right; color: var(--ambar-2);
+               font-weight: 600; font-size: 13px; font-variant-numeric: tabular-nums;
+               padding-top: 1px; }
+  .ing .nm { flex: 1; }
+  .metas { margin-top: 10px; font-size: 13px; color: var(--text-2); line-height: 1.5; }
+  .metas p { margin: 3px 0; }
+  .aviso { font-size: 13px; color: var(--ambar-2); }
+  #vazio { display: none; color: var(--text-3); font-size: 14px; padding: 20px 0; }
+  table.regras { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--card);
+                 border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  table.regras th, table.regras td { padding: 11px 14px; border-bottom: 1px solid var(--border);
+                                     text-align: left; }
+  table.regras tr:last-child td { border-bottom: none; }
+  table.regras th { font-size: 12px; color: var(--text-3); text-transform: uppercase;
+                    letter-spacing: .05em; }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+           padding: 18px; margin-bottom: 14px; font-size: 14px; }
+  .panel h2 { margin: 0 0 8px; }
+  .panel p, .panel li { color: var(--text-2); line-height: 1.5; }
+  .panel ul { padding-left: 18px; margin-top: 6px; }
+  details.vendas-box { background: var(--card); border: 1px solid var(--border);
+                       border-radius: 10px; padding: 4px 18px; margin-bottom: 14px; }
+  details.vendas-box summary { font-weight: 600; font-size: 14px; cursor: pointer;
+                               padding: 11px 0; list-style: none; display: flex;
+                               align-items: center; gap: 8px; }
+  details.vendas-box summary::-webkit-details-marker { display: none; }
+  details.vendas-box summary .tic { color: var(--ambar); }
+  details.vendas-box summary .seta { margin-left: auto; color: var(--text-3);
+                                     transition: transform .15s; }
+  details.vendas-box[open] summary .seta { transform: rotate(180deg); }
+  a.vlink { display: flex; justify-content: space-between; gap: 10px; padding: 11px 0;
+            border-top: 1px dashed var(--border); text-decoration: none; color: var(--text);
+            font-size: 14px; }
+  a.vlink:hover { color: var(--ambar-2); }
+  .prod { display: flex; align-items: center; gap: 8px; padding: 6px 0;
+          border-bottom: 1px dashed var(--border); font-size: 13px; }
+  .prod:last-child { border-bottom: none; }
+  .pos { font-size: 11px; font-weight: 700; border-radius: 999px; padding: 2px 8px;
+         white-space: nowrap; flex: none; min-width: 68px; text-align: center; }
+  .abc-a { color: #9fdcae; background: rgba(80,170,110,.18); }
+  .abc-b { color: #e6c07a; background: rgba(200,150,70,.18); }
+  .abc-c { color: #b3a68f; background: rgba(255,255,255,.08); }
+  .pos.rankn { min-width: 48px; color: #cfc4ae; background: rgba(255,255,255,.09); }
+  .pos.mini { min-width: 30px; }
+  .vis { display: flex; gap: 14px; background: var(--card); border: 1px solid var(--border);
+         border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; }
+  .vis.passada { opacity: .6; }
+  .vis.cancelada { opacity: .55; }
+  .vis .data { flex: none; text-align: center; background: var(--ambar-bg); border-radius: 8px;
+               padding: 8px 10px; min-width: 62px; align-self: flex-start; }
+  .vis .data .dia { display: block; font-size: 11px; font-weight: 700; letter-spacing: .06em;
+                    text-transform: uppercase; color: var(--ambar-2); }
+  .vis .data .num { display: block; font-size: 16px; font-weight: 700;
+                    font-variant-numeric: tabular-nums; }
+  .vis .info { flex: 1; min-width: 0; }
+  .vis .tit { font-weight: 600; font-size: 14px; }
+  .vis .meta { font-size: 12.5px; color: var(--text-2); margin-top: 2px; }
+  .vis ul { padding-left: 16px; font-size: 13px; color: var(--text-2); margin-top: 6px; }
+  .vis li { margin: 2px 0; }
+  .badge-cancel { font-size: 11px; font-weight: 700; color: #f09b9b;
+                  background: rgba(226,75,74,.16); border-radius: 999px; padding: 2px 8px;
+                  margin-left: 6px; vertical-align: 1px; }
+  details.passados > summary { font-weight: 600; font-size: 14px; cursor: pointer;
+                               color: var(--text-2); padding: 10px 0; }
+  table.escala td.folga { color: #f09b9b; font-weight: 600; }
+  table.escala td.turno { color: var(--ambar-2); }
+  table.escala tr.hoje td { background: var(--ambar-bg); }
+  /* A escala tem 5 colunas FIXAS (Dia + os 4 bartenders, ver
+     _escala_semanas_tabela). Herdando só o `table.regras`, o padding de 14px
+     por lado × 5 colunas comia 140px dos 375 e a tabela estourava pra 428px —
+     MEDIDO: a página inteira rolava 53px de lado no celular, e era a única
+     das 26 páginas de equipe com esse defeito. `table-layout: fixed` faz o
+     width:100% valer de verdade (sem ele o navegador respeita a largura
+     mínima do conteúdo e ignora o 100%); as larguras abaixo dão à coluna do
+     dia o dobro das outras, que é a proporção do texto real
+     ("Segunda 29/06" contra "Folga"/"Noite"). */
+  table.escala { table-layout: fixed; }
+  table.escala th, table.escala td { padding: 11px 6px; font-size: 13px; }
+  table.escala th:first-child, table.escala td:first-child { width: 32%; }
+  table.escala th:not(:first-child), table.escala td:not(:first-child) { width: 17%; }
+  .panel.alerta { border-color: rgba(226,75,74,.4); }
+  .panel.alerta h2 { color: #f09b9b; }
+
+  .freq-box { display: flex; flex-wrap: wrap; gap: 22px; align-items: center; margin-bottom: 12px; }
+  .freq-numero { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+                 font-size: 56px; font-weight: 500; color: var(--ambar-2); line-height: 1; flex: none; }
+  .freq-numero .lbl { display: block; font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+                       font-size: 12px; font-weight: 400; color: var(--text-3); margin-top: 4px; }
+  .freq-lista { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 220px; }
+  .freq-item { display: flex; align-items: baseline; gap: 8px; font-size: 13.5px; }
+  .freq-item .qtd { font-weight: 700; color: var(--ambar-2); flex: none; min-width: 18px; }
+  .freq-item .tipo { font-weight: 600; }
+  .freq-item .detalhe { color: var(--text-2); }
+  .contato-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 14px; }
+  @media (min-width: 640px) { .contato-grid { grid-template-columns: repeat(3, 1fr); } }
+  .contato-grid .panel h3 { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+                             font-size: 15px; font-weight: 500; margin-bottom: 8px; color: var(--ambar-2); }
+  .contato-grid .panel ul { padding-left: 16px; font-size: 13px; color: var(--text-2); line-height: 1.55; }
+  .regras-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 14px; }
+  @media (min-width: 640px) { .regras-grid { grid-template-columns: repeat(2, 1fr); } }
+  .regras-grid .panel h3 { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+                            font-size: 15px; font-weight: 500; margin-bottom: 8px; color: var(--ambar-2); }
+  .linha-tempo { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+  .lt-item { background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+             padding: 12px 16px; }
+  .lt-item.destaque { border-color: var(--ambar); background: var(--ambar-bg); }
+  .lt-topo { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+  .lt-semana { font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase;
+               letter-spacing: .04em; }
+  .lt-datas { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif; font-size: 15px; }
+  .lt-nota { font-size: 12.5px; color: var(--ambar-2); }
+  .lt-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .lt-tags .chip { cursor: default; }
+  .lt-tags .chip.mais { background: var(--ambar-bg); border-color: var(--ambar); color: var(--ambar-2); }
+
+  .equipe-grid { display: grid; grid-template-columns: 1fr; gap: 14px; margin-bottom: 14px; }
+  @media (min-width: 640px) { .equipe-grid { grid-template-columns: repeat(2, 1fr); } }
+  .pessoa-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+                 padding: 16px; display: flex; gap: 14px; }
+  .pessoa-foto { flex: none; width: 64px; height: 64px; border-radius: 50%; object-fit: cover;
+                 background: var(--card-2); border: 1px solid var(--border); }
+  .pessoa-foto.vazia { display: flex; align-items: center; justify-content: center;
+                        color: var(--text-3); font-size: 22px; font-weight: 700; }
+  .pessoa-corpo { flex: 1; min-width: 0; }
+  .pessoa-nome { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+                 font-size: 16px; margin-bottom: 1px; }
+  .pessoa-cargo { font-size: 12px; color: var(--text-3); margin-bottom: 10px; }
+  .medidor-linha { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 12px; }
+  .medidor-rotulo { flex: none; width: 108px; color: var(--text-2); }
+  .medidor { flex: 1; height: 6px; border-radius: 999px; background: var(--card-2); overflow: hidden; }
+  .medidor-fill { height: 100%; background: var(--ambar); border-radius: 999px; }
+  .medidor-valor { flex: none; width: 44px; text-align: right; color: var(--ambar-2); font-weight: 600; }
+  .pessoa-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+  .pessoa-tags .chip { cursor: default; font-size: 11px; padding: 3px 9px; }
+  .pessoa-obs { font-size: 12.5px; color: var(--text-2); line-height: 1.5; margin-top: 8px; }
+
+  .inspecao { background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+              padding: 16px 18px; margin-bottom: 14px; }
+  .inspecao header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+  .inspecao h2 { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+                 font-size: 17px; font-weight: 500; }
+  .inspecao .quem { font-size: 12px; color: var(--text-3); }
+  .inspecao .categoria { display: flex; gap: 10px; padding: 7px 0; border-bottom: 1px dashed var(--border);
+                          font-size: 13.5px; align-items: baseline; }
+  .inspecao .categoria:last-of-type { border-bottom: none; }
+  .status-chip { font-size: 10px; font-weight: 700; border-radius: 999px; padding: 2px 8px;
+                 white-space: nowrap; flex: none; text-transform: uppercase; letter-spacing: .03em; }
+  .status-ok { color: #9fdcae; background: rgba(80,170,110,.18); }
+  .status-atencao { color: #e6c07a; background: rgba(200,150,70,.18); }
+  .status-critico { color: #f09b9b; background: rgba(226,75,74,.16); }
+  .inspecao .resumo { font-size: 13.5px; color: var(--text-2); line-height: 1.5; margin-top: 10px; }
+
+  /* Mural — cards agrupados por área com chip de ícone colorido. Classes
+     próprias (.qa/.area-*) pra não colidir com a grade a.card usada nas
+     outras páginas do Bento. Hero redesenhado 2026-07-17 (.mural-hero/.mh-*)
+     — saudação por horário + nome (quando há senha individual salva) +
+     papel, sem o box recolhível antigo. Grade com breakpoints de desktop
+     (3-4 colunas) — antes travada em 2 colunas em qualquer largura. */
+  /* Etapa 2 da reforma do Mural (2026-08-03, PLANO de compactação de
+     pixels): o hero virou UMA faixa de uma linha só (antes eram duas —
+     .mh-topbar com dia+relógio+papel, e um .mh-oi separado com a saudação
+     em serif 23px + um .mh-sub decorativo embaixo, ~123px de altura). A
+     MESMA informação continua: saudação, data curta, relógio e o chip de
+     papel/Trocar na faixa principal. **Correção (2026-08-03, "compactar não
+     é reduzir"): o corte inicial tinha derrubado o .mh-sub (contexto do
+     horário — "Antes do almoço" etc.) de vez.** Ele volta como uma SEGUNDA
+     linha discreta (10.5px) abaixo da faixa — não como o parágrafo antigo
+     de 123px, só o texto, sem padding próprio — porque sobrou régua (folga
+     de 55-128px medida pelo harness) e a regra do projeto é que compactar
+     nunca é sinônimo de apagar informação. */
+  .mural-hero { padding: 6px 2px; margin-bottom: 6px; min-height: 44px; box-sizing: border-box; }
+  .mh-topbar { display: flex; align-items: center; flex-wrap: wrap; row-gap: 4px; gap: 7px;
+               font-size: 11.5px; color: var(--text-2); }
+  .mh-pulso { width: 6px; height: 6px; border-radius: 50%; background: var(--verde, #9fdcae); flex: none;
+              box-shadow: 0 0 0 0 rgba(159,220,174,.55); animation: mhPulso 2.4s infinite; }
+  @keyframes mhPulso {
+    0% { box-shadow: 0 0 0 0 rgba(159,220,174,.5); } 70% { box-shadow: 0 0 0 6px rgba(159,220,174,0); }
+    100% { box-shadow: 0 0 0 0 rgba(159,220,174,0); }
+  }
+  .mh-relogio { font-variant-numeric: tabular-nums; color: var(--text); font-weight: 700; }
+  .mh-topbar .mh-papel { margin-left: auto; }
+  .mh-dot { color: var(--text-3); }
+  /* Saudação inline (era .mh-oi em serif 23px de linha própria) — mesmo
+     texto (Bom dia/Boa tarde/Boa noite[, Nome]), agora do tamanho da linha
+     que abriga tudo o mais. */
+  .mh-oi { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+           font-size: 13px; font-weight: 600; color: var(--text); }
+  .mh-oi .nome { font-style: italic; color: var(--ambar-2); }
+  /* Segunda linha discreta da faixa — contexto do horário ("Antes do
+     almoço" etc.), restaurado em 2026-08-03 (ver comentário grande da
+     Etapa 2 acima). Só texto, sem padding/margem própria além do
+     espaçamento da faixa — nunca um parágrafo de destaque. */
+  .mh-sub { font-size: 10.5px; color: var(--text-3); line-height: 1.3; margin-top: 1px; }
+  .mh-papel { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; letter-spacing: .06em;
+              text-transform: uppercase; color: var(--text-2); border: 1px solid rgba(213,160,92,.35);
+              border-radius: 999px; padding: 4px 10px; flex: none; max-width: 100%; }
+  .mh-papel svg { color: var(--ambar); flex: none; }
+  /* O chip do papel vira BOTÃO de trocar acesso (2026-07-25, pedido do
+     Rodrigo): ele já dizia qual acesso está em uso, então é o lugar natural
+     pra trocá-lo — em vez de um segundo controle competindo na mesma linha. */
+  a.mh-papel { text-decoration: none; }
+  a.mh-papel:hover, a.mh-papel:focus-visible { border-color: rgba(213,160,92,.7);
+              background: var(--ambar-bg); color: var(--text); }
+  .mh-papel .mh-sep { width: 1px; height: 11px; background: rgba(213,160,92,.4); flex: none; }
+  .mh-papel .mh-tr { color: var(--ambar-2); flex: none; }
+  /* Tela bem estreita (iPhone SE/mini, 375px): "Boa noite, Fulano" + data +
+     relógio + chip de papel completo não cabem numa linha só nem em fonte
+     11.5px. A etapa anterior escondia o NOME do papel inteiro abaixo de
+     380px (display:none em .mh-nm) — corrigido em 2026-08-03: o chip existe
+     justamente pra dizer qual acesso está em uso, então sumir com o nome
+     tira a única informação que ele carrega. Em vez de esconder, o nome
+     ENCOLHE (max-width + ellipsis) — mas nunca desaparece; o Trocar
+     continua sempre inteiro e clicável.
+     REVISADO 2026-09-04: o 78px era conservador DEMAIS e cortava os dois papéis mais comuns:
+     "Equipe de Bar" e "Administração" (13 caracteres, ~94px) viravam
+     "Equipe de…" / "Administr…" SEMPRE, não só num caso extremo. Medido a
+     375px: o chip fica sozinho na 2ª linha da topbar, que tem 335px, e ele
+     ocupa 199 — sobravam 136px de folga sem uso nenhum. 104px cobre os dois
+     nomes inteiros e ainda deixa ~110px de folga; o limite continua existindo
+     como rede contra um papel futuro de nome longo. */
+  @media (max-width: 380px) {
+    .mh-nm { max-width: 104px; overflow: hidden; text-overflow: ellipsis;
+             white-space: nowrap; display: inline-block; }
+  }
+  /* Foco do dia (config/rotinas_bento.json) — promovido do fundo das
+     páginas de turno pro topo do Mural: é a única coisa que muda todo dia
+     e antes só quem já tinha aberto o checklist via. */
+  .mh-foco { display: flex; gap: 11px; padding: 13px 15px; border-radius: 13px; margin-bottom: 10px;
+             background: linear-gradient(100deg, var(--ambar-bg), transparent);
+             border: 1px solid rgba(213,160,92,.3); }
+  .mh-foco .fk { font-size: 9px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
+                 color: var(--ambar); writing-mode: vertical-rl; transform: rotate(180deg); text-align: center;
+                 flex: none; border-right: 1px solid rgba(213,160,92,.3); padding-right: 9px; }
+  .mh-foco p { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif; font-size: 14.5px;
+               line-height: 1.5; color: var(--text); align-self: center; }
+  /* Turno — dois cards irmãos "Abertura" e "Fechamento" (E6 do
+     PLANO_TURNO_V4, 2026-09-07). Antes era UM card com dois botões; virou
+     dois cards, cada um levando à sua página (turno-abertura.html e
+     turno.html — turno.html é o FECHAMENTO, nome legado) e com uma barra de
+     progresso das rotinas daquela fase, hoje. A barra é enfeite: some
+     sozinha sem sessão / sem rede / com token velho — nunca requisito (ver
+     o <script> "barra de progresso dos cards de turno" no fim da página).
+     Ícone fixo por fase: sol na abertura, lua no fechamento. */
+  .mh-turnos { display: flex; flex-direction: column; gap: 6px; margin-bottom: 6px; }
+  .mh-turno { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 13px;
+              background: var(--card); border: 1px solid var(--border); text-decoration: none; color: inherit; }
+  a.mh-turno:hover { border-color: var(--ambar); }
+  .mh-turno .mh-turno-chip { width: 32px; height: 32px; border-radius: 10px; display: flex;
+              align-items: center; justify-content: center; flex: none; background: var(--verde-bg, rgba(80,170,110,.18));
+              color: var(--verde, #9fdcae); }
+  .mh-turno .mh-turno-chip svg { width: 16px; height: 16px; display: block; }
+  /* min-width:0 obrigatório: filho de flex não encolhe sem isso, e a barra
+     (width:100%) empurraria o card além dos 375px, criando a rolagem
+     lateral que ninguém pediu (Lição 3 de CSS da casa). */
+  .mh-turno .mh-turno-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .mh-turno .mh-turno-txt .t { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif; font-size: 15px; color: var(--text); }
+  .mh-turno .mh-turno-txt .d { font-size: 11px; color: var(--text-3); }
+  .mh-turno-bar { display: block; width: 100%; min-width: 0; height: 6px; margin: 1px 0;
+                  border-radius: 999px; background: var(--border); overflow: hidden; }
+  .mh-turno-bar[hidden] { display: none; }
+  .mh-turno-bar-fill { display: block; height: 100%; width: 0; border-radius: 999px;
+                       background: var(--verde, #9fdcae); transition: width .3s ease; }
+  .mh-turno-go { flex: none; display: flex; color: var(--text-3); }
+  .mh-turno-go svg { width: 16px; height: 16px; display: block; }
+  .home-areas { display: flex; flex-direction: column; gap: 7px; }
+  .area-sec .area-h { display: flex; align-items: center; gap: 8px; font-size: 12px; letter-spacing: .1em;
+                      text-transform: uppercase; color: var(--text-3); font-weight: 600; margin-bottom: 6px; }
+  .area-sec .area-h .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+  .area-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  @media (min-width: 640px) { .area-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (min-width: 860px) { .area-grid { grid-template-columns: repeat(4, 1fr); } }
+  /* min-width:0 no item do grid: sem isso o white-space:nowrap da .d (descrição)
+     dá um min-content grande que vaza a coluna no mobile — já corrigido de
+     largada (achado feito no Grupo IZ). */
+  .qa { display: flex; align-items: center; gap: 10px; background: var(--card); border: 1px solid var(--border);
+         border-radius: 12px; padding: 10px 12px; text-decoration: none; color: var(--text); min-width: 0;
+         transition: border-color .15s, background .15s; }
+  a.qa:hover { border-color: var(--ambar); background: var(--card-2); }
+  .qa .chip { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center;
+               justify-content: center; flex: none; }
+  /* display:block + flex:none: o .ic global é inline-block e, dentro do chip
+     flex centralizado, a largura do svg colapsava (~4px) — já corrigido de
+     largada (mesmo achado do Grupo IZ). */
+  .qa .chip svg { width: 16px; height: 16px; display: block; flex: none; }
+  .qa .qtt { display: flex; flex-direction: column; min-width: 0; }
+  .qa .t { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif; font-size: 14px;
+            color: var(--text); }
+  .qa .d { font-size: 11px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .home-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; justify-content: space-between;
+               margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--border); }
+  .home-foot .wa { margin-top: 0; }
+  .home-foot .casas { font-size: 11.5px; color: var(--text-3); letter-spacing: .02em; }
+
+  .nivel-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-3);
+                text-decoration: none; }
+  .nivel-pill b { color: var(--ambar-2); font-weight: 600; }
+  .nivel-pill:hover { color: var(--text-2); }
+  /* "Trocar acesso" no topo de TODA página (2026-07-25, pedido do Rodrigo).
+     Antes só existia dentro de meu-perfil.html — quem precisava entrar com
+     outro papel tinha que adivinhar que o caminho era pelo Perfil. Fica ao
+     lado da pill de Perfil, com cara de botão (borda) pra ser achável sem
+     virar o elemento mais chamativo da linha. */
+  .nivel-pill.trocar { color: var(--text-2); border: 1px solid var(--border-2);
+                       border-radius: 999px; padding: 3px 9px; }
+  .nivel-pill.trocar svg { color: var(--ambar); flex: none; }
+  .nivel-pill.trocar:hover { color: var(--ambar-2); border-color: rgba(213,160,92,.6);
+                             background: var(--ambar-bg); }
+  /* Em tela estreita a linha do topo já carrega busca + sino + selo de fila:
+     encolhe pra só "Trocar" (o cadeado mantém o sentido). */
+  @media (max-width: 430px) { .nivel-pill.trocar .tr-ex { display: none; } }
+  /* Selo global de pendências (fila offline) — aparece em QUALQUER página
+     gerada quando há item preso no aparelho; toque tenta sincronizar na
+     hora ou leva pra página que drena aquela fila. Escondido por padrão
+     (display:none no HTML) — fila-offline.js mostra só quando há pendência. */
+  .fila-selo { display: none; align-items: center; gap: 5px; font-size: 11px; font-weight: 600;
+               color: #2b2117; background: var(--ambar); border: none; border-radius: 999px;
+               padding: 5px 11px; cursor: pointer; margin-left: 8px; }
+  /* Escolha de acesso — redesenho 2026-07-17 (capa/menu, pedido do Rodrigo:
+     ficha estética + boa aplicação da logo). Substitui os cards antigos
+     (.nivel-btn) por uma lista numerada estilo cardápio/menu, dentro de uma
+     moldura ornamental. --ac (cor por acesso) segue a mesma semântica de
+     AREA_COR do Mural: Equipe=âmbar da marca, Maîtres=azul-ardósia de
+     Pessoas, Administração=coral de Gestão; RH ganha lilás próprio. */
+  .capa-wrap { position: relative; padding: 4px 4px 8px; }
+  .capa-wrap::before { content: ""; position: absolute; inset: 2px; border: 1px solid rgba(213,160,92,.22);
+                        border-radius: 20px; pointer-events: none; }
+  .capa-orn { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 2px 22px 0; }
+  .capa-orn::before, .capa-orn::after { content: ""; flex: 1; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(213,160,92,.55)); }
+  .capa-orn::after { background: linear-gradient(90deg, rgba(213,160,92,.55), transparent); }
+  .capa-orn .dia { width: 5px; height: 5px; transform: rotate(45deg); background: var(--ambar); flex: none; }
+  .capa-loc { text-align: center; font-size: 9.5px; letter-spacing: .38em; color: var(--text-3);
+              text-indent: .38em; margin: 9px 0 20px; }
+  .capa-oi { text-align: center; font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+             font-style: italic; font-size: 18px; color: var(--text-2); margin: 0 16px 3px; }
+  .capa-sub { text-align: center; font-size: 12px; color: var(--text-3); margin: 0 16px 16px; }
+  .niveis-label { display: flex; align-items: center; gap: 10px; font-size: 9px; font-weight: 700;
+                  letter-spacing: .3em; text-indent: .3em; color: var(--text-3); margin: 22px 16px 2px; }
+  .menu-lista { margin: 0 12px; }
+  /* .menu-linha vira tag-agnóstico (2026-07-17): antes só "a.menu-linha"
+     tinha o flex — as linhas viraram <div> quando o clique direto pro
+     mural.html saiu (login por token), e ficaram sem o layout até agora.
+     Reusado pelo seletor de acesso abaixo, dessa vez como <button>. */
+  .menu-linha { display: flex; align-items: center; gap: 14px; width: 100%; padding: 13px 4px;
+                border-top: 1px solid rgba(213,160,92,.14); text-decoration: none; color: var(--text);
+                background: none; border-left: 0; border-right: 0; border-bottom: 0; text-align: left;
+                font: inherit; cursor: default; }
+  .menu-lista:last-child .menu-linha:last-child { border-bottom: 1px solid rgba(213,160,92,.14); }
+  .menu-linha .num, .acesso-sel-atual .num {
+    --ac: var(--ambar-2); font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    font-size: 14px; color: var(--ac); width: 24px; text-align: center; flex: none; }
+  .menu-linha .txt, .acesso-sel-atual .txt { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+  .menu-linha .txt .t, .acesso-sel-atual .txt .t {
+    font-family: Georgia, "Iowan Old Style", "Times New Roman", serif; font-size: 17px; }
+  .menu-linha .txt .d, .acesso-sel-atual .txt .d {
+    font-size: 11px; color: var(--text-2); margin-top: 1px; line-height: 1.35; }
+  .menu-linha .cad { margin-left: auto; flex: none; display: flex; align-items: center; gap: 7px;
+                      color: var(--ac, var(--ambar-2)); opacity: .9; }
+  .menu-linha .cad svg { width: 13px; height: 13px; }
+  .menu-linha .cad .seta { font-size: 16px; }
+  .menu-linha.nv-equipe .num, .menu-linha.nv-equipe .cad, .num.nv-equipe { --ac: var(--ambar-2); }
+  .menu-linha.nv-maitres .num, .menu-linha.nv-maitres .cad, .num.nv-maitres { --ac: #a9c6d8; }
+  .menu-linha.nv-admin .num, .menu-linha.nv-admin .cad, .num.nv-admin { --ac: #eaa9a9; }
+  .menu-linha.nv-rh .num, .menu-linha.nv-rh .cad, .num.nv-rh { --ac: #c4b5e0; }
+  .menu-linha.nv-suprimentos .num, .menu-linha.nv-suprimentos .cad, .num.nv-suprimentos { --ac: #9fdcae; }
+  .menu-linha.nv-controladoria .num, .menu-linha.nv-controladoria .cad, .num.nv-controladoria { --ac: #93b5c9; }
+  .menu-linha.nv-diretoria .num, .menu-linha.nv-diretoria .cad, .num.nv-diretoria { --ac: #e0b273; }
+  .niveis-hint { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-2);
+                 margin: 10px 16px 4px; }
+  .niveis-hint svg { width: 14px; height: 14px; color: var(--ambar-2); flex: none; }
+  .niveis-nota { font-size: 11.5px; color: var(--text-3); margin: 2px 16px 0; }
+  .capa-foot { text-align: center; margin: 22px 16px 4px; font-size: 12px; color: var(--text-3); }
+
+  /* Seletor de acesso (2026-07-17) — botão que mostra o papel escolhido e
+     abre/fecha a lista dos 4 (seta gira, mesma linguagem do Painel Rápido
+     .pr-toggle-ic). É contexto/atalho pra digitar a senha certa, NUNCA
+     autoriza sozinho — quem decide o nível de verdade é sempre a senha,
+     validada pelo Worker (ver form-acesso abaixo). */
+  .acesso-sel-wrap { margin: 18px 16px 0; }
+  .acesso-sel-btn { width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+                     border-radius: 13px; border: 1px solid var(--border-2); background: var(--card);
+                     color: var(--text); cursor: pointer; text-align: left; }
+  .acesso-sel-btn:hover { border-color: var(--ambar); }
+  .acesso-sel-atual { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+  .acesso-sel-ic { flex: none; color: var(--text-3); transition: transform .18s; display: flex; }
+  .acesso-sel-btn[aria-expanded="true"] .acesso-sel-ic { transform: rotate(180deg); }
+  .acesso-sel-lista { margin: 8px 0 0; border: 1px solid var(--border); border-radius: 13px;
+                       background: var(--card); overflow: hidden; }
+  .acesso-sel-lista[hidden] { display: none; }
+  button.menu-linha { cursor: pointer; }
+  button.menu-linha:hover { background: rgba(213,160,92,.06); }
+  button.menu-linha:first-child { border-top: 0; }
+  .acesso-sel-sep { font-size: 9px; font-weight: 700; letter-spacing: .26em; text-indent: .26em;
+                     text-transform: uppercase; color: var(--text-3); padding: 10px 14px 4px;
+                     border-top: 1px solid rgba(213,160,92,.14); }
+  .capa-foot a { color: var(--ambar-2); text-decoration: none; }
+  @media (min-width: 640px) {
+    .capa-centro { max-width: 460px; margin: 0 auto; }
+  }
+
+  .topo-linha { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 4px; }
+  .lupa-busca { flex: none; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--border);
+                background: none; color: var(--text-2); display: flex; align-items: center; justify-content: center;
+                cursor: pointer; }
+  .lupa-busca:hover, .lupa-busca:focus-visible { border-color: var(--ambar); color: var(--ambar); }
+  .lupa-busca svg { width: 16px; height: 16px; }
+  #busca-global-ov { position: fixed; inset: 0; z-index: 90; background: rgba(20,16,10,.72);
+                      display: none; align-items: flex-start; justify-content: center; padding: 0; }
+  #busca-global-ov.aberto { display: flex; }
+  @media (min-width: 640px) { #busca-global-ov { align-items: center; padding: 20px; } }
+  .bg-caixa { background: var(--bg); width: 100%; height: 100%; display: flex; flex-direction: column;
+              padding: 16px; }
+  @media (min-width: 640px) { .bg-caixa { height: auto; max-width: 460px; max-height: 70vh;
+              border: 1px solid var(--border); border-radius: 16px; } }
+  .bg-topo { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .bg-topo input { flex: 1; background: var(--card); border: 1.5px solid var(--ambar); border-radius: 11px;
+                    color: var(--text); font-size: 16px; padding: 11px 14px; outline: none; font: inherit; }
+  .bg-fechar { flex: none; background: none; border: none; color: var(--text-3); font-size: 22px;
+               line-height: 1; cursor: pointer; padding: 4px 6px; }
+  .bg-fechar:hover { color: var(--text); }
+  .bg-res { overflow-y: auto; flex: 1; }
+  .bg-dica, .bg-vazio { color: var(--text-3); font-size: 13.5px; padding: 14px 4px; }
+  .bg-item { display: block; padding: 11px 6px; border-bottom: 1px solid var(--border);
+             font-size: 14.5px; color: var(--text); text-decoration: none; }
+  .bg-item:last-child { border-bottom: none; }
+  .bg-item:hover, .bg-item:focus-visible { background: var(--card); }
+  .bg-item .nome { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif; }
+  .bg-item .nome mark { background: none; color: var(--ambar-2); }
+
+  .sino-btn { position: relative; flex: none; width: 34px; height: 34px; border-radius: 999px;
+              border: 1px solid var(--border); background: none; color: var(--text-2); margin-left: auto;
+              display: inline-flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; }
+  .sino-btn:hover, .sino-btn:focus-visible { border-color: var(--ambar); color: var(--ambar); }
+  .sino-btn.tem { border-color: var(--ambar); color: var(--ambar); }
+  .sino-btn svg { width: 17px; height: 17px; }
+  .sino-badge { position: absolute; top: -4px; right: -4px; min-width: 16px; height: 16px; padding: 0 4px;
+                border-radius: 999px; background: #e0655a; color: #fff; font-size: 10px; font-weight: 700;
+                display: inline-flex; align-items: center; justify-content: center; border: 2px solid var(--bg); }
+  .sino-pop { position: fixed; top: 60px; right: 12px; width: 360px; max-width: calc(100vw - 24px);
+              background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+              box-shadow: 0 20px 50px rgba(0,0,0,.55); z-index: 95; overflow: hidden; }
+  .sino-cab { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px;
+              border-bottom: 1px solid var(--border); }
+  .sino-cab h3 { margin: 0; font-size: 14px; }
+  .sino-lidas { background: none; border: none; color: var(--ambar); font-size: 12px; cursor: pointer; padding: 0; }
+  .sino-abas { display: flex; gap: 4px; padding: 8px 10px 0; }
+  .sino-aba { flex: 1; background: none; border: none; color: var(--text-3); font-size: 12.5px; font-weight: 600;
+              padding: 8px 4px 10px; cursor: pointer; border-bottom: 2px solid transparent;
+              display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .sino-aba.on { color: var(--text); border-bottom-color: var(--ambar); }
+  .sino-n { min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: #e0655a; color: #fff;
+            font-size: 10px; display: inline-flex; align-items: center; justify-content: center; }
+  .sino-lista { max-height: min(60vh, 440px); overflow-y: auto; }
+  .sino-vazio { padding: 26px 14px; text-align: center; color: var(--text-3); font-size: 12.5px; }
+  .sino-item { display: flex; gap: 11px; padding: 12px 14px; border-bottom: 1px solid var(--border);
+               position: relative; text-decoration: none; color: inherit; }
+  .sino-item:hover { background: var(--bg); }
+  .sino-item.novo { background: rgba(213,160,92,.06); }
+  .sino-item.novo::before { content: ""; position: absolute; left: 5px; top: 17px; width: 6px; height: 6px;
+               border-radius: 999px; background: var(--ambar); }
+  .sino-ic { width: 30px; height: 30px; flex: none; border-radius: 9px; background: var(--bg);
+             display: flex; align-items: center; justify-content: center; color: var(--ambar); }
+  .sino-ic svg { width: 16px; height: 16px; }
+  .sino-item.tp-demanda .sino-ic { color: var(--ambar-2); }
+  .sino-item.tp-resposta .sino-ic { color: #9fdcae; }
+  .sino-item.tp-aviso .sino-ic { color: #e0b273; }
+  .sino-tx { flex: 1; min-width: 0; }
+  .sino-t { display: block; font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+  .sino-tag { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 999px;
+              background: rgba(213,160,92,.16); color: var(--ambar-2); margin-right: 6px; text-transform: uppercase; letter-spacing: .4px; }
+  .sino-d { margin: 0; font-size: 12px; color: var(--text-2); line-height: 1.35;
+            overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .sino-m { display: block; font-size: 11px; color: var(--text-3); margin-top: 4px; }
+  .sino-nov { padding: 13px 15px; border-bottom: 1px solid var(--border); }
+  .sino-nc { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .sino-marco { width: 9px; height: 9px; border-radius: 999px; background: var(--ambar); flex: none; }
+  .sino-nov h4 { margin: 0; font-size: 13px; flex: 1; }
+  .sino-data { font-size: 11px; color: var(--text-3); }
+  .sino-nov p { margin: 0 0 0 17px; font-size: 12px; color: var(--text-2); line-height: 1.4; }
+  @media (max-width: 559px) { .sino-pop { top: 54px; right: 8px; } }
+</style>
+</head>
+<body>
+
+<script>
+window.BENTO_WORKER = "https://bento-portal-contagem.rodrigopcviana.workers.dev";
+window.SESSAO_BENTO_LS = 'bento_sessao';
+// Modo prévia (admin-ver-como.html, 2026-09-25): o admin abre o mural de
+// outro nível numa moldura e a página se comporta como se o acesso fosse
+// daquele nível — sem trocar de login. Só liga quando AS DUAS coisas valem:
+// a sessão REAL é admin, e o topo da aba é admin-ver-como.html do MESMO site
+// (topo de outro domínio lança exceção ao ler location → sem prévia). Nenhum
+// nível ganha acesso que não tinha: o admin já vê tudo isso nas páginas dele,
+// e o token continua sendo o do admin — o worker decide pelo token real.
+window.previaBento = function () {
+  try {
+    if (window.self === window.top) return null;
+    if (window.top.location.pathname.split('/').pop() !== 'admin-ver-como.html') return null;
+    var p = window.top.bentoPrevia;
+    return p && p.nivel ? p : null;
+  } catch (e) { return null; }
+};
+window.sessaoBentoLer = function () {
+  try {
+    var raw = localStorage.getItem(window.SESSAO_BENTO_LS);
+    if (!raw) return null;
+    var s = JSON.parse(raw);
+    if (!s || !s.token || !s.exp || Date.now() > s.exp) return null;
+    var pv = s.nivel === 'admin' ? window.previaBento() : null;
+    if (pv) return { nivel: pv.nivel, pessoa: pv.pessoa || null, token: s.token, exp: s.exp, previa: true };
+    return s;
+  } catch (e) { return null; }
+};
+// Faixa fixa dentro da moldura: a prévia nunca pode ser confundida com a tela
+// real, e o que se envia daqui GRAVA DE VERDADE (decisão do Rodrigo).
+(function () {
+  var s = window.sessaoBentoLer();
+  if (!s || !s.previa) return;
+  var nomes = { equipe: 'Equipe de Bar', maitres: 'Maîtres', rh: 'RH', suprimentos: 'Suprimentos',
+                controladoria: 'Controladoria', diretoria: 'Diretoria' };
+  function faixa() {
+    if (document.getElementById('previa-faixa')) return;
+    var f = document.createElement('div');
+    f.id = 'previa-faixa';
+    f.setAttribute('role', 'status');
+    f.style.cssText = 'position:sticky;top:0;z-index:99;background:#5a3fa0;color:#fff;font:600 12px/1.35 -apple-system,sans-serif;padding:7px 12px;text-align:center';
+    f.textContent = 'Modo prévia · vendo como ' + (nomes[s.nivel] || s.nivel) +
+      (s.pessoa ? ' (' + s.pessoa + ')' : '') + ' — o que você enviar aqui é gravado de verdade';
+    document.body.insertBefore(f, document.body.firstChild);
+  }
+  if (document.body) faixa(); else document.addEventListener('DOMContentLoaded', faixa);
+})();
+// `pessoa` passou a ser guardada (2026-07-25): o worker já devolvia, mas a
+// sessão descartava — e sem ela a página de Acessos não sabe quem está
+// decidindo. Campo opcional: sessão de silo (sem pessoa) continua igual.
+// Dentro da prévia, "Trocar acesso" ou um login na moldura NÃO podem mexer na
+// sessão real do admin — o localStorage é o mesmo da aba de fora.
+window.sessaoBentoSalvar = function (nivel, token, exp, pessoa) {
+  if (window.previaBento()) return;
+  try { localStorage.setItem(window.SESSAO_BENTO_LS, JSON.stringify({ nivel: nivel, token: token, exp: exp, pessoa: pessoa || null })); } catch (e) {}
+};
+window.sessaoBentoLimpar = function () {
+  if (window.previaBento()) return;
+  try { localStorage.removeItem(window.SESSAO_BENTO_LS); } catch (e) {}
+};
+window.loginSenhaBento = function (senha) {
+  return fetch(window.BENTO_WORKER + '/api/nivel', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ senha: senha }),
+  }).then(function (r) {
+    if (r.status === 401) return { ok: false, status: 401 };
+    if (!r.ok) return { ok: false, status: r.status };
+    return r.json().then(function (d) {
+      if (d.token) window.sessaoBentoSalvar(d.nivel, d.token, d.exp, d.pessoa);
+      return { ok: true, nivel: d.nivel, token: d.token, pessoa: d.pessoa || null };
+    });
+  }).catch(function () { return { ok: false, status: 0 }; });
+};
+// Gate padrão das páginas protegidas: sem sessão -> manda pra home logar,
+// com volta automática pra cá. "volta" é o NOME DO ARQUIVO atual (lido de
+// location.pathname, não o slug de nav — mural.html/maitres-mural.html/
+// admin-mural.html compartilham o mesmo slug "mural" pro nav, mas são
+// arquivos diferentes; voltar pro slug errado abriria o silo errado depois
+// do login). Sessão de nível diferente do exigido (ex.: Equipe abrindo
+// maitres-mural.html direto por URL) -> NÃO redireciona (senão a home
+// logada devolveria pra cá e viraria loop); mostra mensagem.
+window.irParaLoginBento = function () {
+  var atual = location.pathname.split('/').pop().replace(/\.html$/, '') || 'index';
+  location.replace('index.html?volta=' + encodeURIComponent(atual) + '#acesso');
+};
+window.exigirNivel = function (niveisOk, slug) {
+  var s = window.sessaoBentoLer();
+  if (s && niveisOk.indexOf(s.nivel) >= 0) return { ok: true, sessao: s };
+  if (!s) { window.irParaLoginBento(); return { ok: false, redirecionou: true }; }
+  document.body.innerHTML = '<div id="acesso-negado" class="capa-wrap capa-centro"><p class="capa-sub">'
+    + 'Seu acesso atual não abre esta página. '
+    + '<a href="index.html?trocar=1">Trocar acesso</a>.</p></div>';
+  // Esta função roda DURANTE a leitura do HTML: trocar o <body> não impede o
+  // navegador de continuar lendo o resto da página e montá-lo embaixo da
+  // mensagem (achado 2026-09-25 — toda página do site mostrava a casca
+  // inteira pra quem não tinha acesso; dado não vazava, o worker confere o
+  // token). Duas camadas: parar o carregamento (o resto nem é montado nem
+  // executado) e, de reserva, esconder tudo que não for a mensagem.
+  try {
+    var st = document.createElement('style');
+    st.textContent = 'body > :not(#acesso-negado) { display: none !important; }';
+    (document.head || document.documentElement).appendChild(st);
+  } catch (e) {}
+  try { window.stop(); } catch (e) {}
+  return { ok: false, nivelAtual: s.nivel };
+};
+// Injeta um fragmento vindo de /api/protegido/<chave> (vendas/ranking/
+// equipe-vendas/feedback-nutricionista — dado que embutido direto no HTML
+// público vazaria por URL sem senha, ver PLANO_LOGIN_TOKEN_BENTO.md seção 3).
+// innerHTML NÃO executa <script> injetado — recria os nós pra rodar mesmo.
+window.injetaProtegido = function (el, htmlTexto) {
+  el.innerHTML = htmlTexto;
+  el.querySelectorAll('script').forEach(function (velho) {
+    var novo = document.createElement('script');
+    if (velho.src) novo.src = velho.src; else novo.textContent = velho.textContent;
+    velho.replaceWith(novo);
+  });
+};
+window.carregaProtegido = function (chave, containerId) {
+  var el = document.getElementById(containerId);
+  var s = window.sessaoBentoLer();
+  if (!s || !el) return;
+  fetch(window.BENTO_WORKER + '/api/protegido/' + chave, { headers: { 'X-Token': s.token } })
+    .then(function (r) {
+      if (r.status === 401) { el.innerHTML = '<div class="panel"><p>Sua sessão não abre este conteúdo. <a href="index.html?trocar=1">Trocar acesso</a>.</p></div>'; return null; }
+      if (!r.ok) { el.innerHTML = '<div class="panel"><p>Falha ao carregar — tente de novo.</p></div>'; return null; }
+      return r.json();
+    })
+    .then(function (d) { if (d && d.conteudo) window.injetaProtegido(el, d.conteudo); })
+    .catch(function () { el.innerHTML = '<div class="panel"><p>Sem conexão — tente de novo.</p></div>'; });
+};
+// Variante pra quando o protegido é DADO (JSON), não HTML pronto — caso da
+// página de Vendas (bento/templates/vendas.html): o template já sabia
+// renderizar a partir de uma const D populada no load; aqui só troca de
+// onde D vem (const embutida -> fetch autenticado) e chama de volta com o
+// dado já parseado, sem reimplementar a renderização em si.
+window.carregaProtegidoJSON = function (chave, callback, onErro) {
+  var s = window.sessaoBentoLer();
+  if (!s) return;
+  fetch(window.BENTO_WORKER + '/api/protegido/' + chave, { headers: { 'X-Token': s.token } })
+    .then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
+    .then(function (d) { callback(JSON.parse(d.conteudo)); })
+    .catch(function (e) { if (onErro) onErro(e); });
+};
+</script>
+
+<script src="fila-offline.js"></script>
+<script>window.exigirNivel(["diretoria"], "notas");</script>
+<header class="brand"><img class="logo" src="logo-bento.png" alt="Bento Restaurante">
+<div class="topo-linha"><a class="nivel-pill" href="diretoria-meu-perfil.html">Meu perfil</a><a class="nivel-pill trocar" href="index.html?trocar=1" title="Entrar com outro acesso"><svg class="ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Trocar<span class="tr-ex">acesso</span></a>
+<button class="lupa-busca" id="lupa-busca" type="button" aria-label="Buscar receita" title="Buscar receita (/)">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4.5 4.5"/></svg>
+</button>
+<div id="busca-global-ov" role="dialog" aria-modal="true" aria-label="Buscar receita">
+<div class="bg-caixa">
+<div class="bg-topo">
+<input id="bg-input" type="search" placeholder="Nome do drink…" autocomplete="off">
+<button class="bg-fechar" id="bg-fechar" type="button" aria-label="Fechar busca">&times;</button>
+</div>
+<div class="bg-res" id="bg-res"><p class="bg-dica">Digite ao menos 2 letras.</p></div>
+</div>
+</div>
+<button class="sino-btn" id="sino-btn" type="button" title="Notificações" aria-label="Notificações" aria-expanded="false" hidden><svg class="ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="sino-badge" id="sino-badge" hidden>0</span></button><button type="button" class="fila-selo" id="fila-selo"></button></div>
+</header>
+<a class="voltar" href="diretoria-mural.html">&larr; Mural</a>
+
+<style>
+  .prm-toggle-btn { width: 100%; display: flex; align-items: center; justify-content: space-between;
+                     gap: 8px; padding: 9px 13px; border-radius: 11px; border: 1px solid var(--border);
+                     background: var(--card); color: var(--text); font-size: 13px; font-weight: 600;
+                     cursor: pointer; margin-bottom: 8px; }
+  .prm-toggle-btn .prm-toggle-ic { display: flex; align-items: center; color: var(--acc); transition: transform .18s; }
+  .prm-toggle-btn .prm-toggle-ic svg { width: 15px; height: 15px; display: block; }
+  .prm-toggle-btn.aberto .prm-toggle-ic { transform: rotate(180deg); }
+  .pr-mini { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin: 0 0 16px; }
+  .pr-mini[hidden] { display: none; }
+  a.prm-card { position: relative; display: flex; flex-direction: column; align-items: center;
+               justify-content: center; text-align: center; gap: 5px; border-radius: 11px; padding: 8px 6px;
+               text-decoration: none; color: var(--text); min-height: 52px; min-width: 0; border: 1.5px solid;
+               overflow: hidden; transition: filter .15s; }
+  a.prm-card:hover { filter: brightness(1.12); }
+  a.prm-card::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; }
+  .prm-card.prm-oc { background: linear-gradient(135deg,#33221d,#241713); border-color: #e07a52; }
+  .prm-card.prm-oc::before { background: #f28a63; }
+  .prm-card.prm-so { background: linear-gradient(135deg,#152a22,#111d17); border-color: #4fbf92; }
+  .prm-card.prm-so::before { background: #7fe6bd; }
+  .prm-card.prm-dose { background: linear-gradient(135deg,#16222c,#121a21); border-color: #6fa8dc; }
+  .prm-card.prm-dose::before { background: #8ec0ea; }
+  .prm-card.prm-ficha { background: linear-gradient(135deg,#241d2e,#191424); border-color: #9b8ec4; }
+  .prm-card.prm-ficha::before { background: #b6a9dd; }
+  a.prm-card .prm-chip { width: 24px; height: 24px; border-radius: 7px; display: flex;
+                          align-items: center; justify-content: center; flex: none; }
+  a.prm-card .prm-chip svg { width: 13px; height: 13px; display: block; flex: none; }
+  .prm-card.prm-oc .prm-chip { background: rgba(226,75,74,.16); color: #f0a58f; }
+  .prm-card.prm-so .prm-chip { background: rgba(80,170,110,.16); color: #9fdcae; }
+  .prm-card.prm-dose .prm-chip { background: rgba(111,168,220,.18); color: #8ec0ea; }
+  .prm-card.prm-ficha .prm-chip { background: rgba(155,142,196,.18); color: #b6a9dd; }
+  .prm-card .prm-t { font-size: 11.5px; font-weight: 600; }
+</style>
+<button type="button" class="prm-toggle-btn" id="prm-toggle-btn" aria-expanded="false" aria-controls="pr-mini-conteudo">
+  <span>Painel Rápido</span>
+  <span class="prm-toggle-ic"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span>
+</button>
+<div class="pr-mini" id="pr-mini-conteudo" hidden>
+  <a class="prm-card prm-oc" href="diretoria-registro.html">
+    <span class="prm-chip"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4"/><path d="M12 16h.01"/><path d="M10.36 3.6 2.26 17.5a1.9 1.9 0 0 0 1.64 2.5h16.2a1.9 1.9 0 0 0 1.64-2.5L13.64 3.6a1.9 1.9 0 0 0-3.28 0z"/></svg></span><span class="prm-t">Nova demanda</span></a>
+  
+  <a class="prm-card prm-ficha" href="diretoria-cocktails.html">
+    <span class="prm-chip"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-8 9z"/><path d="M12 14v6M8 20h8"/></svg></span><span class="prm-t">Ficha técnica</span></a>
+  <a class="prm-card prm-dose" href="diretoria-dose.html"><span class="prm-chip"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3h4v3l2 3v10a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2V9l2-3z"/><path d="M9 13h6"/></svg></span><span class="prm-t">Registro de Dose</span></a>
+</div>
+<script>(function(){
+  var btn = document.getElementById('prm-toggle-btn');
+  var conteudo = document.getElementById('pr-mini-conteudo');
+  btn.onclick = function () {
+    var abrir = conteudo.hidden;
+    conteudo.hidden = !abrir;
+    btn.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+    btn.classList.toggle('aberto', abrir);
+  };
+})();</script>
+
+
+<h1>Minhas notas</h1>
+<p class="sub">Anotações rápidas, listas e lembretes — só você vê. Ficam
+guardadas na sua sessão, em qualquer aparelho que você logar.</p>
+
+<style>
+  .nt-ident { background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+              padding: 16px; }
+  .nt-ident-tx { font-size: 13.5px; color: var(--text-2); margin-bottom: 12px; }
+  .nt-ident-box { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .nt-ident-box input { font: inherit; font-size: 14px; padding: 9px 12px; border: 1px solid var(--border);
+                         border-radius: 8px; background: var(--bg); color: var(--text); flex: 1; min-width: 160px; }
+  .nt-ident-box button { font-size: 13px; border-radius: 9px; padding: 9px 14px; border: 1px solid var(--ambar);
+                          background: var(--ambar); color: #2b2117; font-weight: 600; cursor: pointer;
+                          font-family: inherit; white-space: nowrap; }
+  .nt-ident-aviso { font-size: 12.5px; color: var(--ambar-2); margin: 10px 0 0; }
+  .nt-app { display: none; }
+  .nt-bar { display: flex; gap: 8px; align-items: center; margin: 4px 0 12px; }
+  .nt-busca { flex: 1; display: flex; align-items: center; gap: 8px; background: var(--bg);
+               border: 1px solid var(--border); border-radius: 10px; padding: 8px 11px; }
+  .nt-busca svg { width: 15px; height: 15px; color: var(--text-3); flex: none; }
+  .nt-busca input { flex: 1; background: none; border: none; outline: none; color: var(--text);
+                     font: inherit; font-size: 14px; }
+  .nt-busca input::placeholder { color: var(--text-3); }
+  .nt-nova { display: flex; align-items: center; gap: 5px; background: var(--ambar-bg); color: var(--ambar-2);
+              border: 1px solid var(--ambar); border-radius: 10px; padding: 8px 12px; cursor: pointer;
+              font: inherit; font-size: 13px; font-weight: 600; white-space: nowrap; }
+  .nt-nova:hover { background: var(--card-2); }
+  .nt-nova svg { width: 15px; height: 15px; }
+  .nt-filtros { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .nt-chip { background: var(--card); color: var(--text-2); border: none; border-radius: 99px;
+              padding: 5px 13px; font: inherit; font-size: 12px; cursor: pointer; }
+  .nt-chip.on { background: var(--ambar-bg); color: var(--ambar-2); font-weight: 600; }
+  .nt-sec-tit { font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase;
+                 color: var(--text-3); margin: 6px 2px 8px; display: flex; align-items: center; gap: 5px; }
+  .nt-sec-tit svg { width: 12px; height: 12px; }
+  .nt-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; margin-bottom: 18px; }
+  @media (max-width: 420px) { .nt-grid { grid-template-columns: 1fr; } }
+  .nt-card { position: relative; background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+              padding: 12px 13px; cursor: pointer; overflow: hidden; min-height: 84px; transition: border-color .12s; }
+  .nt-card:hover { border-color: var(--ambar); }
+  .nt-card.cor-ambar { border-left: 3px solid #d0a352; }
+  .nt-card.cor-roxo  { border-left: 3px solid #9b8dcc; }
+  .nt-card.cor-azul  { border-left: 3px solid #6fa8dc; }
+  .nt-card.cor-verde { border-left: 3px solid #6cc08a; }
+  .nt-card.cor-rosa  { border-left: 3px solid #cf7089; }
+  .nt-card-tit { font-size: 13.5px; font-weight: 600; color: var(--text); margin-bottom: 4px;
+                  padding-right: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nt-card-prev { font-size: 11.5px; color: var(--text-2); line-height: 1.45; max-height: 34px; overflow: hidden; }
+  .nt-card-data { font-size: 10px; color: var(--text-3); margin-top: 7px; }
+  .nt-card-pin { position: absolute; top: 10px; right: 10px; color: var(--ambar); width: 13px; height: 13px; }
+  .nt-card-pin svg { width: 13px; height: 13px; display: block; }
+  .nt-prog { height: 4px; background: var(--border); border-radius: 99px; overflow: hidden; margin: 6px 0 2px; }
+  .nt-prog > i { display: block; height: 100%; background: #6fa8dc; }
+  .nt-lista-tag { display: inline-block; font-size: 10px; color: #8ec0ea; background: #16283a;
+                   border-radius: 6px; padding: 1px 7px; margin-top: 6px; }
+  .nt-vazio { text-align: center; color: var(--text-3); font-size: 13px; padding: 30px 14px; }
+  .nt-ed { display: none; background: var(--bg); border: 1px solid var(--ambar); border-radius: 14px; overflow: hidden; }
+  .nt-ed-topo { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  .nt-ed-back { background: none; border: none; color: var(--ambar-2); cursor: pointer; font: inherit;
+                 font-size: 13px; display: flex; align-items: center; gap: 4px; padding: 4px 6px; border-radius: 7px; }
+  .nt-ed-back:hover { background: var(--card); }
+  .nt-ed-back svg { transform: rotate(90deg); width: 13px; height: 13px; }
+  .nt-ed-status { flex: 1; text-align: center; font-size: 11px; color: var(--text-3); }
+  .nt-ed-del { background: none; border: none; color: #8b4040; cursor: pointer; padding: 5px 7px;
+                border-radius: 7px; display: flex; }
+  .nt-ed-del:hover { background: #2a1a1a; color: #e07070; }
+  .nt-ed-del svg { width: 15px; height: 15px; }
+  .nt-ed-tipo { display: flex; gap: 6px; padding: 10px 12px 0; }
+  .nt-tipo-b { flex: 1; background: var(--card); color: var(--text-2); border: 1px solid var(--border);
+                border-radius: 8px; padding: 6px; font: inherit; font-size: 12px; cursor: pointer; }
+  .nt-tipo-b.on { background: var(--ambar-bg); color: var(--ambar-2); border-color: var(--ambar); font-weight: 600; }
+  .nt-tit-inp { width: 100%; box-sizing: border-box; background: none; border: none;
+                 border-bottom: 1px solid var(--border); padding: 12px; font-size: 17px; font-weight: 700;
+                 color: var(--text); outline: none; font-family: Georgia, "Iowan Old Style", "Times New Roman", serif; }
+  .nt-tit-inp::placeholder { color: var(--text-3); }
+  .nt-corpo-inp { width: 100%; box-sizing: border-box; background: none; border: none; padding: 12px;
+                   font-size: 14px; color: var(--text); outline: none; min-height: 180px; resize: none;
+                   font-family: inherit; line-height: 1.6; }
+  .nt-corpo-inp::placeholder { color: var(--text-3); }
+  .nt-itens { padding: 8px 12px 4px; }
+  .nt-item { display: flex; align-items: center; gap: 9px; padding: 5px 0; }
+  .nt-item-box { width: 20px; height: 20px; border: 1.5px solid var(--text-3); border-radius: 6px; flex: none;
+                  cursor: pointer; display: flex; align-items: center; justify-content: center; color: #6cc08a; }
+  .nt-item-box.ok { background: #17352b; border-color: #6cc08a; }
+  .nt-item-box svg { width: 13px; height: 13px; display: none; }
+  .nt-item-box.ok svg { display: block; }
+  .nt-item-txt { flex: 1; background: none; border: none; outline: none; color: var(--text); font: inherit;
+                  font-size: 14px; padding: 3px 0; }
+  .nt-item.ok .nt-item-txt { color: var(--text-3); text-decoration: line-through; }
+  .nt-item-x { background: none; border: none; color: var(--text-3); cursor: pointer; font-size: 16px; padding: 0 4px; }
+  .nt-add-item { display: flex; align-items: center; gap: 9px; padding: 6px 12px 12px; color: var(--text-2);
+                  cursor: pointer; font-size: 13px; }
+  .nt-add-item svg { width: 15px; height: 15px; }
+  .nt-ed-acoes { display: flex; flex-wrap: wrap; gap: 7px; padding: 10px 12px 12px; border-top: 1px solid var(--border); }
+  .nt-acao { display: flex; align-items: center; gap: 5px; background: var(--card); color: var(--text-2);
+              border: 1px solid var(--border); border-radius: 8px; padding: 6px 11px; font: inherit;
+              font-size: 12px; cursor: pointer; }
+  .nt-acao:hover { border-color: var(--ambar); }
+  .nt-acao svg { width: 14px; height: 14px; }
+  .nt-acao.on { background: #211a12; border-color: var(--ambar); color: var(--ambar-2); }
+  .nt-acao.dem { background: #16283a; border-color: #2d4a63; color: #8ec0ea; }
+  .nt-cores { display: none; gap: 7px; padding: 0 12px 12px; }
+  .nt-cores.show { display: flex; }
+  .nt-cor-o { width: 26px; height: 26px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; }
+  .nt-cor-o.on { border-color: #fff; }
+  .nt-toast { margin: 8px 0; padding: 8px 13px; border-radius: 9px; font-size: 12.5px;
+               background: #17352b; color: #9fe1cb; border: 1px solid #2e6b52; }
+  .nt-toast.err { background: #3a1c1c; color: #f09090; border-color: #6b2e2e; }
+</style>
+
+<div id="nt-ident" class="nt-ident">
+  <p class="nt-ident-tx">Suas notas são só suas — informe sua senha individual pra abrir o caderno.</p>
+  <div class="nt-ident-box">
+    <input id="nt-ident-senha" type="password" autocomplete="off" placeholder="senha pessoal">
+    <button type="button" id="nt-ident-ok">Abrir minhas notas</button>
+  </div>
+  <p class="nt-ident-aviso" id="nt-ident-aviso" style="display:none"></p>
+</div>
+
+<div id="nt-app" class="nt-app">
+  <div id="nt-toast" class="nt-toast" hidden></div>
+
+  <div id="nt-lista-view">
+    <div class="nt-bar">
+      <div class="nt-busca"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.3-4.3"/></svg>
+        <input type="text" id="nt-busca" placeholder="Buscar nas notas…" autocomplete="off">
+      </div>
+      <button type="button" class="nt-nova" id="nt-nova"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> Nova</button>
+    </div>
+    <div class="nt-filtros">
+      <button type="button" class="nt-chip on" data-f="todas">Todas</button>
+      <button type="button" class="nt-chip" data-f="nota">Notas</button>
+      <button type="button" class="nt-chip" data-f="lista">Listas</button>
+      <button type="button" class="nt-chip" data-f="fixadas"><svg class="ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg> Fixadas</button>
+    </div>
+    <div id="nt-loading" class="nt-vazio">Carregando…</div>
+    <div id="nt-conteudo" hidden></div>
+    <div id="nt-vazio" class="nt-vazio" hidden>Nenhuma nota aqui ainda. Toque em "Nova" para começar.</div>
+  </div>
+
+  <div id="nt-editor" class="nt-ed">
+    <div class="nt-ed-topo">
+      <button type="button" class="nt-ed-back" id="nt-voltar"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg> voltar</button>
+      <span class="nt-ed-status" id="nt-status"></span>
+      <button type="button" class="nt-ed-del" id="nt-del" aria-label="Apagar nota"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
+    </div>
+    <div class="nt-ed-tipo">
+      <button type="button" class="nt-tipo-b on" id="nt-tipo-nota" data-t="nota">Nota</button>
+      <button type="button" class="nt-tipo-b" id="nt-tipo-lista" data-t="lista">Lista</button>
+    </div>
+    <input type="text" id="nt-tit" class="nt-tit-inp" maxlength="100" placeholder="Título">
+    <textarea id="nt-corpo" class="nt-corpo-inp" maxlength="5000" placeholder="Comece a escrever…"></textarea>
+    <div id="nt-itens" class="nt-itens" hidden></div>
+    <div id="nt-add-item" class="nt-add-item" hidden><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> Adicionar item</div>
+    <div id="nt-cores" class="nt-cores"></div>
+    <div class="nt-ed-acoes">
+      <button type="button" class="nt-acao" id="nt-fixar"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg> Fixar</button>
+      <button type="button" class="nt-acao" id="nt-cor-btn"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="8.5" cy="10" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="8.3" r="1.1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="10" r="1.1" fill="currentColor" stroke="none"/></svg> Cor</button>
+      <button type="button" class="nt-acao dem" id="nt-demanda"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h4.5l1.5 3h4l1.5-3H20"/><path d="M6 4h12l2 8v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-6z"/></svg> Virar demanda</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var CHAVE = '52d20056e7bbf3bcc08092123cdde44d';
+  var WORKER = "https://bento-portal-contagem.rodrigopcviana.workers.dev";
+  var DESTINO_DEMANDA = "diretoria-registro.html";
+  var SENHA_KEY = 'bento_pessoa_senha';
+  var CORES = ['ambar', 'roxo', 'azul', 'verde', 'rosa'];
+  var CORES_HEX = { ambar: '#d0a352', roxo: '#9b8dcc', azul: '#6fa8dc', verde: '#6cc08a', rosa: '#cf7089' };
+
+  var elIdent = document.getElementById('nt-ident');
+  var elIdentSenha = document.getElementById('nt-ident-senha');
+  var elIdentOk = document.getElementById('nt-ident-ok');
+  var elIdentAviso = document.getElementById('nt-ident-aviso');
+  var elApp = document.getElementById('nt-app');
+
+  var NT = { notas: [], ativa: null, filtro: 'todas', busca: '', timer: null, dirty: false, senha: '' };
+
+  var elBusca   = document.getElementById('nt-busca');
+  var elListaV  = document.getElementById('nt-lista-view');
+  var elEditor  = document.getElementById('nt-editor');
+  var elConteudo= document.getElementById('nt-conteudo');
+  var elLoading = document.getElementById('nt-loading');
+  var elVazio   = document.getElementById('nt-vazio');
+  var elTit     = document.getElementById('nt-tit');
+  var elCorpo   = document.getElementById('nt-corpo');
+  var elItens   = document.getElementById('nt-itens');
+  var elAddItem = document.getElementById('nt-add-item');
+  var elStatus  = document.getElementById('nt-status');
+  var elToast   = document.getElementById('nt-toast');
+  var elCores   = document.getElementById('nt-cores');
+  var elFixar   = document.getElementById('nt-fixar');
+  var elCorBtn  = document.getElementById('nt-cor-btn');
+  var elDemanda = document.getElementById('nt-demanda');
+  var btnNota   = document.getElementById('nt-tipo-nota');
+  var btnLista  = document.getElementById('nt-tipo-lista');
+
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+  function toast(msg, err) {
+    elToast.textContent = msg; elToast.hidden = false;
+    elToast.className = 'nt-toast' + (err ? ' err' : '');
+    setTimeout(function () { elToast.hidden = true; }, 3500);
+  }
+  function setStatus(msg, dur) {
+    elStatus.textContent = msg;
+    if (dur) setTimeout(function () { if (elStatus.textContent === msg) elStatus.textContent = ''; }, dur);
+  }
+
+  function dataCurta(iso) {
+    if (!iso) return '';
+    var d = new Date(iso); if (isNaN(d.getTime())) return '';
+    var ag = new Date();
+    if (d.toDateString() === ag.toDateString())
+      return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    if (d.toDateString() === new Date(ag.getTime() - 86400000).toDateString()) return 'Ontem';
+    if ((ag - d) / 86400000 < 7) return d.toLocaleDateString('pt-BR', { weekday: 'long' });
+    var opt = { day: '2-digit', month: 'short' };
+    if (d.getFullYear() !== ag.getFullYear()) opt.year = '2-digit';
+    return d.toLocaleDateString('pt-BR', opt);
+  }
+
+  function preview(n) {
+    if (n.tipo === 'lista') {
+      var its = n.itens || [];
+      return its.slice(0, 3).map(function (it) {
+        return (it.ok ? '☑ ' : '☐ ') + esc(it.txt);
+      }).join('<br>');
+    }
+    var linhas = (n.conteudo || '').split('\n');
+    for (var i = 0; i < linhas.length; i++) { if (linhas[i].trim()) return esc(linhas[i].trim().slice(0, 120)); }
+    return '';
+  }
+
+  function progresso(n) {
+    var its = n.itens || []; if (!its.length) return null;
+    var ok = 0; for (var i = 0; i < its.length; i++) if (its[i].ok) ok++;
+    return { ok: ok, total: its.length };
+  }
+
+  function corresponde(n) {
+    if (NT.filtro === 'fixadas' && !n.fixada) return false;
+    if (NT.filtro === 'nota' && n.tipo === 'lista') return false;
+    if (NT.filtro === 'lista' && n.tipo !== 'lista') return false;
+    if (NT.busca) {
+      var q = NT.busca.toLowerCase();
+      var txt = (n.titulo || '') + ' ' + (n.conteudo || '') + ' ' +
+                (n.itens || []).map(function (it) { return it.txt; }).join(' ');
+      if (txt.toLowerCase().indexOf(q) === -1) return false;
+    }
+    return true;
+  }
+
+  function cardHTML(n) {
+    var cls = 'nt-card' + (n.cor ? ' cor-' + n.cor : '');
+    var pin = n.fixada ? '<span class="nt-card-pin"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span>' : '';
+    var meio = '';
+    var prog = progresso(n);
+    if (n.tipo === 'lista' && prog) {
+      var pct = Math.round(prog.ok / prog.total * 100);
+      meio = '<div class="nt-prog"><i style="width:' + pct + '%"></i></div>' +
+             '<span class="nt-lista-tag">lista · ' + prog.ok + '/' + prog.total + '</span>';
+    } else {
+      var pv = preview(n);
+      meio = pv ? '<div class="nt-card-prev">' + pv + '</div>' : '';
+    }
+    return '<div class="' + cls + '" data-id="' + esc(n.id) + '">' + pin +
+      '<div class="nt-card-tit">' + esc(n.titulo || '(sem título)') + '</div>' +
+      meio + '<div class="nt-card-data">' + esc(dataCurta(n.atualizado_em)) + '</div></div>';
+  }
+
+  function render() {
+    elLoading.hidden = true; elConteudo.hidden = false;
+    var vis = NT.notas.filter(corresponde).sort(function (a, b) {
+      return (b.atualizado_em || '').localeCompare(a.atualizado_em || '');
+    });
+    if (!vis.length) { elConteudo.innerHTML = ''; elVazio.hidden = false; return; }
+    elVazio.hidden = true;
+    var fix = vis.filter(function (n) { return n.fixada; });
+    var resto = vis.filter(function (n) { return !n.fixada; });
+    var html = '';
+    if (fix.length && NT.filtro !== 'fixadas') {
+      html += '<div class="nt-sec-tit"><svg class="ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg> Fixadas</div><div class="nt-grid">' +
+              fix.map(cardHTML).join('') + '</div>';
+      if (resto.length) html += '<div class="nt-sec-tit">Outras</div>';
+    }
+    html += '<div class="nt-grid">' + (NT.filtro === 'fixadas' ? fix : resto).map(cardHTML).join('') + '</div>';
+    elConteudo.innerHTML = html;
+    var cards = elConteudo.querySelectorAll('.nt-card');
+    for (var i = 0; i < cards.length; i++) {
+      (function (el) { el.onclick = function () { abreEditor(el.getAttribute('data-id')); }; })(cards[i]);
+    }
+  }
+
+  // Identidade (senha_pessoa) — o token do Bento não carrega pessoa, então
+  // toda leitura/escrita manda a senha individual no corpo (nunca em
+  // querystring/log, mesma regra das Demandas "Enviadas").
+  function abreApp(senha) {
+    NT.senha = senha;
+    elIdent.style.display = 'none';
+    elApp.style.display = 'block';
+    carrega();
+  }
+
+  function voltaAoGate(msg) {
+    elApp.style.display = 'none';
+    elIdent.style.display = 'block';
+    localStorage.removeItem(SENHA_KEY);
+    elIdentAviso.textContent = msg || 'Senha individual inválida.';
+    elIdentAviso.style.display = '';
+  }
+
+  elIdentOk.onclick = function () {
+    var s = elIdentSenha.value.trim();
+    if (!s) { elIdentAviso.textContent = 'Informe sua senha individual.'; elIdentAviso.style.display = ''; return; }
+    localStorage.setItem(SENHA_KEY, s);
+    abreApp(s);
+  };
+  elIdentSenha.addEventListener('keydown', function (e) { if (e.key === 'Enter') elIdentOk.onclick(); });
+
+  function carrega() {
+    if (!WORKER) { elLoading.textContent = 'Configuração ausente.'; return; }
+    fetch(WORKER + '/api/notas/lista', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chave: CHAVE, senha_pessoa: NT.senha })
+    })
+      .then(function (resp) {
+        return resp.json().catch(function () { return null; }).then(function (d) { return { status: resp.status, d: d }; });
+      })
+      .then(function (r) {
+        if (r.status === 403 || r.status === 503) {
+          voltaAoGate(r.d && r.d.erro); return;
+        }
+        if (!r.d || !r.d.ok) { elLoading.textContent = 'Erro ao carregar. Recarregue a página.'; return; }
+        NT.notas = r.d.notas || [];
+        render();
+        try {
+          var alvo = new URLSearchParams(location.search).get('nota');
+          if (alvo) { for (var i = 0; i < NT.notas.length; i++) { if (NT.notas[i].id === alvo) { abreEditor(alvo); break; } } }
+        } catch (e) {}
+      })
+      .catch(function () { elLoading.textContent = 'Sem conexão — recarregue a página.'; });
+  }
+
+  function salva(cb) {
+    if (!WORKER) { if (cb) cb(false); return; }
+    setStatus('Salvando…');
+    fetch(WORKER + '/api/notas/salvar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chave: CHAVE, senha_pessoa: NT.senha, notas: NT.notas })
+    })
+      .then(function (resp) { return resp.json().catch(function () { return null; }); })
+      .then(function (d) {
+        if (d && d.ok) { NT.notas = d.notas || NT.notas; NT.dirty = false; setStatus('Salvo', 2500); if (cb) cb(true); }
+        else { setStatus('Erro'); toast('Falha ao salvar.', true); if (cb) cb(false); }
+      })
+      .catch(function () { setStatus('Erro'); toast('Falha ao salvar.', true); if (cb) cb(false); });
+  }
+  function autoSalva() { clearTimeout(NT.timer); NT.dirty = true; NT.timer = setTimeout(function () { salva(); }, 2000); }
+
+  function notaAtiva() {
+    for (var i = 0; i < NT.notas.length; i++) if (NT.notas[i].id === NT.ativa) return NT.notas[i];
+    return null;
+  }
+
+  function pintaCores() {
+    elCores.innerHTML = '';
+    var n = notaAtiva();
+    var opts = [{ slug: null, hex: '#3d3660' }];
+    for (var i = 0; i < CORES.length; i++) opts.push({ slug: CORES[i], hex: CORES_HEX[CORES[i]] });
+    opts.forEach(function (o) {
+      var el = document.createElement('div');
+      el.className = 'nt-cor-o' + (n && (n.cor || null) === o.slug ? ' on' : '');
+      el.style.background = o.hex;
+      if (!o.slug) { el.style.background = 'transparent'; el.style.borderColor = '#3d3660'; el.textContent = '∅'; el.style.color = 'var(--text-3)'; el.style.textAlign = 'center'; el.style.lineHeight = '22px'; }
+      el.onclick = function () {
+        var na = notaAtiva(); if (!na) return;
+        na.cor = o.slug; na.atualizado_em = new Date().toISOString();
+        pintaCores(); autoSalva();
+      };
+      elCores.appendChild(el);
+    });
+  }
+
+  function renderItens() {
+    var n = notaAtiva(); if (!n) return;
+    var its = n.itens || (n.itens = []);
+    elItens.innerHTML = '';
+    its.forEach(function (it, idx) {
+      var row = document.createElement('div');
+      row.className = 'nt-item' + (it.ok ? ' ok' : '');
+      var box = document.createElement('div');
+      box.className = 'nt-item-box' + (it.ok ? ' ok' : '');
+      box.innerHTML = '<svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9"/></svg>';
+      box.onclick = function () { it.ok = !it.ok; renderItens(); marcaItens(); autoSalva(); };
+      var inp = document.createElement('input');
+      inp.className = 'nt-item-txt'; inp.type = 'text'; inp.value = it.txt || ''; inp.maxLength = 200;
+      inp.placeholder = 'Item…';
+      inp.oninput = function () { it.txt = inp.value; autoSalva(); };
+      inp.onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); addItem(); } };
+      var x = document.createElement('button');
+      x.className = 'nt-item-x'; x.type = 'button'; x.textContent = '×';
+      x.onclick = function () { its.splice(idx, 1); renderItens(); marcaItens(); autoSalva(); };
+      row.appendChild(box); row.appendChild(inp); row.appendChild(x);
+      elItens.appendChild(row);
+    });
+  }
+  function marcaItens() { var n = notaAtiva(); if (n) n.atualizado_em = new Date().toISOString(); }
+  function addItem() {
+    var n = notaAtiva(); if (!n) return;
+    (n.itens || (n.itens = [])).push({ txt: '', ok: false });
+    renderItens();
+    var inps = elItens.querySelectorAll('.nt-item-txt');
+    if (inps.length) inps[inps.length - 1].focus();
+    autoSalva();
+  }
+
+  function aplicaTipo() {
+    var n = notaAtiva(); if (!n) return;
+    var lista = n.tipo === 'lista';
+    btnNota.classList.toggle('on', !lista);
+    btnLista.classList.toggle('on', lista);
+    elCorpo.style.display = lista ? 'none' : 'block';
+    elItens.style.display = lista ? 'block' : 'none';
+    elAddItem.style.display = lista ? 'flex' : 'none';
+    if (lista) renderItens();
+  }
+
+  function abreEditor(id) {
+    var n = null;
+    for (var i = 0; i < NT.notas.length; i++) if (NT.notas[i].id === id) { n = NT.notas[i]; break; }
+    if (!n) return;
+    NT.ativa = id; NT.dirty = false;
+    elTit.value = n.titulo || '';
+    elCorpo.value = n.conteudo || '';
+    elStatus.textContent = '';
+    elCores.classList.remove('show');
+    elFixar.classList.toggle('on', !!n.fixada);
+    elFixar.innerHTML = '<svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg> ' + (n.fixada ? 'Fixada' : 'Fixar');
+    aplicaTipo();
+    pintaCores();
+    elListaV.style.display = 'none';
+    elEditor.style.display = 'block';
+    if (!n.titulo && !n.conteudo && n.tipo !== 'lista') elTit.focus();
+  }
+
+  function flush() {
+    var n = notaAtiva(); if (!n) return;
+    n.titulo = elTit.value.trim() || '(sem título)';
+    if (n.tipo !== 'lista') n.conteudo = elCorpo.value;
+    n.atualizado_em = new Date().toISOString();
+  }
+
+  function volta() {
+    clearTimeout(NT.timer);
+    flush();
+    NT.ativa = null;
+    elEditor.style.display = 'none';
+    elListaV.style.display = 'block';
+    if (NT.dirty) salva(function () { render(); }); else render();
+  }
+
+  function nova() {
+    var id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    var ag = new Date().toISOString();
+    var n = { id: id, titulo: '', conteudo: '', tipo: 'nota', itens: [], fixada: false, cor: null, criado_em: ag, atualizado_em: ag };
+    NT.notas.unshift(n);
+    NT.dirty = true;
+    abreEditor(id);
+    salva();
+  }
+
+  function apagar() {
+    var n = notaAtiva(); if (!n) return;
+    if (!window.confirm('Apagar esta nota?')) return;
+    clearTimeout(NT.timer);
+    NT.notas = NT.notas.filter(function (x) { return x.id !== NT.ativa; });
+    NT.ativa = null;
+    elEditor.style.display = 'none';
+    elListaV.style.display = 'block';
+    salva(function () { render(); });
+  }
+
+  // Virar demanda: pré-preenche o registro.html deste papel (handoff por
+  // localStorage, mesma origem) e navega — NUNCA auto-envia. O registro.html
+  // consome a chave 1x.
+  function virarDemanda() {
+    if (!DESTINO_DEMANDA) return;
+    var n = notaAtiva(); if (!n) return;
+    flush();
+    var linhas = [];
+    if (n.titulo && n.titulo !== '(sem título)') linhas.push(n.titulo);
+    if (n.tipo === 'lista') {
+      (n.itens || []).forEach(function (it) { if (it.txt) linhas.push('- [' + (it.ok ? 'x' : ' ') + '] ' + it.txt); });
+    } else if (n.conteudo) { linhas.push(n.conteudo); }
+    try {
+      localStorage.setItem('registro_prefill', JSON.stringify({ descricao: linhas.join('\n'), origem: 'nota:' + n.id }));
+    } catch (e) {}
+    if (NT.dirty) salva();
+    location.href = DESTINO_DEMANDA;
+  }
+
+  // eventos
+  elBusca.oninput = function () { NT.busca = elBusca.value; render(); };
+  document.getElementById('nt-nova').onclick = nova;
+  document.getElementById('nt-voltar').onclick = volta;
+  document.getElementById('nt-del').onclick = apagar;
+  elAddItem.onclick = addItem;
+  if (elDemanda) elDemanda.onclick = virarDemanda;
+  elCorBtn.onclick = function () { elCores.classList.toggle('show'); };
+  elFixar.onclick = function () {
+    var n = notaAtiva(); if (!n) return;
+    n.fixada = !n.fixada; n.atualizado_em = new Date().toISOString();
+    elFixar.classList.toggle('on', n.fixada);
+    elFixar.innerHTML = '<svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg> ' + (n.fixada ? 'Fixada' : 'Fixar');
+    autoSalva();
+  };
+  elTit.oninput = function () { flush(); autoSalva(); };
+  elCorpo.oninput = function () { flush(); autoSalva(); };
+  btnNota.onclick = function () { var n = notaAtiva(); if (n) { n.tipo = 'nota'; aplicaTipo(); autoSalva(); } };
+  btnLista.onclick = function () {
+    var n = notaAtiva(); if (!n) return;
+    n.tipo = 'lista';
+    if (!(n.itens && n.itens.length)) n.itens = [{ txt: '', ok: false }];
+    aplicaTipo(); autoSalva();
+  };
+  var chips = document.querySelectorAll('.nt-chip');
+  for (var i = 0; i < chips.length; i++) {
+    (function (c) {
+      c.onclick = function () {
+        for (var j = 0; j < chips.length; j++) chips[j].classList.remove('on');
+        c.classList.add('on'); NT.filtro = c.getAttribute('data-f'); render();
+      };
+    })(chips[i]);
+  }
+
+  var senhaSalva = localStorage.getItem(SENHA_KEY);
+  if (senhaSalva) { elIdentSenha.value = senhaSalva; abreApp(senhaSalva); }
+})();
+</script>
+
+
+<div class="sino-pop" id="sino-pop" role="dialog" aria-label="Notificações" hidden>
+  <div class="sino-cab">
+    <h3>Notificações</h3>
+    <button class="sino-lidas" id="sino-lidas" type="button">Marcar todas como lidas</button>
+  </div>
+  <div class="sino-abas">
+    <button class="sino-aba on" id="sino-aba-rec" data-aba="rec" type="button">Recebidas <span class="sino-n" id="sino-n-rec" hidden></span></button>
+    <button class="sino-aba" id="sino-aba-nov" data-aba="nov" type="button">Novidades do site <span class="sino-n" id="sino-n-nov" hidden></span></button>
+  </div>
+  <div class="sino-lista" id="sino-lista-rec"><div class="sino-vazio">Carregando…</div></div>
+  <div class="sino-lista" id="sino-lista-nov" hidden></div>
+</div>
+
+<p class="nota">Portal do Bar · Bento · atualizado em 26/09/2026.
+Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à mão.</p>
+<script>if (window.FilaOffline) window.FilaOffline.iniciarSelo({"elId": "fila-selo", "destinos": {"registro": "diretoria-registro.html", "turno": "diretoria-turno.html"}});</script>
+
+<style>
+  .ver-nova { position: fixed; left: 12px; right: 12px; top: calc(10px + env(safe-area-inset-top, 0px));
+    z-index: 96; margin: 0 auto; max-width: 460px; display: none;
+    background: var(--card-2, #3b342a); border: 1px solid var(--ambar, #d5a05c); border-radius: 12px;
+    padding: 10px 12px; box-shadow: 0 8px 24px rgba(0,0,0,.45);
+    align-items: center; gap: 10px; }
+  .ver-nova.on { display: flex; }
+  .ver-nova svg { flex: none; color: var(--ambar, #d5a05c); }
+  .vn-txt { flex: 1; font-size: 12.5px; color: var(--text-2, #b3a68f); line-height: 1.4; }
+  .vn-txt b { color: var(--text, #f0e7d8); }
+  .vn-ok { flex: none; font-size: 12px; font-weight: 600; padding: 7px 12px;
+    border-radius: 999px; cursor: pointer; background: var(--ambar, #d5a05c); border: none;
+    color: #2b2620; }
+  .vn-x { flex: none; background: none; border: none; color: var(--text-2, #b3a68f);
+    font-size: 18px; line-height: 1; cursor: pointer; padding: 2px 4px; }
+</style>
+<div class="ver-nova" id="ver-nova" role="status" aria-live="polite">
+  <svg class="ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 3.5V9h-5.5"/></svg>
+  <div class="vn-txt"><b>Nova versão disponível.</b> Atualize pra ver o conteúdo mais recente.</div>
+  <button type="button" class="vn-ok" id="vn-ok">Atualizar</button>
+  <button type="button" class="vn-x" id="vn-x" aria-label="Dispensar">&times;</button>
+</div>
+<script>
+(function () {
+  var BUILD = 'c2dfe987c054';
+  var ALVO = 'versao.json';
+  var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
+  var ultimo = 0, mostrando = false;
+
+  function mostra(novo) {
+    if (mostrando) return;
+    if (localStorage.getItem('bento_build_dispensado') === novo) return;
+    mostrando = true;
+    var box = document.getElementById('ver-nova');
+    if (!box) return;
+    box.classList.add('on');
+    document.getElementById('vn-x').onclick = function () {
+      try { localStorage.setItem('bento_build_dispensado', novo); } catch (e) {}
+      box.classList.remove('on');
+    };
+    document.getElementById('vn-ok').onclick = atualiza;
+  }
+
+  // Limpa TODOS os caches do service worker e recarrega. Sem isso um reload
+  // comum ainda seria atendido pela casca cacheada (ícones, logo, fila-offline).
+  function atualiza() {
+    var feito = false;
+    var recarrega = function () { if (feito) return; feito = true; location.reload(); };
+    setTimeout(recarrega, 2500);   // rede travada não pode prender o usuário
+    var t = [];
+    try {
+      if (window.caches && caches.keys) {
+        t.push(caches.keys().then(function (ks) {
+          return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+        }));
+      }
+      if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
+        t.push(navigator.serviceWorker.getRegistration().then(function (r) { return r && r.update(); }));
+      }
+    } catch (e) {}
+    Promise.all(t).then(recarrega, recarrega);
+  }
+
+  function confere() {
+    if (mostrando) return;
+    var agora = Date.now();
+    if (agora - ultimo < MIN_ENTRE) return;
+    ultimo = agora;
+    fetch(ALVO + '?t=' + agora, { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { if (d && d.build && d.build !== BUILD) mostra(d.build); })
+      .catch(function () {});
+  }
+
+  // Expostos pra um eventual botão manual "Buscar atualização" (Meu perfil).
+  window.bentoAtualiza = atualiza;
+  window.bentoConfere = function () { ultimo = 0; confere(); };
+
+  setTimeout(confere, 4000);                       // não competir com o render
+  setInterval(function () { if (!document.hidden) confere(); }, 600000);
+  document.addEventListener('visibilitychange', function () {
+    // o caso que só isto alcança: app em standalone voltando do alternador.
+    if (!document.hidden) confere();
+  });
+})();
+</script>
+
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+  });
+  // Aviso de "nova versão" — o sw.js já faz skipWaiting()+clients.claim() no
+  // install, então a troca de versão acontece SOZINHA; não há "clique pra
+  // ativar" a construir. Este listener é só informativo: quando um SW novo
+  // assume o controle (controllerchange) E já havia um controller antes
+  // (não é o primeiro install do zero), mostra um toast dispensável. Guarda
+  // 'controller' pré-registro pra distinguir primeiro-install de troca real.
+  var tinhaControllerAntes = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', function () {
+    if (!tinhaControllerAntes) { tinhaControllerAntes = true; return; }
+    if (document.getElementById('sw-toast')) return;
+    var t = document.createElement('div');
+    t.id = 'sw-toast';
+    t.setAttribute('role', 'status');
+    t.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:9999;' +
+      'background:#2b2620;color:#f4ead9;border:1px solid #5d5142;border-radius:999px;' +
+      'padding:11px 18px;font-size:13px;box-shadow:0 6px 24px rgba(0,0,0,.35);cursor:pointer;' +
+      'max-width:90vw;text-align:center;';
+    t.textContent = 'Página atualizada — toque para recarregar';
+    t.onclick = function () { location.reload(); };
+    document.body.appendChild(t);
+    setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 12000);
+  });
+}
+</script>
+
+
+<script>
+(function () {
+  var COCKTAILS_HREF = "diretoria-cocktails.html";
+  var btn = document.getElementById('lupa-busca');
+  var ov = document.getElementById('busca-global-ov');
+  var input = document.getElementById('bg-input');
+  var res = document.getElementById('bg-res');
+  var fechar = document.getElementById('bg-fechar');
+  if (!btn || !ov) return;
+  var idx = null, carregando = false;
+
+  function semAcento(s) { return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+
+  function carrega() {
+    if (idx || carregando) return;
+    carregando = true;
+    fetch('receitas_idx.json').then(function (r) { return r.json(); })
+      .then(function (d) { idx = d; if (input.value.trim().length >= 2) aplica(); })
+      .catch(function () { idx = []; res.innerHTML = '<p class="bg-vazio">Índice indisponível — ' +
+        '<a href="' + COCKTAILS_HREF + '">abrir fichas técnicas</a>.</p>'; });
+  }
+
+  function marca(nome, q) {
+    var i = semAcento(nome).indexOf(q);
+    if (i < 0) return nome;
+    return nome.slice(0, i) + '<mark>' + nome.slice(i, i + q.length) + '</mark>' + nome.slice(i + q.length);
+  }
+
+  function aplica() {
+    var q = semAcento(input.value.trim());
+    if (q.length < 2) { res.innerHTML = '<p class="bg-dica">Digite ao menos 2 letras.</p>'; return; }
+    if (!idx) { res.innerHTML = '<p class="bg-dica">Carregando…</p>'; return; }
+    var achados = idx.filter(function (it) { return semAcento(it.n).indexOf(q) >= 0; }).slice(0, 8);
+    if (!achados.length) {
+      res.innerHTML = '<p class="bg-vazio">Nada com "' + input.value.trim() +
+        '" — <a href="' + COCKTAILS_HREF + '">ver todas as fichas &rarr;</a></p>';
+      return;
+    }
+    res.innerHTML = '';
+    achados.forEach(function (it) {
+      var a = document.createElement('a');
+      a.className = 'bg-item'; a.href = COCKTAILS_HREF + '#ficha-' + it.s;
+      a.innerHTML = '<span class="nome">' + marca(it.n, q) + '</span>';
+      res.appendChild(a);
+    });
+  }
+
+  function abre() {
+    ov.classList.add('aberto');
+    document.body.style.overflow = 'hidden';
+    carrega();
+    setTimeout(function () { input.focus(); }, 30);
+  }
+  function fecha() {
+    ov.classList.remove('aberto');
+    document.body.style.overflow = '';
+  }
+  btn.addEventListener('click', abre);
+  fechar.addEventListener('click', fecha);
+  ov.addEventListener('click', function (e) { if (e.target === ov) fecha(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === '/' && !ov.classList.contains('aberto') &&
+        document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+      e.preventDefault(); abre();
+    } else if (e.key === 'Escape' && ov.classList.contains('aberto')) {
+      fecha();
+    }
+  });
+  input.addEventListener('input', aplica);
+})();
+</script>
+
+<script>
+
+(function(){
+  var REG = window.BENTO_WORKER;
+  var btn = document.getElementById('sino-btn');
+  var pop = document.getElementById('sino-pop');
+  if(!btn || !pop) return;
+  var s = window.sessaoBentoLer();
+  if(!s) return;               // deslogado: sino fica escondido
+  btn.hidden = false;
+
+  var recebidas = [], novidades = [], carregou = false;
+
+  function esc(t){ var d=document.createElement('div'); d.textContent=(t==null?'':String(t)); return d.innerHTML; }
+  function idR(x){ return x.chave || (x.tipo+':'+(x.quando||'')); }
+  function idN(x){ return (x.data||'')+'|'+(x.titulo||''); }
+  function vKey(){ return 'bento_sino_visto_'+(s.pessoa||s.nivel||'x'); }
+  function lerV(){ try{ return JSON.parse(localStorage.getItem(vKey())||'{}'); }catch(e){ return {}; } }
+  function salvarV(v){ try{ localStorage.setItem(vKey(), JSON.stringify(v)); }catch(e){} }
+
+  function tempo(iso){
+    if(!iso) return '';
+    var t = Date.parse(iso); if(isNaN(t)) return '';
+    var seg = Math.floor((Date.now()-t)/1000);
+    if(seg < 60) return 'agora';
+    if(seg < 3600) return 'há '+Math.floor(seg/60)+' min';
+    if(seg < 86400) return 'há '+Math.floor(seg/3600)+' h';
+    var dias = Math.floor(seg/86400);
+    if(dias === 1) return 'ontem';
+    if(dias < 7) return 'há '+dias+' dias';
+    return dataCurta(iso);
+  }
+  var MESES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  function dataCurta(iso){
+    var d = new Date(iso); if(isNaN(d.getTime())){ var m=String(iso).slice(0,10).split('-'); if(m.length===3) return (+m[2])+' '+MESES[(+m[1])-1]; return ''; }
+    return d.getDate()+' '+MESES[d.getMonth()];
+  }
+  function dataHoraCheia(iso){
+    if(!iso) return '';
+    var d = new Date(iso); if(isNaN(d.getTime())) return '';
+    return d.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+  }
+
+  var ICO = {
+    demanda:'<path d="M5 4h14v16l-7-3-7 3z"/>',
+    resposta:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+    aviso:'<path d="M3 11l18-7-7 18-2-8z"/>',
+    acesso:'<circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M18 8v6M15 11h6"/>'
+  };
+  function svg(tp){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+(ICO[tp]||ICO.aviso)+'</svg>'; }
+  function tag(tp){ return tp==='demanda'?'Demanda':(tp==='resposta'?'Resposta':(tp==='acesso'?'Acesso':'Aviso')); }
+
+  function renderRec(){
+    var wrap = document.getElementById('sino-lista-rec');
+    if(!recebidas.length){ wrap.innerHTML='<div class="sino-vazio">Nada por aqui ainda.</div>'; return; }
+    var v = lerV();
+    wrap.innerHTML = recebidas.map(function(x){
+      var novo = !v['r:'+idR(x)];
+      return '<a class="sino-item'+(novo?' novo':'')+' tp-'+esc(x.tipo)+'" href="'+esc(x.url||'#')+'">'
+        + '<span class="sino-ic">'+svg(x.tipo)+'</span>'
+        + '<span class="sino-tx">'
+        +   '<span class="sino-t"><span class="sino-tag">'+esc(tag(x.tipo))+'</span>'+esc(x.titulo)+'</span>'
+        +   '<span class="sino-d">'+esc(x.descricao)+'</span>'
+        +   '<span class="sino-m" title="'+esc(dataHoraCheia(x.quando))+'">'+esc(tempo(x.quando))+'</span>'
+        + '</span></a>';
+    }).join('');
+  }
+  function renderNov(){
+    var wrap = document.getElementById('sino-lista-nov');
+    if(!novidades.length){ wrap.innerHTML='<div class="sino-vazio">Sem novidades por enquanto.</div>'; return; }
+    wrap.innerHTML = novidades.map(function(x){
+      return '<div class="sino-nov"><div class="sino-nc"><span class="sino-marco"></span>'
+        + '<h4>'+esc(x.titulo)+'</h4><span class="sino-data">'+esc(dataCurta(x.data))+'</span></div>'
+        + '<p>'+esc(x.descricao)+'</p></div>';
+    }).join('');
+  }
+  function chip(id, n){ var e=document.getElementById(id); if(!e) return; if(n>0){ e.textContent=(n>99?'99+':n); e.hidden=false; } else e.hidden=true; }
+  function atualiza(){
+    var v = lerV();
+    var nR = recebidas.filter(function(x){ return !v['r:'+idR(x)]; }).length;
+    var nN = novidades.filter(function(x){ return !v['n:'+idN(x)]; }).length;
+    var tot = nR + nN;
+    var b = document.getElementById('sino-badge');
+    if(tot>0){ b.textContent=(tot>99?'99+':tot); b.hidden=false; btn.classList.add('tem'); }
+    else { b.hidden=true; btn.classList.remove('tem'); }
+    chip('sino-n-rec', nR); chip('sino-n-nov', nN);
+  }
+
+  function visivel(niv){
+    if(!niv || niv==='todos') return true;
+    if(Array.isArray(niv)) return niv.indexOf(s.nivel)>=0 || niv.indexOf('todos')>=0;
+    return niv===s.nivel;
+  }
+  // Pedidos de acesso esperando: sem isto, um pedido que não é da equipe de
+  // bar fica parado até alguém lembrar de abrir a página de Acessos — e é
+  // essa fila que faz a aprovação existir. Só a administração busca.
+  function itensAcesso(d){
+    if(!d || !d.itens || !d.itens.length) return [];
+    return d.itens.map(function(x){
+      return {
+        tipo:'acesso',
+        chave:'acesso:'+x.id,
+        titulo:'Pedido de acesso: '+x.nome,
+        descricao:'quer entrar no Portal'+(x.cargo ? ' como '+x.cargo : ''),
+        quando:x.criado_em ? new Date(x.criado_em).toISOString() : null,
+        url:'acessos.html'
+      };
+    });
+  }
+  function carregar(){
+    carregou = true;
+    var pAcesso = (s.nivel === 'admin')
+      ? fetch(window.BENTO_WORKER+'/api/acessos/pendentes', { headers:{ 'X-Token': s.token } })
+          .then(function(r){ return r.ok ? r.json() : null; })
+          .then(itensAcesso).catch(function(){ return []; })
+      : Promise.resolve([]);
+    if(REG){
+      Promise.all([
+        fetch(REG+'/api/notificacoes', { headers:{ 'X-Token': s.token } })
+          .then(function(r){ return r.ok ? r.json() : {itens:[]}; })
+          .then(function(d){ return (d&&d.itens)||[]; })
+          .catch(function(){ return []; }),
+        pAcesso
+      ]).then(function(res){ recebidas = (res[1]||[]).concat(res[0]); renderRec(); atualiza(); });
+    } else {
+      pAcesso.then(function(a){ recebidas = a||[]; renderRec(); atualiza(); });
+    }
+    fetch('changelog.json', { cache:'no-cache' })
+      .then(function(r){ return r.ok ? r.json() : {itens:[]}; })
+      .then(function(d){ novidades = ((d&&d.itens)||[]).filter(function(x){ return visivel(x.niveis); }); renderNov(); atualiza(); })
+      .catch(function(){});
+  }
+
+  function troca(a){
+    document.getElementById('sino-aba-rec').classList.toggle('on', a==='rec');
+    document.getElementById('sino-aba-nov').classList.toggle('on', a==='nov');
+    document.getElementById('sino-lista-rec').hidden = (a!=='rec');
+    document.getElementById('sino-lista-nov').hidden = (a!=='nov');
+    var v = lerV();
+    if(a==='rec') recebidas.forEach(function(x){ v['r:'+idR(x)]=1; });
+    else novidades.forEach(function(x){ v['n:'+idN(x)]=1; });
+    salvarV(v);
+    setTimeout(function(){ if(a==='rec') renderRec(); atualiza(); }, 1400);
+  }
+  document.getElementById('sino-aba-rec').addEventListener('click', function(){ troca('rec'); });
+  document.getElementById('sino-aba-nov').addEventListener('click', function(){ troca('nov'); });
+  document.getElementById('sino-lidas').addEventListener('click', function(){
+    var v = lerV();
+    recebidas.forEach(function(x){ v['r:'+idR(x)]=1; });
+    novidades.forEach(function(x){ v['n:'+idN(x)]=1; });
+    salvarV(v); renderRec(); atualiza();
+  });
+
+  function abre(){ pop.hidden=false; btn.setAttribute('aria-expanded','true'); if(!carregou) carregar(); }
+  function fecha(){ pop.hidden=true; btn.setAttribute('aria-expanded','false'); }
+  btn.addEventListener('click', function(e){ e.stopPropagation(); if(pop.hidden) abre(); else fecha(); });
+  document.addEventListener('click', function(e){ if(!pop.hidden && !pop.contains(e.target) && !btn.contains(e.target)) fecha(); });
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape' && !pop.hidden) fecha(); });
+
+  carregar();  // carga silenciosa pra o badge aparecer sem abrir
+})();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#2b2620"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black"><meta name="apple-mobile-web-app-title" content="Bento">
+<title>Histórico de quebras · Portal do Bar | Bento</title>
+<style>
+  :root {
+    --bg: #2b2620; --card: #342e26; --card-2: #3b342a;
+    --border: #4a4133; --border-2: #5d5142;
+    --text: #f0e7d8; --text-2: #b3a68f; --text-3: #8f8370;
+    --ambar: #d5a05c; --ambar-2: #e0b273; --ambar-bg: rgba(213,160,92,.13);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--text);
+    padding: 16px 18px 24px; max-width: 980px; margin: 0 auto;
+  }
+  ::placeholder { color: var(--text-3); }
+  .ic { vertical-align: -3px; }
+  header.brand { display: flex; flex-direction: column; align-items: center; justify-content: center;
+                 gap: 4px; padding: 14px 0 18px; }
+  .brand .logo { height: 80px; width: auto; display: block; }
+  nav { display: flex; gap: 2px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+        scrollbar-width: none; border-top: 1px solid var(--border);
+        border-bottom: 1px solid var(--border); padding: 6px 0; margin-bottom: 24px; }
+  nav::-webkit-scrollbar { display: none; }
+  nav a { color: var(--text-2); text-decoration: none; font-size: 14px;
+          padding: 8px 12px; border-radius: 8px; white-space: nowrap; }
+  nav a.on { color: var(--ambar-2); background: var(--ambar-bg); font-weight: 600; }
+  nav a:hover { color: var(--ambar-2); }
+  h1 { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+       font-size: 27px; font-weight: 500; margin-bottom: 6px; }
+  .sub { color: var(--text-2); font-size: 14px; margin-bottom: 22px; line-height: 1.5; }
+  .voltar { display: inline-block; font-size: 13px; color: var(--text-2); text-decoration: none;
+            margin-bottom: 14px; }
+  .voltar:hover { color: var(--ambar-2); }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+           padding: 18px; margin-bottom: 14px; font-size: 14px; }
+  .panel p, .panel li { color: var(--text-2); line-height: 1.5; }
+  .nota { font-size: 12px; color: var(--text-3); margin-top: 30px; line-height: 1.5; }
+  .nota a { color: var(--ambar-2); }
+  .status { font-size: 13px; margin: 10px 0; min-height: 18px; }
+  .status.ok { color: #9fdcae; }
+  .status.erro { color: #f09b9b; }
+
+  .mes { background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+         padding: 16px 18px; margin-bottom: 14px; }
+  .mes header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+                margin-bottom: 12px; }
+  .mes h2 { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+            font-size: 17px; font-weight: 500; text-transform: capitalize; }
+  .mes .total { flex: none; font-size: 13px; color: var(--ambar-2); font-weight: 700; }
+  .mes .custo-mes { font-size: 12px; color: var(--text-3); margin: -6px 0 8px; }
+  .item-linha { display: flex; align-items: baseline; gap: 10px; padding: 5px 0;
+                border-bottom: 1px dashed var(--border); font-size: 13.5px; }
+  .item-linha:last-child { border-bottom: none; }
+  .item-linha .nome { flex: 1; min-width: 0; }
+  .item-linha .qtd { font-weight: 700; color: var(--ambar-2); font-variant-numeric: tabular-nums; flex: none; }
+  .item-linha .custo { font-size: 12px; color: var(--text-3); flex: none; }
+
+  details.detalhes { margin-top: 10px; }
+  details.detalhes summary { font-size: 12px; color: var(--text-3); cursor: pointer; padding: 6px 0; }
+  details.detalhes summary:hover { color: var(--ambar-2); }
+  .entrada { padding: 8px 0; border-top: 1px dashed var(--border); font-size: 12.5px; }
+  .entrada .topo { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; margin-bottom: 2px; }
+  .entrada .nome { font-weight: 600; }
+  .entrada .qtd { color: var(--ambar-2); font-weight: 700; }
+  .entrada .data { color: var(--text-3); margin-left: auto; }
+  .entrada .motivo { color: var(--text-2); }
+  .entrada .detalhe { color: var(--text-3); margin-top: 2px; }
+  .entrada .resp { color: var(--text-3); }
+
+  .nivel-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-3);
+                text-decoration: none; }
+  .nivel-pill b { color: var(--ambar-2); font-weight: 600; }
+  .nivel-pill:hover { color: var(--text-2); }
+
+  /* Reconciliação da vidraria (F4 do PLANO_MURAL_MAITRE.md). Escopado .rc-*
+     e reusando .panel/.status da própria página — não inventar um segundo
+     sistema visual dentro de uma página mantida à mão. */
+  .rc-h { font-size: 16px; margin: 0 0 4px; }
+  .rc-sub { font-size: 13px; color: var(--text-2); margin: 0 0 14px; line-height: 1.5; }
+  .rc-eq { display: grid; grid-template-columns: 1fr 1fr 1.1fr; gap: 7px; text-align: center; }
+  .rc-eq div { padding: 9px 4px; border-radius: 10px; border: 1px solid var(--border); }
+  .rc-eq .v { font-size: 20px; font-weight: 600; line-height: 1.15; }
+  .rc-eq .l { font-size: 11.5px; color: var(--text-3); margin-top: 2px; line-height: 1.3; }
+  .rc-eq .fim { background: var(--coral-bg); border-color: var(--coral); }
+  .rc-eq .fim .v, .rc-eq .fim .l { color: var(--coral); }
+  .rc-lin { display: flex; align-items: center; gap: 11px; padding: 10px 0;
+            border-bottom: 1px solid var(--border); }
+  .rc-lin .big { width: 46px; text-align: center; flex: none; }
+  .rc-lin .big .v { font-size: 19px; font-weight: 600; line-height: 1.1; color: var(--coral); }
+  .rc-lin.med .big .v { color: var(--ambar-2); }
+  .rc-lin .big .l { font-size: 11px; color: var(--text-3); }
+  .rc-lin .nm { font-size: 13.5px; font-weight: 600; }
+  .rc-lin .sb { font-size: 11.5px; color: var(--text-2); margin-top: 2px; }
+  .rc-lin .lb { margin-left: auto; text-align: right; flex: none; font-size: 12.5px; }
+  .rc-lin .lb .mini { font-size: 11px; color: var(--text-3); }
+  .rc-quieto { font-size: 12.5px; color: var(--text-3); text-align: center; padding: 11px;
+               border: 1px dashed var(--border); border-radius: 10px; margin-top: 12px; }
+  .rc-nota { font-size: 11.5px; color: var(--text-3); margin-top: 12px; line-height: 1.5; }
+  .rc-cta { display: inline-block; margin-top: 12px; padding: 11px 16px; border-radius: 10px;
+            border: 1px solid var(--ambar); background: var(--ambar-bg); color: var(--ambar-2);
+            text-decoration: none; font-size: 14px; font-weight: 600; }
+</style>
+</head>
+<body>
+<!-- GUARD:LOGIN:INICIO -->
+
+<script>
+window.BENTO_WORKER = "https://bento-portal-contagem.rodrigopcviana.workers.dev";
+window.SESSAO_BENTO_LS = 'bento_sessao';
+// Modo prévia (admin-ver-como.html, 2026-09-25): o admin abre o mural de
+// outro nível numa moldura e a página se comporta como se o acesso fosse
+// daquele nível — sem trocar de login. Só liga quando AS DUAS coisas valem:
+// a sessão REAL é admin, e o topo da aba é admin-ver-como.html do MESMO site
+// (topo de outro domínio lança exceção ao ler location → sem prévia). Nenhum
+// nível ganha acesso que não tinha: o admin já vê tudo isso nas páginas dele,
+// e o token continua sendo o do admin — o worker decide pelo token real.
+window.previaBento = function () {
+  try {
+    if (window.self === window.top) return null;
+    if (window.top.location.pathname.split('/').pop() !== 'admin-ver-como.html') return null;
+    var p = window.top.bentoPrevia;
+    return p && p.nivel ? p : null;
+  } catch (e) { return null; }
+};
+window.sessaoBentoLer = function () {
+  try {
+    var raw = localStorage.getItem(window.SESSAO_BENTO_LS);
+    if (!raw) return null;
+    var s = JSON.parse(raw);
+    if (!s || !s.token || !s.exp || Date.now() > s.exp) return null;
+    var pv = s.nivel === 'admin' ? window.previaBento() : null;
+    if (pv) return { nivel: pv.nivel, pessoa: pv.pessoa || null, token: s.token, exp: s.exp, previa: true };
+    return s;
+  } catch (e) { return null; }
+};
+// Faixa fixa dentro da moldura: a prévia nunca pode ser confundida com a tela
+// real, e o que se envia daqui GRAVA DE VERDADE (decisão do Rodrigo).
+(function () {
+  var s = window.sessaoBentoLer();
+  if (!s || !s.previa) return;
+  var nomes = { equipe: 'Equipe de Bar', maitres: 'Maîtres', rh: 'RH', suprimentos: 'Suprimentos',
+                controladoria: 'Controladoria', diretoria: 'Diretoria' };
+  function faixa() {
+    if (document.getElementById('previa-faixa')) return;
+    var f = document.createElement('div');
+    f.id = 'previa-faixa';
+    f.setAttribute('role', 'status');
+    f.style.cssText = 'position:sticky;top:0;z-index:99;background:#5a3fa0;color:#fff;font:600 12px/1.35 -apple-system,sans-serif;padding:7px 12px;text-align:center';
+    f.textContent = 'Modo prévia · vendo como ' + (nomes[s.nivel] || s.nivel) +
+      (s.pessoa ? ' (' + s.pessoa + ')' : '') + ' — o que você enviar aqui é gravado de verdade';
+    document.body.insertBefore(f, document.body.firstChild);
+  }
+  if (document.body) faixa(); else document.addEventListener('DOMContentLoaded', faixa);
+})();
+// `pessoa` passou a ser guardada (2026-07-25): o worker já devolvia, mas a
+// sessão descartava — e sem ela a página de Acessos não sabe quem está
+// decidindo. Campo opcional: sessão de silo (sem pessoa) continua igual.
+// Dentro da prévia, "Trocar acesso" ou um login na moldura NÃO podem mexer na
+// sessão real do admin — o localStorage é o mesmo da aba de fora.
+window.sessaoBentoSalvar = function (nivel, token, exp, pessoa) {
+  if (window.previaBento()) return;
+  try { localStorage.setItem(window.SESSAO_BENTO_LS, JSON.stringify({ nivel: nivel, token: token, exp: exp, pessoa: pessoa || null })); } catch (e) {}
+};
+window.sessaoBentoLimpar = function () {
+  if (window.previaBento()) return;
+  try { localStorage.removeItem(window.SESSAO_BENTO_LS); } catch (e) {}
+};
+window.loginSenhaBento = function (senha) {
+  return fetch(window.BENTO_WORKER + '/api/nivel', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ senha: senha }),
+  }).then(function (r) {
+    if (r.status === 401) return { ok: false, status: 401 };
+    if (!r.ok) return { ok: false, status: r.status };
+    return r.json().then(function (d) {
+      if (d.token) window.sessaoBentoSalvar(d.nivel, d.token, d.exp, d.pessoa);
+      return { ok: true, nivel: d.nivel, token: d.token, pessoa: d.pessoa || null };
+    });
+  }).catch(function () { return { ok: false, status: 0 }; });
+};
+// Gate padrão das páginas protegidas: sem sessão -> manda pra home logar,
+// com volta automática pra cá. "volta" é o NOME DO ARQUIVO atual (lido de
+// location.pathname, não o slug de nav — mural.html/controladoria-mural.html/
+// admin-mural.html compartilham o mesmo slug "mural" pro nav, mas são
+// arquivos diferentes; voltar pro slug errado abriria o silo errado depois
+// do login). Sessão de nível diferente do exigido (ex.: Equipe abrindo
+// controladoria-mural.html direto por URL) -> NÃO redireciona (senão a home
+// logada devolveria pra cá e viraria loop); mostra mensagem.
+window.irParaLoginBento = function () {
+  var atual = location.pathname.split('/').pop().replace(/\.html$/, '') || 'index';
+  location.replace('index.html?volta=' + encodeURIComponent(atual) + '#acesso');
+};
+window.exigirNivel = function (niveisOk, slug) {
+  var s = window.sessaoBentoLer();
+  if (s && niveisOk.indexOf(s.nivel) >= 0) return { ok: true, sessao: s };
+  if (!s) { window.irParaLoginBento(); return { ok: false, redirecionou: true }; }
+  document.body.innerHTML = '<div id="acesso-negado" class="capa-wrap capa-centro"><p class="capa-sub">'
+    + 'Seu acesso atual não abre esta página. '
+    + '<a href="index.html?trocar=1">Trocar acesso</a>.</p></div>';
+  // Esta função roda DURANTE a leitura do HTML: trocar o <body> não impede o
+  // navegador de continuar lendo o resto da página e montá-lo embaixo da
+  // mensagem (achado 2026-09-25 — toda página do site mostrava a casca
+  // inteira pra quem não tinha acesso; dado não vazava, o worker confere o
+  // token). Duas camadas: parar o carregamento (o resto nem é montado nem
+  // executado) e, de reserva, esconder tudo que não for a mensagem.
+  try {
+    var st = document.createElement('style');
+    st.textContent = 'body > :not(#acesso-negado) { display: none !important; }';
+    (document.head || document.documentElement).appendChild(st);
+  } catch (e) {}
+  try { window.stop(); } catch (e) {}
+  return { ok: false, nivelAtual: s.nivel };
+};
+// Injeta um fragmento vindo de /api/protegido/<chave> (vendas/ranking/
+// equipe-vendas/feedback-nutricionista — dado que embutido direto no HTML
+// público vazaria por URL sem senha, ver PLANO_LOGIN_TOKEN_BENTO.md seção 3).
+// innerHTML NÃO executa <script> injetado — recria os nós pra rodar mesmo.
+window.injetaProtegido = function (el, htmlTexto) {
+  el.innerHTML = htmlTexto;
+  el.querySelectorAll('script').forEach(function (velho) {
+    var novo = document.createElement('script');
+    if (velho.src) novo.src = velho.src; else novo.textContent = velho.textContent;
+    velho.replaceWith(novo);
+  });
+};
+window.carregaProtegido = function (chave, containerId) {
+  var el = document.getElementById(containerId);
+  var s = window.sessaoBentoLer();
+  if (!s || !el) return;
+  fetch(window.BENTO_WORKER + '/api/protegido/' + chave, { headers: { 'X-Token': s.token } })
+    .then(function (r) {
+      if (r.status === 401) { el.innerHTML = '<div class="panel"><p>Sua sessão não abre este conteúdo. <a href="index.html?trocar=1">Trocar acesso</a>.</p></div>'; return null; }
+      if (!r.ok) { el.innerHTML = '<div class="panel"><p>Falha ao carregar — tente de novo.</p></div>'; return null; }
+      return r.json();
+    })
+    .then(function (d) { if (d && d.conteudo) window.injetaProtegido(el, d.conteudo); })
+    .catch(function () { el.innerHTML = '<div class="panel"><p>Sem conexão — tente de novo.</p></div>'; });
+};
+// Variante pra quando o protegido é DADO (JSON), não HTML pronto — caso da
+// página de Vendas (bento/templates/vendas.html): o template já sabia
+// renderizar a partir de uma const D populada no load; aqui só troca de
+// onde D vem (const embutida -> fetch autenticado) e chama de volta com o
+// dado já parseado, sem reimplementar a renderização em si.
+window.carregaProtegidoJSON = function (chave, callback, onErro) {
+  var s = window.sessaoBentoLer();
+  if (!s) return;
+  fetch(window.BENTO_WORKER + '/api/protegido/' + chave, { headers: { 'X-Token': s.token } })
+    .then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
+    .then(function (d) { callback(JSON.parse(d.conteudo)); })
+    .catch(function (e) { if (onErro) onErro(e); });
+};
+</script>
+
+<script>window.exigirNivel(["controladoria"], "quebras-historico");</script>
+<!-- GUARD:LOGIN:FIM -->
+<!-- VERSAO:INICIO -->
+
+<style>
+  .ver-nova { position: fixed; left: 12px; right: 12px; top: calc(10px + env(safe-area-inset-top, 0px));
+    z-index: 96; margin: 0 auto; max-width: 460px; display: none;
+    background: var(--card-2, #3b342a); border: 1px solid var(--ambar, #d5a05c); border-radius: 12px;
+    padding: 10px 12px; box-shadow: 0 8px 24px rgba(0,0,0,.45);
+    align-items: center; gap: 10px; }
+  .ver-nova.on { display: flex; }
+  .ver-nova svg { flex: none; color: var(--ambar, #d5a05c); }
+  .vn-txt { flex: 1; font-size: 12.5px; color: var(--text-2, #b3a68f); line-height: 1.4; }
+  .vn-txt b { color: var(--text, #f0e7d8); }
+  .vn-ok { flex: none; font-size: 12px; font-weight: 600; padding: 7px 12px;
+    border-radius: 999px; cursor: pointer; background: var(--ambar, #d5a05c); border: none;
+    color: #2b2620; }
+  .vn-x { flex: none; background: none; border: none; color: var(--text-2, #b3a68f);
+    font-size: 18px; line-height: 1; cursor: pointer; padding: 2px 4px; }
+</style>
+<div class="ver-nova" id="ver-nova" role="status" aria-live="polite">
+  <svg class="ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 3.5V9h-5.5"/></svg>
+  <div class="vn-txt"><b>Nova versão disponível.</b> Atualize pra ver o conteúdo mais recente.</div>
+  <button type="button" class="vn-ok" id="vn-ok">Atualizar</button>
+  <button type="button" class="vn-x" id="vn-x" aria-label="Dispensar">&times;</button>
+</div>
+<script>
+(function () {
+  var BUILD = 'c2dfe987c054';
+  var ALVO = 'versao.json';
+  var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
+  var ultimo = 0, mostrando = false;
+
+  function mostra(novo) {
+    if (mostrando) return;
+    if (localStorage.getItem('bento_build_dispensado') === novo) return;
+    mostrando = true;
+    var box = document.getElementById('ver-nova');
+    if (!box) return;
+    box.classList.add('on');
+    document.getElementById('vn-x').onclick = function () {
+      try { localStorage.setItem('bento_build_dispensado', novo); } catch (e) {}
+      box.classList.remove('on');
+    };
+    document.getElementById('vn-ok').onclick = atualiza;
+  }
+
+  // Limpa TODOS os caches do service worker e recarrega. Sem isso um reload
+  // comum ainda seria atendido pela casca cacheada (ícones, logo, fila-offline).
+  function atualiza() {
+    var feito = false;
+    var recarrega = function () { if (feito) return; feito = true; location.reload(); };
+    setTimeout(recarrega, 2500);   // rede travada não pode prender o usuário
+    var t = [];
+    try {
+      if (window.caches && caches.keys) {
+        t.push(caches.keys().then(function (ks) {
+          return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+        }));
+      }
+      if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
+        t.push(navigator.serviceWorker.getRegistration().then(function (r) { return r && r.update(); }));
+      }
+    } catch (e) {}
+    Promise.all(t).then(recarrega, recarrega);
+  }
+
+  function confere() {
+    if (mostrando) return;
+    var agora = Date.now();
+    if (agora - ultimo < MIN_ENTRE) return;
+    ultimo = agora;
+    fetch(ALVO + '?t=' + agora, { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { if (d && d.build && d.build !== BUILD) mostra(d.build); })
+      .catch(function () {});
+  }
+
+  // Expostos pra um eventual botão manual "Buscar atualização" (Meu perfil).
+  window.bentoAtualiza = atualiza;
+  window.bentoConfere = function () { ultimo = 0; confere(); };
+
+  setTimeout(confere, 4000);                       // não competir com o render
+  setInterval(function () { if (!document.hidden) confere(); }, 600000);
+  document.addEventListener('visibilitychange', function () {
+    // o caso que só isto alcança: app em standalone voltando do alternador.
+    if (!document.hidden) confere();
+  });
+})();
+</script>
+
+<!-- VERSAO:FIM -->
+<style>
+  .fila-selo { display: none; align-items: center; gap: 5px; font-size: 11px; font-weight: 600;
+               color: #2b2117; background: var(--ambar); border: none; border-radius: 999px;
+               padding: 5px 11px; cursor: pointer; margin-left: 8px; }
+</style>
+<header class="brand"><img class="logo" src="logo-bento.png" alt="Bento Restaurante">
+<a class="nivel-pill" href="index.html">Página inicial <b>(Trocar acesso)</b></a>
+<button type="button" class="fila-selo" id="fila-selo"></button>
+</header>
+
+<a class="voltar" id="voltar-dyn" href="controladoria-mural.html">&larr; Reportar quebra</a>
+<script>
+// Achado na varredura de intuitividade (2026-09-04, maitres/admin): esta
+// página também é linkada direto por "Áreas do portal" no Mural
+// (mural.html:qa), não só pelo caminho "natural" pra onde o voltar sempre
+// apontava. Mesmo padrão de referrer já usado em regras.html/quebras.html.
+(function () {
+  if (/controladoria\-mural\.html/.test(document.referrer || "")) {
+    var a = document.getElementById("voltar-dyn");
+    a.setAttribute("href", "controladoria-mural.html");
+    a.textContent = "← Mural";
+  }
+})();
+</script>
+
+<!-- Painel Rápido mini (injetado 2026-07-10) -->
+<style>
+  .pr-mini { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; margin: 12px 0 16px; }
+  a.prm-card { position: relative; display: flex; align-items: center; gap: 8px; border-radius: 11px;
+               padding: 8px 10px 8px 11px; text-decoration: none; color: var(--text); min-height: 38px;
+               min-width: 0; border: 1.5px solid; overflow: hidden; transition: filter .15s; }
+  a.prm-card:hover { filter: brightness(1.12); }
+  a.prm-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
+  .prm-card.prm-oc { background: linear-gradient(135deg,#33221d,#241713); border-color: #e07a52; }
+  .prm-card.prm-oc::before { background: #f28a63; }
+  .prm-card.prm-so { background: linear-gradient(135deg,#152a22,#111d17); border-color: #4fbf92; }
+  .prm-card.prm-so::before { background: #7fe6bd; }
+  a.prm-card .prm-chip { width: 26px; height: 26px; border-radius: 8px; display: flex;
+                          align-items: center; justify-content: center; flex: none; }
+  a.prm-card .prm-chip svg { width: 14px; height: 14px; display: block; flex: none; }
+  .prm-card.prm-oc .prm-chip { background: rgba(226,75,74,.16); color: #f0a58f; }
+  .prm-card.prm-so .prm-chip { background: rgba(80,170,110,.16); color: #9fdcae; }
+  .prm-card .prm-t { font-size: 12.5px; font-weight: 600; }
+</style>
+<div class="pr-mini">
+  <a class="prm-card prm-oc" href="controladoria-registro.html"><span class="prm-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 16h.01"/><path d="M10.36 3.6 2.26 17.5a1.9 1.9 0 0 0 1.64 2.5h16.2a1.9 1.9 0 0 0 1.64-2.5L13.64 3.6a1.9 1.9 0 0 0-3.28 0z"/></svg></span><span class="prm-t">Nova demanda</span></a>
+</div>
+
+<h1>Histórico de quebras</h1>
+<p class="sub">Quantos copos, taças e louças quebraram, mês a mês — direto do histórico do Notion. Mostra até 6 meses recentes.</p>
+
+<div class="panel" id="rc-box">
+<h2 class="rc-h">Reconciliação da vidraria</h2>
+<p class="rc-sub">O que sumiu entre as duas últimas contagens, contra o que foi reportado aqui embaixo. A diferença é quebra que ninguém registrou.</p>
+<div id="rc-corpo"><p class="status">Carregando…</p></div>
+</div>
+
+<p class="status" id="status-historico">Carregando…</p>
+<div id="meses"></div>
+
+<p class="nota">Um número parece errado ou faltando?
+<a href="https://wa.me/556281483511?text=Ol%C3%A1%20Rodrigo!%20D%C3%BAvida%20no%20hist%C3%B3rico%20de%20quebras%20do%20Portal%20do%20Bento%3A%20">avise o Rodrigo no WhatsApp</a>.</p>
+
+<p class="nota">Portal do Bar · Bento · página de quebras adicionada em 08/07/2026 (não faz parte da geração automática das demais páginas).</p>
+
+<script>
+(function () {
+  var WORKER_URL = 'https://bento-portal-contagem.rodrigopcviana.workers.dev';
+  var CHAVE = '2436ca47933b3c17a90886daa8fec616';
+
+  var status = document.getElementById('status-historico');
+  var host = document.getElementById('meses');
+
+  function el(tag, attrs, children) {
+    var e = document.createElement(tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    (children || []).forEach(function (c) { e.appendChild(c); });
+    return e;
+  }
+
+  function txt(s) { return document.createTextNode(s); }
+
+  function fmtData(iso) {
+    if (!iso) return '';
+    var p = iso.split('-');
+    return p[2] + '/' + p[1];
+  }
+
+  // Dinheiro nunca é fabricado: undefined vira "—", nunca "R$ 0,00".
+  function fmtReal(v) {
+    if (typeof v !== 'number') return '—';
+    return 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function renderMes(m) {
+    var bloco = el('article', { class: 'mes' });
+    var header = el('header', {}, [
+      el('h2', {}, [txt(m.label)]),
+      el('span', { class: 'total' }, [txt(m.total + (m.total === 1 ? ' quebra' : ' quebras'))])
+    ]);
+    bloco.appendChild(header);
+
+    // Custo em R$: só do Catálogo de Copos | Bento (Nome na contagem), nunca
+    // estimado — louça ("Outro item") e copo ainda sem preço cadastrado ficam
+    // de fora da soma, então o rótulo avisa quando ela é PARCIAL.
+    if (m.custoTotal > 0 || !m.custoIncompleto) {
+      var rotuloCusto = m.custoIncompleto
+        ? fmtReal(m.custoTotal) + ' em itens com preço cadastrado (parcial)'
+        : fmtReal(m.custoTotal) + ' em quebras';
+      bloco.appendChild(el('div', { class: 'custo-mes' }, [txt(rotuloCusto)]));
+    }
+
+    m.porItem.forEach(function (it) {
+      var filhos = [
+        el('span', { class: 'nome' }, [txt(it.nome)]),
+        el('span', { class: 'qtd' }, [txt(String(it.quantidade))])
+      ];
+      if (typeof it.custo === 'number') {
+        filhos.push(el('span', { class: 'custo' }, [txt(fmtReal(it.custo))]));
+      }
+      bloco.appendChild(el('div', { class: 'item-linha' }, filhos));
+    });
+
+    var det = el('details', { class: 'detalhes' });
+    det.appendChild(el('summary', {}, [txt('Ver reportes individuais (' + m.entradas.length + ')')]));
+    m.entradas.forEach(function (en) {
+      var topo = el('div', { class: 'topo' }, [
+        el('span', { class: 'nome' }, [txt(en.nome)]),
+        el('span', { class: 'qtd' }, [txt('×' + en.quantidade)]),
+        el('span', { class: 'data' }, [txt(fmtData(en.data))])
+      ]);
+      var wrap = el('div', { class: 'entrada' }, [topo]);
+      wrap.appendChild(el('div', { class: 'motivo' }, [txt(en.motivo || '—')]));
+      if (en.detalhe) wrap.appendChild(el('div', { class: 'detalhe' }, [txt(en.detalhe)]));
+      wrap.appendChild(el('div', { class: 'resp' }, [txt(en.responsavel || '—')]));
+      det.appendChild(wrap);
+    });
+    bloco.appendChild(det);
+
+    return bloco;
+  }
+
+  function carregar() {
+    if (WORKER_URL.indexOf('SEU-SUBDOMINIO') !== -1) {
+      status.textContent = 'Portal ainda não configurado com o endereço do backend — fale com o Rodrigo.';
+      status.className = 'status erro';
+      return;
+    }
+    status.textContent = 'Carregando…';
+    status.className = 'status';
+    fetch(WORKER_URL + '/api/quebras/historico', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chave: CHAVE, meses: 6 })
+    }).then(function (res) { return res.json().then(function (json) { return { res: res, json: json }; }); })
+      .then(function (r) {
+        if (!r.res.ok || !r.json.ok) {
+          status.textContent = 'Deu erro carregando o histórico (' + (r.json.erro || r.res.status) + ').';
+          status.className = 'status erro';
+          return;
+        }
+        status.textContent = '';
+        if (!r.json.meses.length) {
+          host.appendChild(el('div', { class: 'panel' }, [txt('Nenhuma quebra registrada nesse período ainda.')]));
+          return;
+        }
+        r.json.meses.forEach(function (m) { host.appendChild(renderMes(m)); });
+      })
+      .catch(function () {
+        status.textContent = 'Sem conexão com o backend agora. Tente de novo em instantes.';
+        status.className = 'status erro';
+      });
+  }
+
+  carregar();
+})();
+</script>
+<script src="reconcilia-vidraria.js"></script>
+<script>
+/* Reconciliação da vidraria — F4 do PLANO_MURAL_MAITRE.md.
+   O cálculo inteiro mora em reconcilia-vidraria.js (função pura, 77 asserções
+   em bento/testa_reconcilia_vidraria.mjs, provadas por mutação). Aqui só se
+   busca e se pinta.
+
+   Bloco INDEPENDENTE do histórico logo abaixo, de propósito: se a contagem
+   falhar, o histórico de quebras continua inteiro, e vice-versa. As duas
+   chamadas saem em PARALELO, então a página não fica mais lenta do que já era
+   — só uma requisição a mais. */
+(function () {
+  var host = document.getElementById('rc-corpo');
+  if (!host || !window.ReconciliaVidraria) return;
+  var RV = window.ReconciliaVidraria;
+  var PREFIXO = 'controladoria-';
+  /* WORKER_URL e CHAVE do script do histórico são `var` DENTRO do IIFE dele —
+     closure, não global. Este bloco é outro IIFE e não os enxerga: pego a URL
+     de window.BENTO_WORKER (essa sim é global) e declaro o próprio
+     placeholder de chave, que o publicar.sh substitui no arquivo inteiro.
+     Achado ao abrir a página de verdade; nenhum teste de estrutura pegaria. */
+  var W = window.BENTO_WORKER || '';
+  var CH = '2436ca47933b3c17a90886daa8fec616';
+
+  function h(tag, cls, txt) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (txt !== undefined) e.textContent = txt;
+    return e;
+  }
+  function limpa() { while (host.firstChild) host.removeChild(host.firstChild); }
+  function aviso(t) { limpa(); host.appendChild(h('p', 'status', t)); }
+
+  function post(rota, corpo) {
+    return fetch(W + rota, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(corpo)
+    }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+  }
+
+  if (!W || W.indexOf('SEU-SUBDOMINIO') !== -1) { aviso('Backend não configurado.'); return; }
+
+  Promise.all([
+    post('/api/contagem/historico', { chave: CH, semanas: 26 }),
+    post('/api/quebras/historico', { chave: CH, meses: 12 })
+  ]).then(function (r) {
+    var cont = r[0], queb = r[1];
+    if (!cont) { aviso('Não consegui ler as contagens agora.'); return; }
+    desenha(RV.reconciliaVidraria({
+      semanas: (cont && cont.semanas) || [],
+      meses: (queb && queb.meses) || []
+    }));
+  }).catch(function () { aviso('Sem conexão para calcular a reconciliação.'); });
+
+  function desenha(rec) {
+    limpa();
+
+    /* Sem par de contagens não se afirma NADA. Texto de implantação, não de
+       erro: para quem chega, "ainda não contado" é tarefa, não falha. */
+    if (!rec.ok) {
+      var p = h('p', 'rc-sub');
+      p.textContent = rec.motivo === 'uma_contagem_so'
+        ? 'Só existe uma contagem de vidraria registrada. A conta do que sumiu precisa de duas — a próxima já destrava esta tela.'
+        : 'Ainda não há contagem de vidraria registrada. É a contagem que faz esta conta existir.';
+      host.appendChild(p);
+      var a = h('a', 'rc-cta', 'Contar a vidraria');
+      a.setAttribute('href', PREFIXO + 'contagem-copos.html');
+      host.appendChild(a);
+      return;
+    }
+
+    var t = rec.totais;
+    var eq = h('div', 'rc-eq');
+    [[String(t.sumiu), 'sumiram', ''],
+     ['-' + t.reportado, 'reportadas', ''],
+     [String(t.semExplicacao), 'sem explicação', 'fim']].forEach(function (c) {
+      var d = h('div', c[2]);
+      d.appendChild(h('div', 'v', c[0]));
+      d.appendChild(h('div', 'l', c[1]));
+      eq.appendChild(d);
+    });
+    host.appendChild(eq);
+
+    var comDiv = rec.itens.filter(function (i) { return i.semExplicacao > 0; });
+    comDiv.forEach(function (i) {
+      var lin = h('div', 'rc-lin' + (i.semExplicacao > 2 ? '' : ' med'));
+      var big = h('div', 'big');
+      big.appendChild(h('div', 'v', String(i.semExplicacao)));
+      big.appendChild(h('div', 'l', 's/ expl.'));
+      lin.appendChild(big);
+      var meio = h('div');
+      meio.appendChild(h('div', 'nm', i.nome));
+      meio.appendChild(h('div', 'sb', 'sumiram ' + i.sumiu + ' · ' +
+        (i.reportado ? i.reportado + ' reportadas' : 'nada reportado')));
+      lin.appendChild(meio);
+      var lb = h('div', 'lb');
+      lb.appendChild(h('div', null, i.contado + (i.lastro == null ? '' : '/' + i.lastro)));
+      if (i.lastro != null && i.lastro > i.contado) {
+        lb.appendChild(h('div', 'mini', '-' + (i.lastro - i.contado) + ' do lastro'));
+      }
+      lin.appendChild(lb);
+      host.appendChild(lin);
+    });
+
+    var limpos = rec.itens.length - comDiv.length;
+    if (limpos > 0) {
+      host.appendChild(h('div', 'rc-quieto', limpos === 1
+        ? '1 modelo fechou certo'
+        : limpos + ' modelos fecharam certo'));
+    }
+    if (!comDiv.length) {
+      host.appendChild(h('div', 'rc-quieto', 'Nenhuma peça sumiu sem reporte neste período.'));
+    }
+
+    /* Declarar o que NÃO entrou na conta é parte do resultado: item sem par de
+       contagens e quebra de nome que não casa com o catálogo ficam de fora de
+       propósito, e esconder isso faria o total parecer mais completo do que é. */
+    var notas = [];
+    notas.push('Entre a contagem de ' + rec.janela.de + ' e a de ' + rec.janela.ate + '.');
+    if (rec.incomparaveis.length) {
+      notas.push(rec.incomparaveis.length + ' item(ns) fora da conta por aparecer em só uma das contagens.');
+    }
+    if (rec.naoCasadas.length) {
+      notas.push(rec.naoCasadas.length + ' quebra(s) de item que não está na contagem (louça, ou nome digitado livre) não entram aqui.');
+    }
+    var inconsistentes = rec.itens.filter(function (i) { return i.inconsistente; });
+    if (inconsistentes.length) {
+      notas.push(inconsistentes.length + ' item(ns) com mais quebras reportadas do que peças a menos — contagem a conferir.');
+    }
+    if (t.custoIncompleto) {
+      notas.push('Custo não aparece: nem todo modelo tem preço cadastrado, e preço ausente não vira zero.');
+    }
+    host.appendChild(h('p', 'rc-nota', notas.join(' ')));
+  }
+})();
+</script>
+<script src="fila-offline.js"></script>
+<script>if (window.FilaOffline) window.FilaOffline.iniciarSelo({"elId": "fila-selo", "destinos": {"registro": "controladoria-registro.html", "turno": "controladoria-mural.html"}});</script>
+<script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){});});}</script></body>
+</html>

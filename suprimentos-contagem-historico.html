@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#2b2620"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black"><meta name="apple-mobile-web-app-title" content="Bento">
+<title>Histórico de contagens · Portal do Bar | Bento</title>
+<style>
+  :root {
+    --bg: #2b2620; --card: #342e26; --card-2: #3b342a;
+    --border: #4a4133; --border-2: #5d5142;
+    --text: #f0e7d8; --text-2: #b3a68f; --text-3: #8f8370;
+    --ambar: #d5a05c; --ambar-2: #e0b273; --ambar-bg: rgba(213,160,92,.13);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--text);
+    padding: 16px 18px 24px; max-width: 980px; margin: 0 auto;
+  }
+  .ic { vertical-align: -3px; }
+  header.brand { display: flex; flex-direction: column; align-items: center; justify-content: center;
+                 gap: 4px; padding: 14px 0 18px; }
+  .brand .logo { height: 80px; width: auto; display: block; }
+  h1 { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+       font-size: 27px; font-weight: 500; margin-bottom: 6px; }
+  .sub { color: var(--text-2); font-size: 14px; margin-bottom: 20px; line-height: 1.5; }
+  .voltar { display: inline-block; font-size: 13px; color: var(--text-2); text-decoration: none;
+            margin-bottom: 14px; }
+  .voltar:hover { color: var(--ambar-2); }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+           padding: 18px; margin-bottom: 14px; font-size: 14px; }
+  .panel p { color: var(--text-2); line-height: 1.5; }
+  .nota { font-size: 12px; color: var(--text-3); margin-top: 30px; line-height: 1.5; }
+  .nota a { color: var(--ambar-2); }
+  .status { font-size: 13px; margin: 10px 0; min-height: 18px; }
+  .status.ok { color: #9fdcae; }
+  .status.erro { color: #f09b9b; }
+  .nivel-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-3);
+                text-decoration: none; }
+  .nivel-pill b { color: var(--ambar-2); font-weight: 600; }
+  .nivel-pill:hover { color: var(--text-2); }
+
+  /* controles: abas (categoria) e modos (visualização) */
+  .controles { position: sticky; top: 0; background: var(--bg); padding: 6px 0 4px; z-index: 3; }
+  .tabs, .modes { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tabs { margin-bottom: 8px; }
+  .modes { margin-bottom: 14px; }
+  .tab, .mode { font: inherit; font-size: 13px; padding: 8px 14px; border-radius: 999px;
+                border: 1px solid var(--border); background: var(--card); color: var(--text-2); cursor: pointer;
+                display: inline-flex; align-items: center; gap: 6px; }
+  .tab:hover, .mode:hover { border-color: var(--border-2); }
+  .tab.on { background: var(--ambar-bg); border-color: var(--ambar); color: var(--ambar-2); font-weight: 600; }
+  .mode.on { background: var(--ambar); border-color: var(--ambar); color: #2b2117; font-weight: 700; }
+  .tab .ct { font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+  .tab.on .ct { color: var(--ambar-2); }
+
+  .viz-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+              padding: 16px 16px 18px; }
+  .viz-head { display: flex; justify-content: space-between; align-items: center; gap: 10px;
+              flex-wrap: wrap; margin-bottom: 12px; }
+  .viz-head h2 { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+                 font-size: 16px; font-weight: 500; }
+  .viz-head .hint { font-size: 12px; color: var(--text-3); }
+  select.serie { font: inherit; font-size: 13px; padding: 7px 10px; border: 1px solid var(--border);
+                 border-radius: 8px; background: var(--bg); color: var(--text); max-width: 240px; }
+  .vazio { color: var(--text-3); font-size: 13px; padding: 10px 2px; }
+
+  /* Evolução (SVG) */
+  .svg-chart { width: 100%; height: auto; display: block; }
+  .axis { stroke: var(--border-2); stroke-width: 1; }
+  .grid { stroke: var(--border); stroke-width: 1; stroke-dasharray: 3 4; opacity: .6; }
+  .axis-txt { fill: var(--text-3); font-size: 10px; }
+  .line { fill: none; stroke: var(--ambar-2); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+  .area { fill: var(--ambar-bg); }
+  .dot { fill: var(--ambar-2); stroke: var(--bg); stroke-width: 1.5; }
+  .dot-lbl { fill: var(--text-2); font-size: 10px; text-anchor: middle; font-variant-numeric: tabular-nums; }
+  .legenda { font-size: 12px; color: var(--text-2); margin-top: 8px; }
+  .legenda b { color: var(--ambar-2); }
+
+  /* Comparativo (barras) */
+  .bars { display: flex; flex-direction: column; gap: 11px; }
+  .bar-row .bl { display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+                 font-size: 13px; margin-bottom: 4px; }
+  .bar-row .bl .n { color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar-row .bl .v { color: var(--ambar-2); font-weight: 700; font-variant-numeric: tabular-nums; flex: none; }
+  .bar-track { height: 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 999px;
+               position: relative; overflow: hidden; }
+  .bar-fill { height: 100%; background: linear-gradient(90deg, var(--ambar), var(--ambar-2)); border-radius: 999px; }
+  .bar-row.abaixo .bar-fill { background: linear-gradient(90deg, #b8524f, #e8918f); }
+  .bar-row.abaixo .v { color: #f09b9b; }
+  .lastro-mark { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--text); opacity: .55; }
+  .tag { font-size: 10px; font-weight: 700; color: #f09b9b; background: rgba(226,75,74,.16);
+         border-radius: 999px; padding: 1px 7px; margin-left: 6px; white-space: nowrap; }
+
+  /* Tabela (blocos por semana) */
+  .semana { border-top: 1px solid var(--border); padding: 14px 0; }
+  .semana:first-child { border-top: none; padding-top: 2px; }
+  .semana h3 { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+               font-size: 15px; font-weight: 500; }
+  .semana .periodo { font-size: 12px; color: var(--text-3); margin-bottom: 8px; }
+  .item-linha { display: flex; align-items: baseline; gap: 10px; padding: 5px 0;
+                border-bottom: 1px dashed var(--border); font-size: 13.5px; }
+  .item-linha:last-child { border-bottom: none; }
+  .item-linha .nome { flex: 1; min-width: 0; }
+  .item-linha .qtd { font-weight: 700; color: var(--ambar-2); font-variant-numeric: tabular-nums; flex: none; }
+  .item-linha .resp { font-size: 11px; color: var(--text-3); flex: none; white-space: nowrap; }
+  .item-linha.abaixo .qtd { color: #f09b9b; }
+</style>
+</head>
+<body>
+<!-- GUARD:LOGIN:INICIO -->
+
+<script>
+window.BENTO_WORKER = "https://bento-portal-contagem.rodrigopcviana.workers.dev";
+window.SESSAO_BENTO_LS = 'bento_sessao';
+// Modo prévia (admin-ver-como.html, 2026-09-25): o admin abre o mural de
+// outro nível numa moldura e a página se comporta como se o acesso fosse
+// daquele nível — sem trocar de login. Só liga quando AS DUAS coisas valem:
+// a sessão REAL é admin, e o topo da aba é admin-ver-como.html do MESMO site
+// (topo de outro domínio lança exceção ao ler location → sem prévia). Nenhum
+// nível ganha acesso que não tinha: o admin já vê tudo isso nas páginas dele,
+// e o token continua sendo o do admin — o worker decide pelo token real.
+window.previaBento = function () {
+  try {
+    if (window.self === window.top) return null;
+    if (window.top.location.pathname.split('/').pop() !== 'admin-ver-como.html') return null;
+    var p = window.top.bentoPrevia;
+    return p && p.nivel ? p : null;
+  } catch (e) { return null; }
+};
+window.sessaoBentoLer = function () {
+  try {
+    var raw = localStorage.getItem(window.SESSAO_BENTO_LS);
+    if (!raw) return null;
+    var s = JSON.parse(raw);
+    if (!s || !s.token || !s.exp || Date.now() > s.exp) return null;
+    var pv = s.nivel === 'admin' ? window.previaBento() : null;
+    if (pv) return { nivel: pv.nivel, pessoa: pv.pessoa || null, token: s.token, exp: s.exp, previa: true };
+    return s;
+  } catch (e) { return null; }
+};
+// Faixa fixa dentro da moldura: a prévia nunca pode ser confundida com a tela
+// real, e o que se envia daqui GRAVA DE VERDADE (decisão do Rodrigo).
+(function () {
+  var s = window.sessaoBentoLer();
+  if (!s || !s.previa) return;
+  var nomes = { equipe: 'Equipe de Bar', maitres: 'Maîtres', rh: 'RH', suprimentos: 'Suprimentos',
+                controladoria: 'Controladoria', diretoria: 'Diretoria' };
+  function faixa() {
+    if (document.getElementById('previa-faixa')) return;
+    var f = document.createElement('div');
+    f.id = 'previa-faixa';
+    f.setAttribute('role', 'status');
+    f.style.cssText = 'position:sticky;top:0;z-index:99;background:#5a3fa0;color:#fff;font:600 12px/1.35 -apple-system,sans-serif;padding:7px 12px;text-align:center';
+    f.textContent = 'Modo prévia · vendo como ' + (nomes[s.nivel] || s.nivel) +
+      (s.pessoa ? ' (' + s.pessoa + ')' : '') + ' — o que você enviar aqui é gravado de verdade';
+    document.body.insertBefore(f, document.body.firstChild);
+  }
+  if (document.body) faixa(); else document.addEventListener('DOMContentLoaded', faixa);
+})();
+// `pessoa` passou a ser guardada (2026-07-25): o worker já devolvia, mas a
+// sessão descartava — e sem ela a página de Acessos não sabe quem está
+// decidindo. Campo opcional: sessão de silo (sem pessoa) continua igual.
+// Dentro da prévia, "Trocar acesso" ou um login na moldura NÃO podem mexer na
+// sessão real do admin — o localStorage é o mesmo da aba de fora.
+window.sessaoBentoSalvar = function (nivel, token, exp, pessoa) {
+  if (window.previaBento()) return;
+  try { localStorage.setItem(window.SESSAO_BENTO_LS, JSON.stringify({ nivel: nivel, token: token, exp: exp, pessoa: pessoa || null })); } catch (e) {}
+};
+window.sessaoBentoLimpar = function () {
+  if (window.previaBento()) return;
+  try { localStorage.removeItem(window.SESSAO_BENTO_LS); } catch (e) {}
+};
+window.loginSenhaBento = function (senha) {
+  return fetch(window.BENTO_WORKER + '/api/nivel', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ senha: senha }),
+  }).then(function (r) {
+    if (r.status === 401) return { ok: false, status: 401 };
+    if (!r.ok) return { ok: false, status: r.status };
+    return r.json().then(function (d) {
+      if (d.token) window.sessaoBentoSalvar(d.nivel, d.token, d.exp, d.pessoa);
+      return { ok: true, nivel: d.nivel, token: d.token, pessoa: d.pessoa || null };
+    });
+  }).catch(function () { return { ok: false, status: 0 }; });
+};
+// Gate padrão das páginas protegidas: sem sessão -> manda pra home logar,
+// com volta automática pra cá. "volta" é o NOME DO ARQUIVO atual (lido de
+// location.pathname, não o slug de nav — mural.html/suprimentos-mural.html/
+// admin-mural.html compartilham o mesmo slug "mural" pro nav, mas são
+// arquivos diferentes; voltar pro slug errado abriria o silo errado depois
+// do login). Sessão de nível diferente do exigido (ex.: Equipe abrindo
+// suprimentos-mural.html direto por URL) -> NÃO redireciona (senão a home
+// logada devolveria pra cá e viraria loop); mostra mensagem.
+window.irParaLoginBento = function () {
+  var atual = location.pathname.split('/').pop().replace(/\.html$/, '') || 'index';
+  location.replace('index.html?volta=' + encodeURIComponent(atual) + '#acesso');
+};
+window.exigirNivel = function (niveisOk, slug) {
+  var s = window.sessaoBentoLer();
+  if (s && niveisOk.indexOf(s.nivel) >= 0) return { ok: true, sessao: s };
+  if (!s) { window.irParaLoginBento(); return { ok: false, redirecionou: true }; }
+  document.body.innerHTML = '<div id="acesso-negado" class="capa-wrap capa-centro"><p class="capa-sub">'
+    + 'Seu acesso atual não abre esta página. '
+    + '<a href="index.html?trocar=1">Trocar acesso</a>.</p></div>';
+  // Esta função roda DURANTE a leitura do HTML: trocar o <body> não impede o
+  // navegador de continuar lendo o resto da página e montá-lo embaixo da
+  // mensagem (achado 2026-09-25 — toda página do site mostrava a casca
+  // inteira pra quem não tinha acesso; dado não vazava, o worker confere o
+  // token). Duas camadas: parar o carregamento (o resto nem é montado nem
+  // executado) e, de reserva, esconder tudo que não for a mensagem.
+  try {
+    var st = document.createElement('style');
+    st.textContent = 'body > :not(#acesso-negado) { display: none !important; }';
+    (document.head || document.documentElement).appendChild(st);
+  } catch (e) {}
+  try { window.stop(); } catch (e) {}
+  return { ok: false, nivelAtual: s.nivel };
+};
+// Injeta um fragmento vindo de /api/protegido/<chave> (vendas/ranking/
+// equipe-vendas/feedback-nutricionista — dado que embutido direto no HTML
+// público vazaria por URL sem senha, ver PLANO_LOGIN_TOKEN_BENTO.md seção 3).
+// innerHTML NÃO executa <script> injetado — recria os nós pra rodar mesmo.
+window.injetaProtegido = function (el, htmlTexto) {
+  el.innerHTML = htmlTexto;
+  el.querySelectorAll('script').forEach(function (velho) {
+    var novo = document.createElement('script');
+    if (velho.src) novo.src = velho.src; else novo.textContent = velho.textContent;
+    velho.replaceWith(novo);
+  });
+};
+window.carregaProtegido = function (chave, containerId) {
+  var el = document.getElementById(containerId);
+  var s = window.sessaoBentoLer();
+  if (!s || !el) return;
+  fetch(window.BENTO_WORKER + '/api/protegido/' + chave, { headers: { 'X-Token': s.token } })
+    .then(function (r) {
+      if (r.status === 401) { el.innerHTML = '<div class="panel"><p>Sua sessão não abre este conteúdo. <a href="index.html?trocar=1">Trocar acesso</a>.</p></div>'; return null; }
+      if (!r.ok) { el.innerHTML = '<div class="panel"><p>Falha ao carregar — tente de novo.</p></div>'; return null; }
+      return r.json();
+    })
+    .then(function (d) { if (d && d.conteudo) window.injetaProtegido(el, d.conteudo); })
+    .catch(function () { el.innerHTML = '<div class="panel"><p>Sem conexão — tente de novo.</p></div>'; });
+};
+// Variante pra quando o protegido é DADO (JSON), não HTML pronto — caso da
+// página de Vendas (bento/templates/vendas.html): o template já sabia
+// renderizar a partir de uma const D populada no load; aqui só troca de
+// onde D vem (const embutida -> fetch autenticado) e chama de volta com o
+// dado já parseado, sem reimplementar a renderização em si.
+window.carregaProtegidoJSON = function (chave, callback, onErro) {
+  var s = window.sessaoBentoLer();
+  if (!s) return;
+  fetch(window.BENTO_WORKER + '/api/protegido/' + chave, { headers: { 'X-Token': s.token } })
+    .then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
+    .then(function (d) { callback(JSON.parse(d.conteudo)); })
+    .catch(function (e) { if (onErro) onErro(e); });
+};
+</script>
+
+<script>window.exigirNivel(["suprimentos"], "contagem-historico");</script>
+<!-- GUARD:LOGIN:FIM -->
+<!-- VERSAO:INICIO -->
+
+<style>
+  .ver-nova { position: fixed; left: 12px; right: 12px; top: calc(10px + env(safe-area-inset-top, 0px));
+    z-index: 96; margin: 0 auto; max-width: 460px; display: none;
+    background: var(--card-2, #3b342a); border: 1px solid var(--ambar, #d5a05c); border-radius: 12px;
+    padding: 10px 12px; box-shadow: 0 8px 24px rgba(0,0,0,.45);
+    align-items: center; gap: 10px; }
+  .ver-nova.on { display: flex; }
+  .ver-nova svg { flex: none; color: var(--ambar, #d5a05c); }
+  .vn-txt { flex: 1; font-size: 12.5px; color: var(--text-2, #b3a68f); line-height: 1.4; }
+  .vn-txt b { color: var(--text, #f0e7d8); }
+  .vn-ok { flex: none; font-size: 12px; font-weight: 600; padding: 7px 12px;
+    border-radius: 999px; cursor: pointer; background: var(--ambar, #d5a05c); border: none;
+    color: #2b2620; }
+  .vn-x { flex: none; background: none; border: none; color: var(--text-2, #b3a68f);
+    font-size: 18px; line-height: 1; cursor: pointer; padding: 2px 4px; }
+</style>
+<div class="ver-nova" id="ver-nova" role="status" aria-live="polite">
+  <svg class="ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 3.5V9h-5.5"/></svg>
+  <div class="vn-txt"><b>Nova versão disponível.</b> Atualize pra ver o conteúdo mais recente.</div>
+  <button type="button" class="vn-ok" id="vn-ok">Atualizar</button>
+  <button type="button" class="vn-x" id="vn-x" aria-label="Dispensar">&times;</button>
+</div>
+<script>
+(function () {
+  var BUILD = 'c2dfe987c054';
+  var ALVO = 'versao.json';
+  var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
+  var ultimo = 0, mostrando = false;
+
+  function mostra(novo) {
+    if (mostrando) return;
+    if (localStorage.getItem('bento_build_dispensado') === novo) return;
+    mostrando = true;
+    var box = document.getElementById('ver-nova');
+    if (!box) return;
+    box.classList.add('on');
+    document.getElementById('vn-x').onclick = function () {
+      try { localStorage.setItem('bento_build_dispensado', novo); } catch (e) {}
+      box.classList.remove('on');
+    };
+    document.getElementById('vn-ok').onclick = atualiza;
+  }
+
+  // Limpa TODOS os caches do service worker e recarrega. Sem isso um reload
+  // comum ainda seria atendido pela casca cacheada (ícones, logo, fila-offline).
+  function atualiza() {
+    var feito = false;
+    var recarrega = function () { if (feito) return; feito = true; location.reload(); };
+    setTimeout(recarrega, 2500);   // rede travada não pode prender o usuário
+    var t = [];
+    try {
+      if (window.caches && caches.keys) {
+        t.push(caches.keys().then(function (ks) {
+          return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+        }));
+      }
+      if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
+        t.push(navigator.serviceWorker.getRegistration().then(function (r) { return r && r.update(); }));
+      }
+    } catch (e) {}
+    Promise.all(t).then(recarrega, recarrega);
+  }
+
+  function confere() {
+    if (mostrando) return;
+    var agora = Date.now();
+    if (agora - ultimo < MIN_ENTRE) return;
+    ultimo = agora;
+    fetch(ALVO + '?t=' + agora, { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { if (d && d.build && d.build !== BUILD) mostra(d.build); })
+      .catch(function () {});
+  }
+
+  // Expostos pra um eventual botão manual "Buscar atualização" (Meu perfil).
+  window.bentoAtualiza = atualiza;
+  window.bentoConfere = function () { ultimo = 0; confere(); };
+
+  setTimeout(confere, 4000);                       // não competir com o render
+  setInterval(function () { if (!document.hidden) confere(); }, 600000);
+  document.addEventListener('visibilitychange', function () {
+    // o caso que só isto alcança: app em standalone voltando do alternador.
+    if (!document.hidden) confere();
+  });
+})();
+</script>
+
+<!-- VERSAO:FIM -->
+<style>
+  .fila-selo { display: none; align-items: center; gap: 5px; font-size: 11px; font-weight: 600;
+               color: #2b2117; background: var(--ambar); border: none; border-radius: 999px;
+               padding: 5px 11px; cursor: pointer; margin-left: 8px; }
+</style>
+<header class="brand"><img class="logo" src="logo-bento.png" alt="Bento Restaurante">
+<a class="nivel-pill" href="index.html">Página inicial <b>(Trocar acesso)</b></a>
+<button type="button" class="fila-selo" id="fila-selo"></button>
+</header>
+
+<a class="voltar" id="voltar-dyn" href="suprimentos-contagem.html">&larr; Contagem semanal</a>
+<script>
+// Achado na varredura de intuitividade (2026-09-04, maitres/admin): esta
+// página também é linkada direto por "Áreas do portal" no Mural
+// (mural.html:qa), não só pelo caminho "natural" pra onde o voltar sempre
+// apontava. Mesmo padrão de referrer já usado em regras.html/quebras.html.
+(function () {
+  if (/suprimentos\-mural\.html/.test(document.referrer || "")) {
+    var a = document.getElementById("voltar-dyn");
+    a.setAttribute("href", "suprimentos-mural.html");
+    a.textContent = "← Mural";
+  }
+})();
+</script>
+
+<!-- Painel Rápido mini (injetado 2026-07-10) -->
+<style>
+  .pr-mini { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; margin: 12px 0 16px; }
+  a.prm-card { position: relative; display: flex; align-items: center; gap: 8px; border-radius: 11px;
+               padding: 8px 10px 8px 11px; text-decoration: none; color: var(--text); min-height: 38px;
+               min-width: 0; border: 1.5px solid; overflow: hidden; transition: filter .15s; }
+  a.prm-card:hover { filter: brightness(1.12); }
+  a.prm-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
+  .prm-card.prm-oc { background: linear-gradient(135deg,#33221d,#241713); border-color: #e07a52; }
+  .prm-card.prm-oc::before { background: #f28a63; }
+  .prm-card.prm-so { background: linear-gradient(135deg,#152a22,#111d17); border-color: #4fbf92; }
+  .prm-card.prm-so::before { background: #7fe6bd; }
+  a.prm-card .prm-chip { width: 26px; height: 26px; border-radius: 8px; display: flex;
+                          align-items: center; justify-content: center; flex: none; }
+  a.prm-card .prm-chip svg { width: 14px; height: 14px; display: block; flex: none; }
+  .prm-card.prm-oc .prm-chip { background: rgba(226,75,74,.16); color: #f0a58f; }
+  .prm-card.prm-so .prm-chip { background: rgba(80,170,110,.16); color: #9fdcae; }
+  .prm-card .prm-t { font-size: 12.5px; font-weight: 600; }
+</style>
+<div class="pr-mini">
+  <a class="prm-card prm-oc" href="suprimentos-registro.html"><span class="prm-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 16h.01"/><path d="M10.36 3.6 2.26 17.5a1.9 1.9 0 0 0 1.64 2.5h16.2a1.9 1.9 0 0 0 1.64-2.5L13.64 3.6a1.9 1.9 0 0 0-3.28 0z"/></svg></span><span class="prm-t">Nova demanda</span></a>
+  <a class="prm-card prm-so" href="suprimentos-quebras.html"><span class="prm-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10l-1.15 15.1a2 2 0 0 1-2 1.9h-3.7a2 2 0 0 1-2-1.9L7 4z"/><path d="M9.7 8.4l3.1 2.2-2.2 2.1 2.7 2.3"/></svg></span><span class="prm-t">Quebras</span></a>
+</div>
+
+<h1>Histórico de contagens</h1>
+<p class="sub">Insumos, produções e copos/taças já registrados — direto do histórico do Notion.
+Escolha a categoria e a forma de ver: evolução ao longo das semanas, comparativo da semana mais
+recente, ou a tabela completa.</p>
+
+<p class="status" id="status-historico">Carregando…</p>
+
+<div id="app" hidden>
+  <div class="controles">
+    <div class="tabs" id="tabs"></div>
+    <div class="modes" id="modes"></div>
+  </div>
+  <div class="viz-wrap" id="viz"></div>
+</div>
+
+<p class="nota">Uma contagem parece errada ou faltando?
+<a href="https://wa.me/556281483511?text=Ol%C3%A1%20Rodrigo!%20D%C3%BAvida%20no%20hist%C3%B3rico%20de%20contagem%20do%20Portal%20do%20Bento%3A%20">avise o Rodrigo no WhatsApp</a>.</p>
+
+<p class="nota">Portal do Bar · Bento · página de contagem adicionada em 05/07/2026 (não faz parte da geração automática das demais páginas).</p>
+
+<script>
+(function () {
+  var WORKER_URL = 'https://bento-portal-contagem.rodrigopcviana.workers.dev';
+  var CHAVE = '2436ca47933b3c17a90886daa8fec616';
+  var SEMANAS = 12;
+
+  var SVGNS = 'http://www.w3.org/2000/svg';
+  var status = document.getElementById('status-historico');
+  var app = document.getElementById('app');
+  var elTabs = document.getElementById('tabs');
+  var elModes = document.getElementById('modes');
+  var elViz = document.getElementById('viz');
+
+  var TABS = [
+    { key: 'insumos', label: 'Insumos', lastro: false },
+    { key: 'producoes', label: 'Produções', lastro: false },
+    { key: 'copos', label: 'Copos e taças', lastro: true }
+  ];
+  var MODES = [
+    { key: 'evolucao', label: 'Evolução' },
+    { key: 'comparativo', label: 'Comparativo' },
+    { key: 'tabela', label: 'Tabela' }
+  ];
+
+  var estado = { semanas: [], tab: 'insumos', mode: 'evolucao', serie: 'TOTAL' };
+
+  function el(tag, attrs, children) {
+    var e = document.createElement(tag);
+    for (var k in attrs) {
+      if (k === 'text') e.textContent = attrs[k];
+      else e.setAttribute(k, attrs[k]);
+    }
+    (children || []).forEach(function (c) { e.appendChild(c); });
+    return e;
+  }
+  function svg(tag, attrs, children) {
+    var e = document.createElementNS(SVGNS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    (children || []).forEach(function (c) { e.appendChild(c); });
+    return e;
+  }
+  function fmtData(iso) { if (!iso) return ''; var p = iso.split('-'); return p[2] + '/' + p[1]; }
+
+  // Consolida a categoria escolhida em semanas ascendentes. Se um item foi
+  // contado mais de uma vez na mesma semana, vale a contagem mais recente
+  // (última foto do estoque), não a soma — somar duplicaria o estoque.
+  function construir(tabKey) {
+    var arr = estado.semanas.map(function (s) {
+      var m = {};
+      (s[tabKey] || []).forEach(function (it) {
+        var prev = m[it.nome];
+        if (!prev || it.data > prev.data) m[it.nome] = it;
+      });
+      return { semana: s.semana, inicio: s.inicio, fim: s.fim, itens: m };
+    });
+    arr.sort(function (a, b) { return a.inicio < b.inicio ? -1 : (a.inicio > b.inicio ? 1 : 0); });
+    return arr;
+  }
+  function totalSemana(w) {
+    var t = 0; for (var n in w.itens) t += w.itens[n].contagem || 0; return t;
+  }
+  function nomesUnicos(weeks) {
+    var set = {};
+    weeks.forEach(function (w) { for (var n in w.itens) set[n] = true; });
+    return Object.keys(set).sort(function (a, b) { return a.localeCompare(b, 'pt'); });
+  }
+
+  // ---------- Modo 1: Evolução (linha, SVG) ----------
+  function vizEvolucao(weeks) {
+    var head = el('div', { class: 'viz-head' });
+    head.appendChild(el('h2', { text: 'Evolução por semana' }));
+    var nomes = nomesUnicos(weeks);
+    var sel = el('select', { class: 'serie' });
+    sel.appendChild(el('option', { value: 'TOTAL', text: 'Todos os itens (soma)' }));
+    nomes.forEach(function (n) { sel.appendChild(el('option', { value: n, text: n })); });
+    if (estado.serie !== 'TOTAL' && nomes.indexOf(estado.serie) === -1) estado.serie = 'TOTAL';
+    sel.value = estado.serie;
+    sel.addEventListener('change', function () { estado.serie = sel.value; render(); });
+    head.appendChild(sel);
+    elViz.appendChild(head);
+
+    if (!weeks.length) { elViz.appendChild(el('p', { class: 'vazio', text: 'Sem contagens registradas ainda.' })); return; }
+
+    var pts = weeks.map(function (w) {
+      var v = estado.serie === 'TOTAL'
+        ? totalSemana(w)
+        : (w.itens[estado.serie] ? w.itens[estado.serie].contagem : 0);
+      return { label: fmtData(w.inicio), v: v };
+    });
+
+    var W = 640, H = 260, padL = 40, padR = 14, padT = 14, padB = 30;
+    var plotW = W - padL - padR, plotH = H - padT - padB;
+    var maxV = Math.max.apply(null, pts.map(function (p) { return p.v; }).concat([1]));
+    // topo e passo do eixo Y sempre inteiros (contagem é inteira), no máx. ~4 marcas
+    var step = Math.max(1, Math.ceil(maxV / 4));
+    var nTicks = Math.max(1, Math.ceil(maxV / step));
+    var top = step * nTicks;
+    function X(i) { return pts.length === 1 ? padL + plotW / 2 : padL + plotW * (i / (pts.length - 1)); }
+    function Y(v) { return padT + plotH * (1 - v / top); }
+
+    var g = svg('svg', { viewBox: '0 0 ' + W + ' ' + H, class: 'svg-chart', role: 'img' });
+    // grid + rótulos Y (marcas inteiras)
+    for (var t = 0; t <= nTicks; t++) {
+      var val = step * t, y = Y(val);
+      g.appendChild(svg('line', { class: t === 0 ? 'axis' : 'grid', x1: padL, y1: y, x2: W - padR, y2: y }));
+      g.appendChild(svg('text', { class: 'axis-txt', x: padL - 6, y: y + 3, 'text-anchor': 'end' })).textContent = String(val);
+    }
+    // rótulos X
+    pts.forEach(function (p, i) {
+      var everyN = Math.ceil(pts.length / 8);
+      if (i % everyN === 0 || i === pts.length - 1) {
+        g.appendChild(svg('text', { class: 'axis-txt', x: X(i), y: H - padB + 14, 'text-anchor': 'middle' })).textContent = p.label;
+      }
+    });
+    // área + linha
+    if (pts.length > 1) {
+      var dArea = 'M' + X(0) + ',' + Y(0);
+      pts.forEach(function (p, i) { dArea += ' L' + X(i) + ',' + Y(p.v); });
+      dArea += ' L' + X(pts.length - 1) + ',' + Y(0) + ' Z';
+      g.appendChild(svg('path', { class: 'area', d: dArea }));
+      var dLine = pts.map(function (p, i) { return (i ? 'L' : 'M') + X(i) + ',' + Y(p.v); }).join(' ');
+      g.appendChild(svg('path', { class: 'line', d: dLine }));
+    }
+    // pontos + valores
+    pts.forEach(function (p, i) {
+      var c = svg('circle', { class: 'dot', cx: X(i), cy: Y(p.v), r: pts.length > 16 ? 2.5 : 3.5 });
+      c.appendChild(svg('title', {})).textContent = p.label + ' · ' + p.v;
+      g.appendChild(c);
+      if (pts.length <= 10) {
+        g.appendChild(svg('text', { class: 'dot-lbl', x: X(i), y: Y(p.v) - 8 })).textContent = String(p.v);
+      }
+    });
+    elViz.appendChild(g);
+
+    var ultimo = pts[pts.length - 1], primeiro = pts[0];
+    var delta = ultimo.v - primeiro.v;
+    var leg = el('p', { class: 'legenda' });
+    leg.innerHTML = 'Série: <b>' + (estado.serie === 'TOTAL' ? 'Todos os itens (soma)' : escapeHtml(estado.serie)) +
+      '</b> · ' + pts.length + ' semana' + (pts.length > 1 ? 's' : '') + '. Da 1ª à última: ' +
+      (delta === 0 ? 'estável' : (delta > 0 ? '+' : '') + delta) + '.';
+    elViz.appendChild(leg);
+  }
+
+  // ---------- Modo 2: Comparativo (barras, semana mais recente) ----------
+  function vizComparativo(weeks) {
+    var tab = tabAtual();
+    var head = el('div', { class: 'viz-head' });
+    head.appendChild(el('h2', { text: 'Comparativo — semana mais recente' }));
+    elViz.appendChild(head);
+
+    if (!weeks.length) { elViz.appendChild(el('p', { class: 'vazio', text: 'Sem contagens registradas ainda.' })); return; }
+    var w = weeks[weeks.length - 1];
+    var itens = Object.keys(w.itens).map(function (n) { return w.itens[n]; });
+    if (!itens.length) { elViz.appendChild(el('p', { class: 'vazio', text: 'Nenhum item nessa semana.' })); return; }
+    itens.sort(function (a, b) { return b.contagem - a.contagem; });
+    var max = Math.max.apply(null, itens.map(function (i) { return i.contagem; }).concat([1]));
+
+    head.appendChild(el('span', { class: 'hint', text: fmtData(w.inicio) + ' – ' + fmtData(w.fim) }));
+
+    var box = el('div', { class: 'bars' });
+    itens.forEach(function (it) {
+      var abaixo = tab.lastro && typeof it.lastro === 'number' && it.contagem < it.lastro;
+      var row = el('div', { class: 'bar-row' + (abaixo ? ' abaixo' : '') });
+      var bl = el('div', { class: 'bl' });
+      var nome = el('span', { class: 'n', text: it.nome });
+      if (abaixo) nome.appendChild(el('span', { class: 'tag', text: 'abaixo do lastro' }));
+      bl.appendChild(nome);
+      bl.appendChild(el('span', { class: 'v', text: String(it.contagem) + (tab.lastro && typeof it.lastro === 'number' ? ' / ' + it.lastro : '') }));
+      row.appendChild(bl);
+      var track = el('div', { class: 'bar-track' });
+      track.appendChild(el('div', { class: 'bar-fill' , style: 'width:' + Math.max(2, (it.contagem / max) * 100) + '%' }));
+      if (tab.lastro && typeof it.lastro === 'number' && it.lastro > 0) {
+        track.appendChild(el('div', { class: 'lastro-mark', style: 'left:' + Math.min(100, (it.lastro / max) * 100) + '%', title: 'lastro ' + it.lastro }));
+      }
+      row.appendChild(track);
+      box.appendChild(row);
+    });
+    elViz.appendChild(box);
+    if (tab.lastro) {
+      elViz.appendChild(el('p', { class: 'legenda', text: 'A marca vertical clara em cada barra é o lastro de referência; barras em vermelho estão abaixo dele.' }));
+    }
+  }
+
+  // ---------- Modo 3: Tabela (blocos por semana, mais recente primeiro) ----------
+  function vizTabela(weeks) {
+    var tab = tabAtual();
+    elViz.appendChild(el('div', { class: 'viz-head' }, [el('h2', { text: 'Tabela completa' })]));
+    if (!weeks.length) { elViz.appendChild(el('p', { class: 'vazio', text: 'Sem contagens registradas ainda.' })); return; }
+    var desc = weeks.slice().reverse();
+    desc.forEach(function (w) {
+      var nomes = Object.keys(w.itens);
+      if (!nomes.length) return;
+      var bloco = el('div', { class: 'semana' });
+      bloco.appendChild(el('h3', { text: 'Semana ' + w.semana.replace(/^\d+-W/, '') + ' · ' + nomes.length + ' ' + (nomes.length === 1 ? 'item' : 'itens') }));
+      bloco.appendChild(el('div', { class: 'periodo', text: fmtData(w.inicio) + ' – ' + fmtData(w.fim) }));
+      nomes.map(function (n) { return w.itens[n]; })
+        .sort(function (a, b) { return b.contagem - a.contagem; })
+        .forEach(function (it) {
+          var abaixo = tab.lastro && typeof it.lastro === 'number' && it.contagem < it.lastro;
+          var linha = el('div', { class: 'item-linha' + (abaixo ? ' abaixo' : '') });
+          var nome = el('span', { class: 'nome', text: it.nome });
+          if (abaixo) nome.appendChild(el('span', { class: 'tag', text: 'abaixo do lastro' }));
+          linha.appendChild(nome);
+          linha.appendChild(el('span', { class: 'qtd', text: String(it.contagem) + (tab.lastro && typeof it.lastro === 'number' ? ' / ' + it.lastro : '') }));
+          linha.appendChild(el('span', { class: 'resp', text: (it.responsavel || '—') + ' · ' + fmtData(it.data) }));
+          bloco.appendChild(linha);
+        });
+      elViz.appendChild(bloco);
+    });
+  }
+
+  function tabAtual() { return TABS.filter(function (t) { return t.key === estado.tab; })[0]; }
+  function escapeHtml(s) { return String(s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+
+  function contarTab(key) {
+    var set = {};
+    estado.semanas.forEach(function (s) { (s[key] || []).forEach(function (it) { set[it.nome] = true; }); });
+    return Object.keys(set).length;
+  }
+
+  function renderControles() {
+    elTabs.innerHTML = '';
+    TABS.forEach(function (t) {
+      var b = el('button', { class: 'tab' + (t.key === estado.tab ? ' on' : ''), type: 'button' }, [el('span', { text: t.label })]);
+      b.appendChild(el('span', { class: 'ct', text: String(contarTab(t.key)) }));
+      b.addEventListener('click', function () { if (estado.tab !== t.key) { estado.tab = t.key; estado.serie = 'TOTAL'; render(); } });
+      elTabs.appendChild(b);
+    });
+    elModes.innerHTML = '';
+    MODES.forEach(function (m) {
+      var b = el('button', { class: 'mode' + (m.key === estado.mode ? ' on' : ''), type: 'button', text: m.label });
+      b.addEventListener('click', function () { if (estado.mode !== m.key) { estado.mode = m.key; render(); } });
+      elModes.appendChild(b);
+    });
+  }
+
+  function render() {
+    renderControles();
+    elViz.innerHTML = '';
+    var weeks = construir(estado.tab);
+    if (estado.mode === 'evolucao') vizEvolucao(weeks);
+    else if (estado.mode === 'comparativo') vizComparativo(weeks);
+    else vizTabela(weeks);
+  }
+
+  function carregar() {
+    status.textContent = 'Carregando…';
+    status.className = 'status';
+    fetch(WORKER_URL + '/api/contagem/historico', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chave: CHAVE, semanas: SEMANAS })
+    }).then(function (res) { return res.json().then(function (json) { return { res: res, json: json }; }); })
+      .then(function (r) {
+        if (!r.res.ok || !r.json.ok) {
+          status.textContent = 'Deu erro carregando o histórico (' + (r.json.erro || r.res.status) + ').';
+          status.className = 'status erro';
+          return;
+        }
+        estado.semanas = r.json.semanas || [];
+        if (!estado.semanas.length) {
+          status.textContent = 'Nenhuma contagem registrada nesse período ainda.';
+          return;
+        }
+        status.textContent = '';
+        status.setAttribute('hidden', '');
+        app.removeAttribute('hidden');
+        render();
+      })
+      .catch(function () {
+        status.textContent = 'Sem conexão com o backend agora. Tente de novo em instantes.';
+        status.className = 'status erro';
+      });
+  }
+
+  carregar();
+})();
+</script>
+<script src="fila-offline.js"></script>
+<script>if (window.FilaOffline) window.FilaOffline.iniciarSelo({"elId": "fila-selo", "destinos": {"registro": "suprimentos-registro.html", "turno": "suprimentos-mural.html"}});</script>
+<script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){});});}</script></body>
+</html>
