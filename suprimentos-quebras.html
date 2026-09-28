@@ -265,7 +265,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 </div>
 <script>
 (function () {
-  var BUILD = 'c2dfe987c054';
+  var BUILD = '8dd02b04cbc2';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
@@ -582,6 +582,149 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
   });
 })();
 </script>
+<!-- QUEBRAS-UX:INICIO -->
+<style>
+  /* QUEBRAS-UX v1 — ver bento/injeta_quebras_ux.py */
+  header.brand { padding: 4px 0 10px; }
+  .brand .logo { height: 54px; }
+  .top-fields label { min-width: 128px; }
+  .pr-mini { margin: 8px 0 12px; }
+  a.prm-card { min-height: 34px; padding: 5px 9px 5px 10px; }
+  @media (max-width: 480px) { h1 { font-size: 23px; } .sub { margin-bottom: 14px; } .panel { padding: 14px; } }
+  .qb-oculto { position: absolute !important; width: 1px !important; height: 1px !important; opacity: 0 !important;
+               pointer-events: none !important; overflow: hidden !important; }
+  .qb-chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 6px;
+              border-radius: 10px; transition: box-shadow .2s; }
+  .qb-chips.qb-motivos { grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); }
+  .qb-chip { font: inherit; font-size: 13px; line-height: 1.2; min-height: 44px; padding: 6px 7px;
+             border-radius: 10px; border: 1px solid var(--border); background: var(--card-2);
+             color: var(--text); cursor: pointer; text-align: center; }
+  .qb-chip[aria-pressed="true"] { border-color: var(--ambar); background: var(--ambar-bg);
+                                  color: var(--ambar-2); font-weight: 600; }
+  .qb-chip.qb-extra { color: var(--text-2); border-style: dashed; }
+  .qb-chip:focus-visible { outline: 2px solid var(--ambar-2); outline-offset: 2px; }
+  .qb-chips.qb-falta { box-shadow: 0 0 0 2px #f09b9b; }
+  @media (prefers-reduced-motion: reduce) { .qb-chips { transition: none; } }
+</style>
+<script>
+(function () {
+  var form = document.getElementById('form-quebra');
+  if (!form || form.getAttribute('data-qb-ux')) return;
+  form.setAttribute('data-qb-ux', '1');
+  var itemSel = form.querySelector('select[name="item"]');
+  var motivoSel = form.querySelector('select[name="motivo"]');
+  var outroCampo = document.getElementById('campo-item-outro');
+  var outroInput = form.querySelector('input[name="item_outro"]');
+  var qtdInput = form.querySelector('input[name="quantidade"]');
+  var detalheInput = form.querySelector('textarea[name="detalhe"]');
+  var resp = form.querySelector('input[name="responsavel"]');
+  var statusEl = form.querySelector('.status');
+  if (!itemSel || !motivoSel) return;
+
+  // O atalho "Quebras" do painel rápido apontava para esta mesma página.
+  var aqui = location.pathname.split('/').pop() || 'quebras.html';
+  document.querySelectorAll('.pr-mini a.prm-card').forEach(function (a) {
+    if ((a.getAttribute('href') || '').split('/').pop() === aqui) a.style.display = 'none';
+  });
+
+  // Botões de um toque montados das <option> (o <select> segue como fonte).
+  function chips(select, classeExtra) {
+    var grade = document.createElement('div');
+    grade.className = 'qb-chips' + (classeExtra ? ' ' + classeExtra : '');
+    grade.setAttribute('role', 'group');
+    Array.prototype.forEach.call(select.options, function (o) {
+      if (!o.value) return;
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'qb-chip' + (/^Outro/.test(o.value) ? ' qb-extra' : '');
+      b.textContent = o.textContent;
+      b.setAttribute('aria-pressed', 'false');
+      b.addEventListener('click', function () {
+        select.value = o.value;
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        marca(grade, select);
+        grade.classList.remove('qb-falta');
+        limpaMensagem();
+      });
+      grade.appendChild(b);
+    });
+    select.classList.add('qb-oculto');
+    select.setAttribute('tabindex', '-1');
+    select.setAttribute('aria-hidden', 'true');
+    select.parentNode.insertBefore(grade, select.nextSibling);
+    return grade;
+  }
+  function marca(grade, select) {
+    grade.querySelectorAll('.qb-chip').forEach(function (b, i) {
+      var opt = Array.prototype.filter.call(select.options, function (o) { return o.value; })[i];
+      b.setAttribute('aria-pressed', opt && opt.value === select.value ? 'true' : 'false');
+    });
+  }
+  var gradeItem = chips(itemSel, 'qb-itens');
+  var gradeMotivo = chips(motivoSel, 'qb-motivos');
+
+  // Rótulo continua ligado ao <select> escondido; o texto vira um título comum.
+  [itemSel, motivoSel].forEach(function (s) {
+    var lab = s.closest('label');
+    if (lab && lab.tagName === 'LABEL') {
+      var div = document.createElement('div');
+      div.className = lab.className; div.id = lab.id;
+      while (lab.firstChild) div.appendChild(lab.firstChild);
+      lab.parentNode.replaceChild(div, lab);
+    }
+  });
+
+  // Quem reportou: nome salvo desta página, senão a pessoa da sessão / da contagem.
+  if (resp && !resp.value.trim()) {
+    var nome = '';
+    try {
+      var s = JSON.parse(localStorage.getItem(window.SESSAO_BENTO_LS || 'bento_sessao') || 'null');
+      nome = (s && s.pessoa) || localStorage.getItem('bento_contagem_nome') || '';
+    } catch (e) {}
+    if (nome) resp.value = nome;
+  }
+
+  var mensagemFixa = false;
+  function limpaMensagem() {
+    if (mensagemFixa && statusEl) { statusEl.textContent = ''; statusEl.className = 'status'; mensagemFixa = false; }
+  }
+  form.addEventListener('input', limpaMensagem);
+
+  // Enter em campo de texto não envia o formulário pela metade.
+  form.addEventListener('keydown', function (ev) {
+    if (ev.key !== 'Enter' || ev.isComposing) return;
+    var t = ev.target;
+    if (t && t.tagName === 'INPUT' && t.type !== 'submit') { ev.preventDefault(); t.blur(); }
+  });
+
+  // Guarda o que foi enviado (a página limpa os campos depois da resposta) e
+  // destaca o grupo que faltou escolher.
+  var enviado = null;
+  form.addEventListener('submit', function () {
+    if (!itemSel.value) { gradeItem.classList.add('qb-falta'); gradeItem.scrollIntoView({ block: 'center' }); }
+    else if (!motivoSel.value) { gradeMotivo.classList.add('qb-falta'); gradeMotivo.scrollIntoView({ block: 'center' }); }
+    var item = itemSel.value === 'Outro item' ? (outroInput && outroInput.value.trim()) : itemSel.value;
+    enviado = { item: item, qtd: parseInt(qtdInput && qtdInput.value, 10) || 1, motivo: motivoSel.value };
+  });
+
+  // Depois do sucesso: confirmação que diz o quê, e formulário pronto pro próximo.
+  function aposStatus() {
+    if (!statusEl || !statusEl.classList.contains('ok') || !enviado || mensagemFixa) return;
+    var e = enviado; enviado = null;
+    statusEl.textContent = 'Registrado: ' + e.qtd + '× ' + e.item + ' — ' + e.motivo + '. Pode reportar outra.';
+    mensagemFixa = true;
+    if (outroCampo) outroCampo.style.display = 'none';
+    if (outroInput) { outroInput.value = ''; outroInput.required = false; }
+    if (detalheInput) detalheInput.required = false;
+    marca(gradeItem, itemSel); marca(gradeMotivo, motivoSel);
+  }
+  if (statusEl && window.MutationObserver) {
+    new MutationObserver(aposStatus).observe(statusEl,
+      { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+  }
+})();
+</script>
+<!-- QUEBRAS-UX:FIM -->
 <script src="fila-offline.js"></script>
 <script>if (window.FilaOffline) window.FilaOffline.iniciarSelo({"elId": "fila-selo", "destinos": {"registro": "suprimentos-registro.html", "turno": "suprimentos-mural.html"}});</script>
 <script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){});});}</script></body>
