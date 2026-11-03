@@ -313,7 +313,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 </div>
 <script>
 (function () {
-  var BUILD = '32f9c691332f';
+  var BUILD = 'b7b3c7fd7788';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
@@ -759,6 +759,48 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
   .ct-prox:focus-visible, .ct-conf:focus-visible, .stepper button:focus-visible { outline: 2px solid var(--ambar-2); outline-offset: 2px; }
   @media (max-width: 370px) { .ct-prox { padding: 0 10px; } .ct-conf { padding: 0 12px; } }
   @media (prefers-reduced-motion: reduce) { .ct-trilho i { transition: none; } }
+  /* CONTAGEM GUIADA v1 (2026-11-03, trazida do Portal IZ) — faixa do alto,
+     quem conta assinado pela senha individual, "Não tem" e linhas mais baixas. */
+  .linha { padding: 3px 0; gap: 8px; }
+  .linha .nome { font-size: 13.5px; line-height: 1.25; }
+  .stepper { gap: 4px; }
+  .stepper button { width: 40px; height: 42px; }
+  .stepper input { width: 56px; height: 42px; }
+  .ct-nt { flex: none; width: 42px; height: 42px; padding: 0; border-radius: 10px; border: 1px dashed var(--border-2);
+           background: none; color: var(--text-3); font: inherit; font-size: 10.5px; line-height: 1.05; cursor: pointer; }
+  .ct-nt:active, .linha.ct-zero .ct-nt { border-style: solid; border-color: #5f9a72; color: #9fdcae; }
+  .ct-zera { margin-left: 8px; font: inherit; font-size: 11.5px; color: var(--ambar-2); background: none;
+             border: 1px solid var(--border-2); border-radius: 999px; padding: 2px 9px; cursor: pointer; }
+  .ct-zera[hidden] { display: none; }
+  .ct-faixa { position: sticky; top: 0; z-index: 60; margin: 0 -14px 12px; padding: 10px 14px;
+              background: var(--card-2); border-bottom: 1px solid var(--border-2); display: grid; gap: 7px; }
+  .ct-fx-l1 { display: flex; align-items: center; gap: 10px; }
+  .ct-fx-tt { flex: 1; min-width: 0; }
+  .ct-fx-tt b { display: block; font-size: 15px; color: var(--text); }
+  .ct-fx-tt span { display: block; font-size: 12.5px; color: var(--text-3); }
+  .ct-fx-pc { font-size: 20px; font-weight: 600; color: var(--ambar-2); font-variant-numeric: tabular-nums; }
+  .ct-fx-go { flex: none; min-height: 44px; padding: 0 16px; border: none; border-radius: 999px; cursor: pointer;
+              background: var(--ambar); color: #2b2117; font: inherit; font-size: 14px; font-weight: 700; }
+  .ct-faixa.completo .ct-fx-go { background: #6fae84; }
+  .ct-fx-tr { display: block; height: 5px; border-radius: 5px; background: var(--border); overflow: hidden; }
+  .ct-fx-tr i { display: block; height: 100%; width: 0; background: var(--ambar); transition: width .2s; }
+  .ct-faixa.completo .ct-fx-tr i { background: #6fae84; }
+  .ct-quem { border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; margin: 0 0 10px;
+             background: var(--card); font-size: 13.5px; color: var(--text-2); }
+  .ct-quem b { color: var(--text); }
+  .ct-quem .ct-q-lin { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+  .ct-quem input { flex: 1; min-width: 140px; height: 44px; padding: 0 12px; border-radius: 10px;
+                   border: 1px solid var(--border-2); background: var(--bg); color: var(--text); font: inherit; }
+  .ct-quem button { min-height: 44px; padding: 0 16px; border-radius: 999px; border: none; cursor: pointer;
+                    background: var(--ambar); color: #2b2117; font: inherit; font-weight: 700; }
+  .ct-quem .ct-q-troca { background: none; color: var(--ambar-2); border: 1px solid var(--border-2); font-weight: 600; min-height: 34px; padding: 0 12px; }
+  .ct-quem .ct-q-erro { color: #f09b9b; font-size: 12.5px; width: 100%; }
+  .ct-quem.ok { border-color: #5f9a72; }
+  .top-fields label.ct-esc { display: none; }
+  .top-fields.ct-oculto { display: none; }
+  .ct-fx-dt { margin-top: 2px; padding: 0; border: none; background: none; color: var(--ambar-2);
+              font: inherit; font-size: 12px; text-decoration: underline; cursor: pointer; }
+  .ct-fx-dt[hidden] { display: none; }
 </style>
 <script>
 (function () {
@@ -921,6 +963,216 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
     if (form.requestSubmit) form.requestSubmit(envio || undefined);
     else if (envio) envio.click();
   });
+  atualiza();
+})();
+</script>
+<script>
+/* CONTAGEM GUIADA v1 (2026-11-03) — ver bento/injeta_contagem_ux.py. Roda
+   depois do bloco v2 (que já montou ✓, grupos e a barra do rodapé). */
+(function () {
+  var form = document.querySelector('form[id^="form-"]');
+  if (!form || form.getAttribute('data-ct-guiada')) return;
+  form.setAttribute('data-ct-guiada', '1');
+  var campos = Array.prototype.slice.call(form.querySelectorAll('.linha input[type=number]'));
+  if (!campos.length) return;
+  var SENHA_KEY = 'bento_pessoa_senha';
+  var resp = form.querySelector('input[name="responsavel"]');
+  var dataIn = form.querySelector('input[name="data"]');
+  var envio = form.querySelector('.enviar');
+  function preenchido(i) { return (i.value || '').trim() !== ''; }
+  function dispara(i) { i.dispatchEvent(new Event('input', { bubbles: true })); }
+  function lsGet(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
+  function lsSet(k, v) { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (e) {} }
+
+  // "Não tem": zero dito de propósito (em branco continua sendo "não contei").
+  campos.forEach(function (i) {
+    var st = i.closest('.stepper');
+    if (!st || st.parentNode.querySelector('.ct-nt')) return;
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'ct-nt'; b.innerHTML = 'Não<br>tem';
+    b.setAttribute('aria-label', 'Não tem nenhum');
+    b.addEventListener('click', function () { i.value = '0'; dispara(i); });
+    st.parentNode.appendChild(b);
+  });
+  var dica = form.querySelector('.ct-dica');
+  if (dica) dica.textContent = 'Em branco = não contei. Acabou o item? Toque em "Não tem".';
+
+  // "Zerar os N em branco" por grupo, com confirmação.
+  var grupos = [];
+  form.querySelectorAll('.grupo').forEach(function (g) {
+    var h = g.querySelector('h3');
+    if (h) grupos.push({ cab: h, campos: Array.prototype.slice.call(g.querySelectorAll('.linha input[type=number]')) });
+  });
+  form.querySelectorAll('.grupo-cab').forEach(function (cab) {
+    var cs = [], n = cab.nextElementSibling;
+    while (n && !n.classList.contains('grupo-cab')) {
+      var i = n.classList.contains('linha') && n.querySelector('input[type=number]');
+      if (i) cs.push(i);
+      n = n.nextElementSibling;
+    }
+    grupos.push({ cab: cab, campos: cs });
+  });
+  grupos.forEach(function (g) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'ct-zera'; b.hidden = true;
+    b.addEventListener('click', function () {
+      var vazios = g.campos.filter(function (i) { return !preenchido(i); });
+      if (!vazios.length) return;
+      if (!confirm('Marcar ' + vazios.length + ' item(ns) em branco deste grupo como "não tem" (zero)?')) return;
+      vazios.forEach(function (i) { i.value = '0'; });
+      dispara(vazios[0]);
+    });
+    g.cab.appendChild(b);
+    g.zera = b;
+  });
+
+  // Faixa do alto: data por extenso, % geral e uma ação só.
+  var faixa = document.createElement('div');
+  faixa.className = 'ct-faixa';
+  faixa.innerHTML = '<div class="ct-fx-l1"><div class="ct-fx-tt"><b></b><span></span></div>'
+    + '<span class="ct-fx-pc">0%</span><button type="button" class="ct-fx-go">Começar</button></div>'
+    + '<span class="ct-fx-tr"><i></i></span>';
+  form.insertBefore(faixa, form.firstChild);
+  var fxT = faixa.querySelector('.ct-fx-tt b'), fxS = faixa.querySelector('.ct-fx-tt span');
+  var fxP = faixa.querySelector('.ct-fx-pc'), fxG = faixa.querySelector('.ct-fx-go'), fxI = faixa.querySelector('.ct-fx-tr i');
+  // A data mora na faixa; o campo só aparece em "mudar data" ou se não for hoje.
+  var topo = form.querySelector('.top-fields');
+  var fxD = document.createElement('button');
+  fxD.type = 'button'; fxD.className = 'ct-fx-dt'; fxD.textContent = 'mudar data';
+  faixa.querySelector('.ct-fx-tt').appendChild(fxD);
+  function hojeISO() { var d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); }
+  function mostraData(sim) { if (topo) topo.classList.toggle('ct-oculto', !sim); fxD.hidden = sim; }
+  fxD.addEventListener('click', function () { mostraData(true); if (dataIn) dataIn.focus(); });
+  function dataExtenso() {
+    var v = dataIn && dataIn.value;
+    if (!v) return '';
+    try {
+      var d = new Date(v + 'T12:00:00');
+      return d.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+    } catch (e) { return v; }
+  }
+  function vaiPara(c) {
+    if (!c) return;
+    try { c.focus({ preventScroll: true }); } catch (e) { c.focus(); }
+    c.scrollIntoView({ block: 'center' });
+  }
+  function proximoVazio() {
+    for (var k = 0; k < campos.length; k++) if (!preenchido(campos[k])) return campos[k];
+    return null;
+  }
+  function atualiza() {
+    var n = campos.filter(preenchido).length, tot = campos.length, pc = Math.round(100 * n / tot);
+    var dx = dataExtenso();
+    fxT.textContent = dx ? dx.charAt(0).toUpperCase() + dx.slice(1) : 'Sem data';
+    fxS.textContent = n + ' de ' + tot + ' contados';
+    fxP.textContent = pc + '%';
+    fxI.style.width = pc + '%';
+    faixa.classList.toggle('completo', n === tot);
+    fxG.textContent = n === 0 ? 'Começar' : n < tot ? 'Continuar' : 'Concluir';
+    grupos.forEach(function (g) {
+      var vz = g.campos.filter(function (i) { return !preenchido(i); }).length;
+      g.zera.hidden = vz === 0 || vz === g.campos.length;
+      g.zera.textContent = 'Zerar os ' + vz + ' em branco';
+    });
+    campos.forEach(function (i) {
+      var l = i.closest('.linha');
+      if (l) l.classList.toggle('ct-zero', i.value === '0');
+    });
+  }
+  fxG.addEventListener('click', function () {
+    var c = proximoVazio();
+    if (c) { vaiPara(c); return; }
+    if (form.requestSubmit) form.requestSubmit(envio || undefined); else if (envio) envio.click();
+  });
+  form.addEventListener('input', atualiza);
+  if (dataIn) dataIn.addEventListener('change', atualiza);
+
+  // Quem conta: a contagem sai assinada pela pessoa (como no Turno). Com login
+  // individual a sessão já diz quem é; com a senha do nível, a pessoa digita a
+  // senha individual uma vez neste aparelho (mesma chave do Turno).
+  var s = typeof window.sessaoBentoLer === 'function' ? window.sessaoBentoLer() : null;
+  var quem = document.createElement('div');
+  quem.className = 'ct-quem';
+  faixa.parentNode.insertBefore(quem, faixa.nextSibling);
+  if (resp) { var lab = resp.closest('label'); if (lab) lab.classList.add('ct-esc'); }
+  function poeNome(nome) {
+    if (resp) { resp.value = nome; resp.readOnly = true; dispara(resp); }
+  }
+  function mostraPessoa(nome, daSessao) {
+    quem.className = 'ct-quem ok';
+    quem.innerHTML = 'Contando como <b></b>' + (daSessao ? '' : '<div class="ct-q-lin"><button type="button" class="ct-q-troca">Não sou eu</button></div>');
+    quem.querySelector('b').textContent = nome;
+    poeNome(nome);
+    var tr = quem.querySelector('.ct-q-troca');
+    if (tr) tr.addEventListener('click', function () { lsSet(SENHA_KEY, ''); pedeSenha(''); });
+  }
+  function pedeSenha(erro) {
+    quem.className = 'ct-quem';
+    if (resp) { resp.readOnly = false; resp.value = ''; }
+    quem.innerHTML = '<b>Quem está contando?</b> Digite a sua senha individual (a mesma do Turno).'
+      + '<div class="ct-q-lin"><input type="password" autocomplete="current-password" placeholder="Senha individual" aria-label="Senha individual">'
+      + '<button type="button">Entrar</button><span class="ct-q-erro" aria-live="polite"></span></div>';
+    // div, não <form>: a caixa mora DENTRO do formulário da contagem, e
+    // formulário aninhado é descartado pelo navegador.
+    var inp = quem.querySelector('input'), bt = quem.querySelector('button'), er = quem.querySelector('.ct-q-erro');
+    er.textContent = erro || '';
+    inp.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') { ev.preventDefault(); ev.stopPropagation(); entra(); }
+    });
+    bt.addEventListener('click', entra);
+    function entra() {
+      var senha = inp.value.trim();
+      if (!senha) { inp.focus(); return; }
+      er.textContent = 'Conferindo…';
+      confere(senha).then(function (r) {
+        if (r.nome) { lsSet(SENHA_KEY, senha); mostraPessoa(r.nome, false); }
+        else er.textContent = r.erro || 'Senha individual não reconhecida.';
+      });
+    }
+  }
+  function confere(senha) {
+    return fetch(window.BENTO_WORKER + '/api/pessoa', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ senha_pessoa: senha })
+    }).then(function (r) { return r.json().catch(function () { return {}; }); })
+      .then(function (j) { return j && j.ok && j.nome ? { nome: j.nome } : { erro: j && j.erro }; })
+      .catch(function () { return { erro: 'Sem conexão agora. Tente de novo.' }; });
+  }
+  if (s && s.pessoa) mostraPessoa(s.pessoa, true);
+  else {
+    var salva = lsGet(SENHA_KEY);
+    if (salva) {
+      quem.textContent = 'Conferindo quem está contando…';
+      confere(salva).then(function (r) { if (r.nome) mostraPessoa(r.nome, false); else { lsSet(SENHA_KEY, ''); pedeSenha(''); } });
+    } else pedeSenha('');
+  }
+
+  // O envio leva a senha individual (o worker assina a contagem por ela) e,
+  // se o worker recusar por falta de pessoa, a caixa de senha volta.
+  var original = window.fetch;
+  window.fetch = function (entrada, opcoes) {
+    try {
+      var url = typeof entrada === 'string' ? entrada : (entrada && entrada.url) || '';
+      if (/\/api\/contagem\/(insumos|producoes|copos)$/.test(url) && opcoes && typeof opcoes.body === 'string') {
+        var senha = lsGet(SENHA_KEY);
+        if (senha && !(s && s.pessoa)) {
+          var b = JSON.parse(opcoes.body);
+          b.senha_pessoa = senha;
+          opcoes = Object.assign({}, opcoes, { body: JSON.stringify(b) });
+        }
+        return original.call(window, entrada, opcoes).then(function (res) {
+          if (res.status === 403) {
+            res.clone().json().then(function (j) {
+              if (j && j.precisa_pessoa) { lsSet(SENHA_KEY, ''); pedeSenha(j.erro || ''); quem.scrollIntoView({ block: 'center' }); }
+            }).catch(function () {});
+          }
+          return res;
+        });
+      }
+    } catch (e) {}
+    return original.apply(window, arguments);
+  };
+  mostraData(!dataIn || dataIn.value !== hojeISO());
   atualiza();
 })();
 </script>
