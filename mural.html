@@ -33,6 +33,11 @@
     padding: 16px 18px 24px; max-width: 980px; margin: 0 auto;
   }
   ::placeholder { color: var(--text-3); }
+  /* Link sem classe própria saía no azul padrão do navegador, ilegível no
+     fundo escuro — medido em 2026-10-30 nos avisos de sessão ("Trocar
+     acesso", "entre de novo") de 13 páginas. Regra de tipo: toda classe que
+     já define cor continua ganhando. */
+  a { color: var(--ambar-2); }
   .ic { vertical-align: -3px; }
   header.brand { display: flex; flex-direction: column; align-items: center; justify-content: center;
                  gap: 4px; padding: 10px 0 14px; }
@@ -248,7 +253,7 @@
      mínima do conteúdo e ignora o 100%); as larguras abaixo dão à coluna do
      dia o dobro das outras, que é a proporção do texto real
      ("Segunda 29/06" contra "Folga"/"Noite"). */
-  table.escala { table-layout: fixed; }
+  table.escala { table-layout: fixed; margin-bottom: 14px; }  /* sem margem o painel "Pontos de atenção" colava na tabela (0px, 2026-10-30) */
   table.escala th, table.escala td { padding: 11px 6px; font-size: 13px; }
   table.escala th:first-child, table.escala td:first-child { width: 32%; }
   table.escala th:not(:first-child), table.escala td:not(:first-child) { width: 17%; }
@@ -652,6 +657,14 @@
   .sino-data { font-size: 11px; color: var(--text-3); }
   .sino-nov p { margin: 0 0 0 17px; font-size: 12px; color: var(--text-2); line-height: 1.4; }
   @media (max-width: 559px) { .sino-pop { top: 54px; right: 8px; } }
+
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  body { overflow-wrap: break-word; }
+  @media (max-width: 640px) { .brand .logo { max-height: 54px; } }
+  @media (pointer: coarse) {
+    input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=button]):not([type=submit]):not([type=reset]):not([type=image]):not([type=color]),
+    select, textarea { font-size: 16px !important; }
+  }
 </style>
 </head>
 <body>
@@ -1019,8 +1032,8 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
     <a href="#home-areas"><span class="ic"><svg class="ic" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></span>Todas as<br>páginas</a>
   </div>
 </div>
-<script src="rotinas-comum.js?v=8dd02b04cbc2"></script>
-<script src="bartender-painel.js?v=8dd02b04cbc2"></script>
+<script src="rotinas-comum.js?v=59f61bbd37a5"></script>
+<script src="bartender-painel.js?v=59f61bbd37a5"></script>
 <script>
 /* Preenchimento do Painel do Bartender. DEGRADAÇÃO GRACIOSA é requisito duro:
    sem sessão, sem rede ou com 404 de rotinas, a casca acima já é utilizável —
@@ -1363,16 +1376,22 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
        só a área de toque via `::after` — o Rodrigo preferiu explicitamente
        altura de verdade a um botão que parece pequeno numa fileira de
        botões grandes lado a lado. */
+    /* REVISADO 2026-10-30: com gap 5px / padding 6px / badge 1px 5px sobravam
+       47px pro nome e "Operação" a 12px mede 52px — o texto invadia o espaço
+       do badge (e, com a quebra de palavra global, virava "Operaçã/o" em duas
+       linhas, botão de 52px). 1px a menos em cada respiro devolve 53px a
+       375px; abaixo de 370px (Android de 360px) o ícone sai, o nome fica. */
     .bg-btns { gap: 6px; }
-    .bg-btn { gap: 5px; padding: 9px 6px; }
+    .bg-btn { gap: 4px; padding: 9px 5px; }
     .bg-ic { width: 20px; height: 20px; border-radius: 6px; }
     .bg-ic svg { width: 12px; height: 12px; }
-    .bg-ct { padding: 1px 5px; font-size: 11px; }
+    .bg-ct { padding: 1px 4px; font-size: 11px; }
     /* 12px (não o piso de 11px): sobrou margem depois de devolver a altura
        pra 40px, e o Rodrigo prefere 12px como alvo — 11px é tolerado, não
-       desejado. */
-    .bg-nm { font-size: 12px; }
+       desejado. nowrap: nome de área nunca parte no meio da palavra. */
+    .bg-nm { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   }
+  @media (max-width: 369px) { .bg-ic { display: none; } }
   .bg-ov { position: fixed; inset: 0; z-index: 80; display: none; align-items: flex-end; justify-content: center; background: rgba(0,0,0,.55); }
   .bg-ov.on { display: flex; }
   .bg-sheet { width: 100%; max-width: 620px; max-height: 84vh; overflow-y: auto; background: var(--bg);
@@ -1415,7 +1434,9 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 
 
 <style>
-  .tcm { border: 1px solid var(--border); border-radius: 13px; background: var(--card); padding: 7px 10px 8px; margin-top: 5px; }
+  /* margin-bottom (2026-10-30): sem ele o "Foco do dia" logo abaixo encostava
+     na borda deste card (0px medido) — duas caixas coladas viram uma só. */
+  .tcm { border: 1px solid var(--border); border-radius: 13px; background: var(--card); padding: 7px 10px 8px; margin: 8px 0 10px; }
   .tcm-cab { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px; }
   .tcm-cab .t { font-size: 11px; letter-spacing: 1.4px; color: var(--text-3); font-weight: 600; }
   .tcm-cab .t b { color: var(--ambar-2); }
@@ -1557,7 +1578,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
   <div class="sino-lista" id="sino-lista-nov" hidden></div>
 </div>
 
-<p class="nota">Portal do Bar · Bento · atualizado em 27/09/2026.
+<p class="nota">Portal do Bar · Bento · atualizado em 03/11/2026.
 Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à mão.</p>
 <script>if (window.FilaOffline) window.FilaOffline.iniciarSelo({"elId": "fila-selo", "destinos": {"registro": "registro.html", "turno": "turno.html"}});</script>
 
@@ -1585,7 +1606,7 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
 </div>
 <script>
 (function () {
-  var BUILD = '8dd02b04cbc2';
+  var BUILD = '59f61bbd37a5';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
