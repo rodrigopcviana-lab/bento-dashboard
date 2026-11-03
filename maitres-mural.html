@@ -698,6 +698,35 @@ window.sessaoBentoLer = function () {
     return s;
   } catch (e) { return null; }
 };
+// Token da sessão em toda chamada ao Worker (PLANO_CHAVES_PUBLICAS_BENTO.md,
+// 2026-11). As rotas que pediam chave fixa no corpo ou no X-Chave passaram a
+// aceitar o X-Token da sessão (autorizaRotaBento no worker), e a chave saiu do
+// HTML publicado. Em vez de mexer em cada fetch das ~100 páginas, o fetch da
+// página é embrulhado uma vez aqui: pedido para window.BENTO_WORKER ganha o
+// X-Token da sessão, se a página ainda não mandou um. Pedido para outro
+// endereço sai intocado, e sem sessão o pedido sai igual ao de antes (o worker
+// recusa com 401, como recusava chave errada). Na prévia do admin o token é o
+// do próprio admin (ver sessaoBentoLer acima), então nenhum nível ganha acesso.
+(function () {
+  if (!window.fetch || window.fetch.__tokenBento) return;
+  var original = window.fetch;
+  var embrulhado = function (entrada, opcoes) {
+    try {
+      var url = entrada && typeof entrada === 'object' && 'url' in entrada ? entrada.url : String(entrada);
+      var s = window.BENTO_WORKER && url.indexOf(window.BENTO_WORKER + '/') === 0 ? window.sessaoBentoLer() : null;
+      if (s && s.token) {
+        var o = opcoes ? Object.assign({}, opcoes) : {};
+        var h = new Headers(o.headers || (entrada && entrada.headers) || undefined);
+        if (!h.has('X-Token')) h.set('X-Token', s.token);
+        o.headers = h;
+        return original.call(window, entrada, o);
+      }
+    } catch (e) {}
+    return original.apply(window, arguments);
+  };
+  embrulhado.__tokenBento = true;
+  window.fetch = embrulhado;
+})();
 // Faixa fixa dentro da moldura: a prévia nunca pode ser confundida com a tela
 // real, e o que se envia daqui GRAVA DE VERDADE (decisão do Rodrigo).
 (function () {
@@ -1020,13 +1049,13 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 
   <div class="pm-off" id="pm-off" hidden></div>
 </div>
-<!-- ?v=59f61bbd37a5: sem isso o navegador (e o service worker) servem a
+<!-- ?v=4bf0c8709ce9: sem isso o navegador (e o service worker) servem a
      cópia velha depois de publicar, e o painel roda lógica antiga com casca
      nova. Pego na verificação da página real em 2026-09-14 — o .js ficou em
      cache e o rótulo novo não apareceu, com o HTML já atualizado. Mesma
      razão do portal.css?v= (seção de cache do CLAUDE.md). -->
-<script src="reconcilia-vidraria.js?v=59f61bbd37a5"></script>
-<script src="maitre-painel.js?v=59f61bbd37a5"></script>
+<script src="reconcilia-vidraria.js?v=4bf0c8709ce9"></script>
+<script src="maitre-painel.js?v=4bf0c8709ce9"></script>
 <script>
 /* Preenchimento do Painel do Maître. TUDO aqui é "melhor esforço": a casca
    acima já é utilizável só com os links, e é assim que ela fica se qualquer
@@ -1037,7 +1066,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
   var s = window.sessaoBentoLer();
   if (!s || !s.token) return;
 
-  var CH_HIST = '2436ca47933b3c17a90886daa8fec616', CH_DEM = '3414bbfba9d76d9394e509f744934bf3';
+  var CH_HIST = 'via-sessao', CH_DEM = 'via-sessao';
   function txt(id, v) { var e = document.getElementById(id); if (e) e.textContent = v; }
   function cls(id, c) { var e = document.getElementById(id); if (e) e.className = c; }
 
@@ -1384,7 +1413,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
   } catch (e) {}
   fetch('https://bento-portal-contagem.rodrigopcviana.workers.dev/api/pessoa', {
     method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({chave: '52d20056e7bbf3bcc08092123cdde44d', senha_pessoa: senha})
+    body: JSON.stringify({chave: 'via-sessao', senha_pessoa: senha})
   }).then(function (r) { return r.json(); }).then(function (j) {
     if (j && j.ok && j.nome) {
       aplica(j.nome);
@@ -1438,7 +1467,7 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
 </div>
 <script>
 (function () {
-  var BUILD = '59f61bbd37a5';
+  var BUILD = '4bf0c8709ce9';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;

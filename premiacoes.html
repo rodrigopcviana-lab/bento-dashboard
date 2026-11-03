@@ -698,6 +698,35 @@ window.sessaoBentoLer = function () {
     return s;
   } catch (e) { return null; }
 };
+// Token da sessão em toda chamada ao Worker (PLANO_CHAVES_PUBLICAS_BENTO.md,
+// 2026-11). As rotas que pediam chave fixa no corpo ou no X-Chave passaram a
+// aceitar o X-Token da sessão (autorizaRotaBento no worker), e a chave saiu do
+// HTML publicado. Em vez de mexer em cada fetch das ~100 páginas, o fetch da
+// página é embrulhado uma vez aqui: pedido para window.BENTO_WORKER ganha o
+// X-Token da sessão, se a página ainda não mandou um. Pedido para outro
+// endereço sai intocado, e sem sessão o pedido sai igual ao de antes (o worker
+// recusa com 401, como recusava chave errada). Na prévia do admin o token é o
+// do próprio admin (ver sessaoBentoLer acima), então nenhum nível ganha acesso.
+(function () {
+  if (!window.fetch || window.fetch.__tokenBento) return;
+  var original = window.fetch;
+  var embrulhado = function (entrada, opcoes) {
+    try {
+      var url = entrada && typeof entrada === 'object' && 'url' in entrada ? entrada.url : String(entrada);
+      var s = window.BENTO_WORKER && url.indexOf(window.BENTO_WORKER + '/') === 0 ? window.sessaoBentoLer() : null;
+      if (s && s.token) {
+        var o = opcoes ? Object.assign({}, opcoes) : {};
+        var h = new Headers(o.headers || (entrada && entrada.headers) || undefined);
+        if (!h.has('X-Token')) h.set('X-Token', s.token);
+        o.headers = h;
+        return original.call(window, entrada, o);
+      }
+    } catch (e) {}
+    return original.apply(window, arguments);
+  };
+  embrulhado.__tokenBento = true;
+  window.fetch = embrulhado;
+})();
 // Faixa fixa dentro da moldura: a prévia nunca pode ser confundida com a tela
 // real, e o que se envia daqui GRAVA DE VERDADE (decisão do Rodrigo).
 (function () {
@@ -863,7 +892,7 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
 </div>
 <script>
 (function () {
-  var BUILD = '59f61bbd37a5';
+  var BUILD = '4bf0c8709ce9';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
