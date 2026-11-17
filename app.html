@@ -118,6 +118,18 @@ tr.sec td{font-weight:600;color:var(--tx3);font-size:12px;text-transform:upperca
   .barra-nav{display:none}
   .toast{bottom:32px}
 }
+.kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0 4px}
+.kpi{background:var(--sup2);border-radius:12px;padding:10px 12px;min-width:0}
+.kpi b{display:block;font-family:var(--serif);font-size:26px;font-weight:500;line-height:1.1}
+.kpi span{font-size:12.5px;color:var(--tx2)}
+.kpi.ruim b{color:var(--coral)}
+.kpi.atencao b{color:var(--acento)}
+@media (min-width:600px){.kpis{grid-template-columns:repeat(4,minmax(0,1fr))}}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.menos{color:var(--coral-tx)}
+.mais{color:var(--verde-tx)}
+.fora{margin-top:12px;font-size:14px;color:var(--tx2)}
+.fora .pill{margin:3px 4px 0 0}
 @media (prefers-reduced-motion:reduce){.esq{animation:none}.barra i{transition:none}}
 </style>
 </head>
@@ -140,12 +152,17 @@ tr.sec td{font-weight:600;color:var(--tx3);font-size:12px;text-transform:upperca
 </div>
 <script src="rotinas-comum.js"></script>
 <script src="bartender-painel.js"></script>
+<script src="reconcilia-vidraria.js"></script>
 <script>
 (function () {
   'use strict';
   var W = 'https://bento-portal-contagem.rodrigopcviana.workers.dev';
-  var IC = {"sun": "<circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4\"/>", "relogio": "<circle cx=\"12\" cy=\"12\" r=\"8\"/><path d=\"M12 8v4l3 2\"/>", "garrafa": "<path d=\"M10 3h4v3l2 3v10a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2V9l2-3z\"/><path d=\"M9 13h6\"/>", "lock": "<rect x=\"5\" y=\"11\" width=\"14\" height=\"9\" rx=\"2\"/><path d=\"M8 11V7a4 4 0 0 1 8 0v4\"/>", "camera": "<path d=\"M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z\"/><circle cx=\"12\" cy=\"13\" r=\"4\"/>", "check-circle": "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M8 12.5l2.5 2.5L16 9\"/>", "chart": "<path d=\"M4 20h16\"/><path d=\"M7 20v-6M12 20V7M17 20v-9\"/>"};
-  var RC = window.RotinasComum, BP = window.BartenderPainel;
+  var IC = {"sun": "<circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4\"/>", "relogio": "<circle cx=\"12\" cy=\"12\" r=\"8\"/><path d=\"M12 8v4l3 2\"/>", "garrafa": "<path d=\"M10 3h4v3l2 3v10a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2V9l2-3z\"/><path d=\"M9 13h6\"/>", "lock": "<rect x=\"5\" y=\"11\" width=\"14\" height=\"9\" rx=\"2\"/><path d=\"M8 11V7a4 4 0 0 1 8 0v4\"/>", "camera": "<path d=\"M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z\"/><circle cx=\"12\" cy=\"13\" r=\"4\"/>", "check-circle": "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M8 12.5l2.5 2.5L16 9\"/>", "chart": "<path d=\"M4 20h16\"/><path d=\"M7 20v-6M12 20V7M17 20v-9\"/>", "cocktail": "<path d=\"M4 5h16l-8 9z\"/><path d=\"M12 14v6M8 20h8\"/>", "taca-trincada": "<path d=\"M7 4h10l-1.15 15.1a2 2 0 0 1-2 1.9h-3.7a2 2 0 0 1-2-1.9L7 4z\"/><path d=\"M9.7 8.4l3.1 2.2-2.2 2.1 2.7 2.3\"/>", "alerta": "<path d=\"M12 9v4\"/><path d=\"M12 16h.01\"/><path d=\"M10.36 3.6 2.26 17.5a1.9 1.9 0 0 0 1.64 2.5h16.2a1.9 1.9 0 0 0 1.64-2.5L13.64 3.6a1.9 1.9 0 0 0-3.28 0z\"/>"};
+  var RC = window.RotinasComum, BP = window.BartenderPainel, RV = window.ReconciliaVidraria;
+  // O que se conta na tela de copos, com o par (lastro) do cadastro:
+  // config/copos_bento.json, o mesmo que vai para as páginas de contagem.
+  var COPOS = [{"nome": "Caneca chopp", "lastro": 108, "grupo": "copo"}, {"nome": "Copo baixo liso", "lastro": 24, "grupo": "copo"}, {"nome": "Long Drink soho", "lastro": 24, "grupo": "copo"}, {"nome": "Taça Mistic Coupe", "lastro": 24, "grupo": "copo"}, {"nome": "Caneca cobre", "lastro": 12, "grupo": "copo"}, {"nome": "Tulipa", "lastro": 60, "grupo": "copo"}, {"nome": "Leafy", "lastro": 18, "grupo": "copo"}, {"nome": "Taça Gin", "lastro": 72, "grupo": "copo"}, {"nome": "Shot", "lastro": 48, "grupo": "copo"}, {"nome": "Copo Baixo Soho", "lastro": 36, "grupo": "copo"}, {"nome": "Aruba", "lastro": 48, "grupo": "copo"}, {"nome": "Copo Haus", "lastro": 18, "grupo": "copo"}, {"nome": "Pano chopp", "lastro": null, "grupo": "outro"}, {"nome": "Taça Prestige", "lastro": null, "grupo": "copo"}, {"nome": "Caneca de café", "lastro": null, "grupo": "copo"}, {"nome": "Cálice de licor", "lastro": null, "grupo": "copo"}, {"nome": "Jarra de Aperol", "lastro": null, "grupo": "copo"}];
+  var GRUPO_ROT = { copo: 'Copos e taças', equipamento: 'Equipamentos', outro: 'Outros' };
   var PREF = { equipe: '', maitres: 'maitres-', admin: 'admin-' };
   var HOME = { equipe: 'mural.html', maitres: 'maitres-mural.html', admin: 'admin-mural.html' };
   var NOME = { equipe: 'Equipe de Bar', maitres: 'Maîtres', admin: 'Administração' };
@@ -188,6 +205,9 @@ tr.sec td{font-weight:600;color:var(--tx3);font-size:12px;text-transform:upperca
     return n ? 'Semana ' + n : String(sem || '');
   }
   function primeiroNome(p) { return String(p || '').trim().split(/\s+/)[0]; }
+  // "Vitória (WhatsApp 09/11, lançada via Claude)" -> "Vitória": a nota entre
+  // parênteses é do registro no Notion, não da tela.
+  function quemContou(r) { return String(r || '').replace(/\s*\([^)]*\)\s*$/, '').trim(); }
   function saudacao() {
     var h = new Date().getHours();
     return h < 5 ? 'Boa noite' : h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
@@ -224,6 +244,10 @@ tr.sec td{font-weight:600;color:var(--tx3);font-size:12px;text-transform:upperca
     semanas: function (f) { return busca('semanas', function () { return api('/api/contagens/semanas', { metodo: 'POST', corpo: { meses: 2 } }); }, f); },
     ronda: function (f) { return busca('ronda', function () { return api('/api/ronda/hoje'); }, f); },
     pendentes: function (f) { return busca('pendentes', function () { return api('/api/acessos/pendentes'); }, f); },
+    // 26 semanas é o teto da rota: cobre a contagem anterior mesmo quando o
+    // bar fica meses sem contar (aconteceu entre 07/09 e 09/11).
+    historico: function (f) { return busca('historico', function () { return api('/api/contagem/historico', { metodo: 'POST', corpo: { semanas: 26 } }); }, f); },
+    quebras: function (f) { return busca('quebras', function () { return api('/api/quebras/historico', { metodo: 'POST', corpo: { meses: 6 } }); }, f); },
   };
 
   var CTX = null;
@@ -442,6 +466,27 @@ tr.sec td{font-weight:600;color:var(--tx3);font-size:12px;text-transform:upperca
       });
     }
 
+    if (pode('hoje.copos')) {
+      var bK = bloco(c);
+      Promise.all([dados.semanas(), pode('copos.controle') ? dados.historico() : Promise.resolve(null)]).then(function (rs) {
+        var r = rs[0], rh = rs[1];
+        if (!r.ok) { falhou(bK, 'Copos e taças', r); return; }
+        var st = situacaoSemana(r.d.contagens || [], 'copos');
+        var extra = '';
+        var k = rh && rh.ok ? controleCopos(rh.d, null) : null;
+        if (k) {
+          var t = totaisCopos(k);
+          var partes = [];
+          if (t.itensAbaixo) partes.push(t.itensAbaixo + (t.itensAbaixo === 1 ? ' item abaixo do par' : ' itens abaixo do par'));
+          var nFora = t.foraComPar.length + t.fora.length;
+          if (nFora) partes.push(nFora + (nFora === 1 ? ' item sem contar' : ' itens sem contar'));
+          if (partes.length) extra = '<small>' + esc(partes.join(' · ')) + '</small>';
+        }
+        bK.innerHTML = '<h2>Copos e taças</h2><a class="linha" href="#/copos"><div class="t">Contagem de copos<small>' +
+          esc(st.detalhe) + '</small>' + extra + '</div><span class="v"><span class="pill ' + st.cls + '">' + esc(st.rotulo) + '</span></span></a>';
+      });
+    }
+
     if (pode('hoje.ronda')) {
       var bR = bloco(c);
       dados.ronda().then(function (r) {
@@ -484,7 +529,7 @@ tr.sec td{font-weight:600;color:var(--tx3);font-size:12px;text-transform:upperca
     var atual = dias < 7;
     if (s.itens) {
       return { rotulo: atual ? 'feita' : 'última feita', cls: atual ? 'ok' : 'atencao', semana: s,
-        detalhe: rotSemana(s.semana) + ' · ' + s.itens + ' itens' + (s.responsavel ? ' · ' + s.responsavel : '') +
+        detalhe: rotSemana(s.semana) + ' · ' + s.itens + ' itens' + (s.responsavel ? ' · ' + quemContou(s.responsavel) : '') +
           (s.data ? ' · ' + dataBr(s.data) : '') };
     }
     return { rotulo: atual ? 'falta contar' : 'atrasada', cls: atual ? 'atencao' : 'ruim', semana: s,
@@ -676,6 +721,223 @@ tr.sec td{font-weight:600;color:var(--tx3);font-size:12px;text-transform:upperca
     envia(pendente.x, pendente.bl, pendente.d, s);
   });
 
+  // --- Copos: a contagem contra o par e contra a anterior ---------------------
+  // A conta de sumiço e quebra é a do mural do maître (reconcilia-vidraria.js),
+  // nunca uma cópia. Aqui só se junta o que ela não cobre: o par do cadastro,
+  // o que ficou sem contar e o que falta comprar. Dinheiro não entra nesta tela.
+  function nomeK(s) { return RV ? RV._norm(s) : String(s == null ? '' : s).toLowerCase().replace(/\s+/g, ' ').trim(); }
+
+  function semanasUteis(hist) {
+    return ((hist && hist.semanas) || []).map(function (s) {
+      var d = '', tem = false;
+      (s.copos || []).forEach(function (x) {
+        if ((x.data || '') > d) d = x.data;
+        if (typeof x.contagem === 'number' && x.contagem > 0) tem = true;
+      });
+      return { semana: s.semana, data: d, copos: s.copos || [], util: tem };
+    }).filter(function (s) { return s.util; })
+      .sort(function (a, b) { return a.data < b.data ? 1 : -1; });
+  }
+
+  function porNome(lista) {
+    var m = {};
+    lista.forEach(function (x) {
+      var k = nomeK(x.nome);
+      if (!k) return;
+      if (m[k]) m[k].contagem += x.contagem || 0;
+      else m[k] = { nome: x.nome, contagem: x.contagem || 0, lastro: x.lastro == null ? null : x.lastro, responsavel: x.responsavel || '' };
+    });
+    return m;
+  }
+
+  function controleCopos(hist, queb) {
+    var uteis = semanasUteis(hist);
+    if (!uteis.length) return null;
+    var at = uteis[0], an = uteis[1] || null;
+    var mA = porNome(at.copos), mB = an ? porNome(an.copos) : {};
+    var rec = an && RV ? RV.reconciliaVidraria({ semanas: hist.semanas || [], meses: (queb && queb.meses) || [] }) : null;
+    var recPor = {};
+    if (rec && rec.ok) rec.itens.forEach(function (i) { recPor[nomeK(i.nome)] = i; });
+    var linhas = [], vistos = {};
+    function poe(nome, grupo, parCad) {
+      var k = nomeK(nome);
+      if (!k || vistos[k]) return;
+      vistos[k] = 1;
+      var a = mA[k], b = mB[k], r = recPor[k];
+      // Par: o do cadastro manda; sem cadastro, o que veio carimbado na contagem.
+      var par = parCad != null ? parCad : (a && a.lastro != null ? a.lastro : null);
+      linhas.push({
+        nome: (a && a.nome) || nome, grupo: grupo, par: par,
+        atual: a ? a.contagem : null, anterior: b ? b.contagem : null,
+        falta: a && par != null && par > a.contagem ? par - a.contagem : 0,
+        reportado: r ? r.reportado : null, semExpl: r ? r.semExplicacao : null, incons: r ? !!r.inconsistente : false,
+      });
+    }
+    COPOS.forEach(function (x) { poe(x.nome, x.grupo, x.lastro); });
+    Object.keys(mA).forEach(function (k) { poe(mA[k].nome, 'outro', null); });
+    Object.keys(mB).forEach(function (k) { poe(mB[k].nome, 'outro', null); });
+    // Agrupa pela ordem dos grupos sem mexer na ordem da prateleira dentro de
+    // cada um (é a ordem em que se conta).
+    var ordemG = { copo: 0, equipamento: 1, outro: 2 };
+    linhas = linhas.map(function (l, i) { return [l, i]; }).sort(function (x, y) {
+      return ((ordemG[x[0].grupo] || 2) - (ordemG[y[0].grupo] || 2)) || x[1] - y[1];
+    }).map(function (x) { return x[0]; });
+    var resp = '';
+    Object.keys(mA).some(function (k) { resp = mA[k].responsavel; return !!resp; });
+    return { atual: at, anterior: an, rec: rec && rec.ok ? rec : null, linhas: linhas, responsavel: resp };
+  }
+
+  function totaisCopos(k) {
+    var t = { abaixo: 0, itensAbaixo: 0, semPar: [], foraComPar: [], fora: [], sumiu: null, reportado: null, semExpl: null };
+    k.linhas.forEach(function (l) {
+      if (l.atual == null) { (l.par != null ? t.foraComPar : t.fora).push(l); return; }
+      if (l.par == null) t.semPar.push(l);
+      if (l.falta) { t.abaixo += l.falta; t.itensAbaixo++; }
+    });
+    if (k.rec) { t.sumiu = k.rec.totais.sumiu; t.reportado = k.rec.totais.reportado; t.semExpl = k.rec.totais.semExplicacao; }
+    return t;
+  }
+
+  function kpi(valor, rotulo, cls) {
+    return '<div class="kpi ' + (cls || '') + '"><b>' + (valor == null ? '—' : esc(valor)) + '</b><span>' + esc(rotulo) + '</span></div>';
+  }
+
+  TELAS.copos = function (c) {
+    var controle = pode('copos.controle');
+    topo(c, 'Copos e taças', controle ? 'Contagem, par e quebras' : 'Contar e registrar quebra');
+    var b1 = bloco(c);
+    dados.semanas().then(function (r) {
+      if (!r.ok) { falhou(b1, 'Contagem da semana', r); return; }
+      var st = situacaoSemana(r.d.contagens || [], 'copos');
+      b1.innerHTML = '<h2>Contagem da semana</h2><div class="linha"><div class="t">Copos e vidraria<small>' + esc(st.detalhe) +
+        '</small></div><span class="v"><span class="pill ' + st.cls + '">' + esc(st.rotulo) + '</span></span></div>' +
+        '<div class="acoes">' + (pode('copos.contar') ? '<a class="btn" href="' + legado('contagem-copos.html') + '">Contar copos</a>' : '') +
+        (pode('copos.quebra') ? '<a class="btn sec" href="' + legado('quebras.html') + '">' + ic('taca-trincada', 18) + 'Registrar quebra</a>' : '') + '</div>' +
+        '<p class="vazio" style="margin-top:10px">Quebrou? Registre na hora. Quebra registrada explica a diferença; a que ninguém registra aparece como sumiço na contagem seguinte.</p>';
+    });
+
+    if (!controle) {
+      var grupos = {};
+      COPOS.forEach(function (x) { (grupos[x.grupo] = grupos[x.grupo] || []).push(x); });
+      var h = '<div class="blk"><h2>O que se conta</h2>';
+      ['copo', 'equipamento', 'outro'].forEach(function (g) {
+        if (!grupos[g]) return;
+        h += '<div class="grupo"><h3>' + esc(GRUPO_ROT[g]) + '</h3>' + grupos[g].map(function (x) {
+          return '<div class="linha"><div class="t">' + esc(x.nome) + '</div><span class="v">' + (x.lastro != null ? 'par ' + esc(x.lastro) : '') + '</span></div>';
+        }).join('') + '</div>';
+      });
+      c.insertAdjacentHTML('beforeend', h + '</div>');
+      return;
+    }
+
+    var bR = bloco(c, 'destaque'), bP = bloco(c), bT = bloco(c);
+    var bQ = pode('copos.quebras') ? bloco(c) : null;
+    Promise.all([dados.historico(), bQ ? dados.quebras() : Promise.resolve(null)]).then(function (rs) {
+      var rh = rs[0], rq = rs[1];
+      if (!rh.ok) { falhou(bR, 'Controle de copos', rh); bP.remove(); bT.remove(); if (bQ) bQ.remove(); return; }
+      var queb = rq && rq.ok ? rq.d : null;
+      var k = controleCopos(rh.d, queb);
+      if (!k) {
+        bR.innerHTML = '<h2>Controle de copos</h2><p class="vazio">Nenhuma contagem de copos com número nos últimos seis meses.</p>';
+        bP.remove(); bT.remove(); if (bQ) bQ.remove(); return;
+      }
+      desenhaResumoCopos(bR, k);
+      desenhaReporCopos(bP, k);
+      desenhaTabelaCopos(bT, k);
+      if (bQ) desenhaQuebrasCopos(bQ, k, rq);
+    });
+  };
+
+  function desenhaResumoCopos(b, k) {
+    var t = totaisCopos(k);
+    var desde = k.anterior ? dataBr(k.anterior.data) : '';
+    var h = '<h2>Última contagem</h2><div class="agora"><div class="tt">' + dataBr(k.atual.data) +
+      (k.responsavel ? ' · ' + esc(quemContou(k.responsavel)) : '') + '</div></div>' +
+      '<p class="vazio">' + (k.anterior ? 'Comparada com a contagem de ' + desde + ' (' + esc(rotSemana(k.anterior.semana)) + ').'
+        : 'É a primeira contagem com número: a comparação começa na próxima.') + '</p>' +
+      '<div class="kpis">' +
+      kpi(t.abaixo, 'peças abaixo do par em ' + t.itensAbaixo + (t.itensAbaixo === 1 ? ' item' : ' itens'), t.abaixo ? 'atencao' : '') +
+      kpi(t.foraComPar.length + t.fora.length, 'itens sem contar nesta contagem', t.foraComPar.length ? 'ruim' : '') +
+      kpi(t.sumiu, k.anterior ? 'peças a menos desde ' + desde : 'peças a menos', t.sumiu ? 'ruim' : '') +
+      kpi(t.reportado, 'quebras registradas no período', '') + '</div>';
+    if (t.semExpl) {
+      h += '<p style="margin-top:8px"><b>' + t.semExpl + (t.semExpl === 1 ? ' peça sumiu' : ' peças sumiram') +
+        ' sem quebra registrada</b> entre ' + desde + ' e ' + dataBr(k.atual.data) + '.</p>';
+    }
+    if (t.foraComPar.length || t.fora.length) {
+      h += '<div class="fora">Ficaram fora desta contagem: ' + t.foraComPar.concat(t.fora).map(function (l) {
+        return '<span class="pill ' + (l.par != null ? 'ruim' : '') + '">' + esc(l.nome) + (l.par != null ? ' · par ' + l.par : '') + '</span>';
+      }).join('') + '</div>';
+    }
+    b.innerHTML = h;
+  }
+
+  function desenhaReporCopos(b, k) {
+    var t = totaisCopos(k);
+    var abaixo = k.linhas.filter(function (l) { return l.falta > 0; }).sort(function (x, y) { return y.falta - x.falta; });
+    var h = '<h2>Para repor até o par</h2>';
+    h += abaixo.length ? abaixo.map(function (l) {
+      var cls = l.atual * 2 < l.par ? 'ruim' : 'atencao';
+      return '<div class="linha"><div class="t">' + esc(l.nome) + '<small>tem ' + l.atual + ' de ' + l.par + '</small></div>' +
+        '<span class="v"><span class="pill ' + cls + '">faltam ' + l.falta + '</span></span></div>';
+    }).join('') : '<p class="vazio">Tudo o que foi contado está no par ou acima.</p>';
+    if (t.semPar.length) {
+      h += '<p class="vazio" style="margin-top:10px">Sem par definido, então sem conta de reposição: ' +
+        esc(t.semPar.map(function (l) { return l.nome + ' (' + l.atual + ')'; }).join(', ')) + '. O par se define no Catálogo de Copos.</p>';
+    }
+    h += '<p class="vazio" style="margin-top:6px">Par é a quantidade de referência do cadastro de copos. Item que ficou sem contar não entra nesta lista.</p>';
+    b.innerHTML = h;
+  }
+
+  function dif(l) {
+    if (l.atual == null || l.anterior == null) return '';
+    var d = l.atual - l.anterior;
+    if (!d) return '0';
+    return '<span class="' + (d < 0 ? 'menos' : 'mais') + '">' + (d < 0 ? '−' + (-d) : '+' + d) + '</span>';
+  }
+
+  function desenhaTabelaCopos(b, k) {
+    var dA = dataBr(k.atual.data), dB = k.anterior ? dataBr(k.anterior.data) : '';
+    var h = '<h2>Item a item</h2><div class="tab-wrap"><table><thead><tr><th>Item</th><th class="n">Par</th>' +
+      (k.anterior ? '<th class="n">' + dB + '</th>' : '') + '<th class="n">' + dA + '</th>' +
+      (k.anterior ? '<th class="n">Dif.</th><th class="n">Quebras</th>' : '') + '</tr></thead><tbody>';
+    var ultimo = '';
+    k.linhas.forEach(function (l) {
+      if (l.grupo !== ultimo) {
+        ultimo = l.grupo;
+        h += '<tr class="sec"><td colspan="' + (k.anterior ? 6 : 3) + '">' + esc(GRUPO_ROT[l.grupo] || l.grupo) + '</td></tr>';
+      }
+      // Quebra maior que o sumiço só é suspeita quando o número não subiu: se
+      // subiu, entrou copo (compra) e a quebra cabe na diferença.
+      var nota = l.atual == null ? '<small>não contado em ' + dA + '</small>'
+        : l.incons && l.atual <= l.anterior ? '<small>mais quebra registrada que sumiço: conferir a contagem</small>' : '';
+      h += '<tr><td>' + esc(l.nome) + nota + '</td><td class="n">' + (l.par == null ? '—' : l.par) + '</td>' +
+        (k.anterior ? '<td class="n">' + (l.anterior == null ? '—' : l.anterior) + '</td>' : '') +
+        '<td class="n">' + (l.atual == null ? '—' : '<b>' + l.atual + '</b>') + '</td>' +
+        (k.anterior ? '<td class="n">' + dif(l) + '</td><td class="n">' + (l.reportado ? l.reportado : '') + '</td>' : '') + '</tr>';
+    });
+    h += '</tbody></table></div>';
+    if (k.anterior) h += '<p class="vazio" style="margin-top:8px">Dif. compara as duas contagens; Quebras são as registradas entre ' + dB + ' e ' + dA + '. Número a mais quer dizer compra, peça achada ou contagem anterior incompleta.</p>';
+    b.innerHTML = h;
+  }
+
+  function desenhaQuebrasCopos(b, k, rq) {
+    if (!rq || !rq.ok) { falhou(b, 'Quebras registradas', rq); return; }
+    var todas = [];
+    (rq.d.meses || []).forEach(function (m) { (m.entradas || []).forEach(function (e) { todas.push(e); }); });
+    todas.sort(function (x, y) { return (x.data || '') < (y.data || '') ? 1 : -1; });
+    var depois = todas.filter(function (e) { return (e.data || '') > k.atual.data; });
+    var nDepois = depois.reduce(function (s, e) { return s + (e.quantidade || 0); }, 0);
+    var h = '<h2>Quebras registradas</h2><div class="linha"><div class="t">Desde a última contagem (' + dataBr(k.atual.data) + ')</div><span class="v">' +
+      (nDepois ? '<span class="pill atencao">' + nDepois + (nDepois === 1 ? ' peça' : ' peças') + '</span>' : 'nenhuma') + '</span></div>';
+    h += todas.length ? todas.slice(0, 6).map(function (e) {
+      return '<div class="linha"><div class="t">' + esc(e.nome) + '<small>' + esc(e.motivo || '') + (e.responsavel ? ' · ' + esc(e.responsavel) : '') +
+        '</small></div><span class="v">' + esc(e.quantidade) + ' · ' + dataBr(e.data) + '</span></div>';
+    }).join('') : '<p class="vazio">Nenhuma quebra registrada nos últimos seis meses.</p>';
+    h += '<div class="acoes"><a class="btn sec" href="' + legado('quebras-historico.html') + '">' + ic('chart', 18) + 'Histórico de quebras</a></div>';
+    b.innerHTML = h;
+  }
+
   // --- Contagem ---------------------------------------------------------------
   TELAS.contagem = function (c) {
     topo(c, 'Contagem', 'Contagens semanais do bar');
@@ -706,7 +968,7 @@ tr.sec td{font-weight:600;color:var(--tx3);font-size:12px;text-transform:upperca
     topo(c, 'Acessos', 'Quem vê o quê no app novo');
     var t = CTX.tabela || [];
     var niveis = CTX.niveis || ['equipe', 'maitres', 'admin'];
-    var nomeTela = { hoje: 'Hoje', turno: 'Turno', contagem: 'Contagem', acessos: 'Acessos' };
+    var nomeTela = { hoje: 'Hoje', turno: 'Turno', copos: 'Copos', contagem: 'Contagem', acessos: 'Acessos' };
     var h = '<div class="blk"><h2>Permissões por nível</h2><div class="tab-wrap"><table><thead><tr><th>Tela ou bloco</th>' +
       niveis.map(function (n) { return '<th class="c">' + esc(NOME[n] || n) + '</th>'; }).join('') + '</tr></thead><tbody>';
     var ultima = '';
