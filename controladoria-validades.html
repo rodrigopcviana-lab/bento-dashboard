@@ -712,7 +712,7 @@
 </style>
 <!--TEMA:INICIO--><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap"><script>
 (function () {
-  var COR = {"claro": "#f6f7f9", "escuro": "#1e1f22"}, BOTAO = "<button class=\"tema-btn\" id=\"tema-btn\" type=\"button\" role=\"switch\" title=\"Ligar modo escuro\" aria-label=\"Modo escuro\" aria-checked=\"false\"><span class=\"tc-bola\"><span class=\"ic-sol\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4\"/></svg></span><span class=\"ic-lua\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z\"/></svg></span></span></button>";
+  var COR = {"claro": "#f6f7f9", "escuro": "#1e1f22"}, BOTAO = "<button class=\"tema-btn\" id=\"tema-btn\" type=\"button\" role=\"switch\" title=\"Ligar modo escuro\" aria-label=\"Modo escuro\" aria-checked=\"false\"><span class=\"tc-bola\"><span class=\"ic-sol\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4\"/></svg></span><span class=\"ic-lua\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z\"/></svg></span></span></button>", COMP = "<button class=\"comp-btn\" id=\"comp-btn\" type=\"button\" title=\"Compartilhar o site\" aria-label=\"Compartilhar o site\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"18\" cy=\"5\" r=\"2.5\"/><circle cx=\"6\" cy=\"12\" r=\"2.5\"/><circle cx=\"18\" cy=\"19\" r=\"2.5\"/><path d=\"M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4\"/></svg></button>";
   function le() { try { return localStorage.getItem('portal_tema') === 'escuro' ? 'escuro' : 'claro'; } catch (e) { return 'claro'; } }
   function aplica(t) {
     var r = document.documentElement;
@@ -741,10 +741,74 @@
       b.classList.add('tema-solto');
       document.body.appendChild(b);
     }
+    var tb = document.getElementById('tema-btn');
+    if (tb && !document.getElementById('comp-btn')) {
+      var dc = document.createElement('div');
+      dc.innerHTML = COMP;
+      var cb = dc.firstChild;
+      if (tb.classList.contains('tema-solto')) cb.classList.add('comp-solto');
+      tb.insertAdjacentElement('afterend', cb);
+    }
     aplica(le());
   });
+  // --- Compartilhar o site ---
+  var LINK_PARAMS_OK = ['tab', 'aba', 'casa', 'semana', 'mes'];
+  function linkDaPagina() {
+    var q = new URLSearchParams(location.search), fica = new URLSearchParams();
+    LINK_PARAMS_OK.forEach(function (k) { if (q.has(k)) fica.set(k, q.get(k)); });
+    var h = location.hash;
+    if (/token|chave|senha|sess|key|code/i.test(h)) h = '';
+    var qs = fica.toString();
+    return location.origin + location.pathname + (qs ? '?' + qs : '') + h;
+  }
+  function aviso(txt) {
+    var d = document.createElement('div');
+    d.className = 'comp-aviso'; d.setAttribute('role', 'status'); d.textContent = txt;
+    document.body.appendChild(d);
+    setTimeout(function () { d.remove(); }, 2200);
+  }
+  function abreComp() {
+    var d = document.getElementById('comp-dlg');
+    if (!d) {
+      d = document.createElement('dialog');
+      d.id = 'comp-dlg'; d.className = 'comp-dlg';
+      d.setAttribute('aria-labelledby', 'comp-tit');
+      d.innerHTML = '<div class="comp-cab"><h3 id="comp-tit">Compartilhar o site</h3>' +
+        '<button type="button" class="comp-x" data-comp="fechar" aria-label="Fechar">&times;</button></div>' +
+        '<p class="comp-txt">O link abre esta página. Quem receber precisa da própria senha do portal para entrar.</p>' +
+        '<input class="comp-link" id="comp-link" readonly aria-label="Link desta página">' +
+        '<div class="comp-acoes"><button type="button" class="comp-bt" data-comp="copiar">Copiar link</button>' +
+        '<button type="button" class="comp-bt comp-pri" data-comp="enviar" hidden>Compartilhar</button></div>';
+      document.body.appendChild(d);
+      d.addEventListener('click', function (ev) { if (ev.target === d) d.close(); });
+    }
+    d.querySelector('#comp-link').value = linkDaPagina();
+    d.querySelector('[data-comp="enviar"]').hidden = !navigator.share;
+    if (d.showModal) d.showModal(); else d.setAttribute('open', '');
+  }
+  function fechaComp() { var d = document.getElementById('comp-dlg'); if (d) { if (d.close) d.close(); else d.removeAttribute('open'); } }
+  function copiaComp() {
+    var campo = document.getElementById('comp-link'), url = campo.value;
+    function feito() { fechaComp(); aviso('Link copiado'); }
+    function reserva() {
+      campo.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) {}
+      if (ok) feito(); else { campo.focus(); campo.select(); aviso('Selecione e copie o link'); }
+    }
+    if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(url).then(feito, reserva);
+    else reserva();
+  }
   document.addEventListener('click', function (e) {
-    if (e.target.closest && e.target.closest('#tema-btn')) window.temaAlterna();
+    if (!e.target.closest) return;
+    if (e.target.closest('#tema-btn')) { window.temaAlterna(); return; }
+    if (e.target.closest('#comp-btn')) { abreComp(); return; }
+    var c = e.target.closest('[data-comp]');
+    if (!c) return;
+    var a = c.getAttribute('data-comp');
+    if (a === 'copiar') copiaComp();
+    else if (a === 'enviar') navigator.share({ title: document.title, url: document.getElementById('comp-link').value }).then(fechaComp, function () {});
+    else fechaComp();
   });
 })();
 </script><style>
@@ -779,11 +843,11 @@
      claro e a lua no escuro. No topo das páginas geradas fica à direita do
      header; nas mantidas à mão o script a cria solta no canto (.tema-solto). */
   header.brand { position: relative; }
-  header.brand > .tema-btn { position: absolute; right: 0; top: 20px; }
+  header.brand > .tema-btn { position: absolute; right: 44px; top: 20px; }
   .tema-btn { position: relative; flex: none; width: 34px; height: 20px; border-radius: 999px;
     border: 1px solid var(--border); background: var(--card-2); padding: 0; cursor: pointer;
     color: var(--text-4); opacity: .8; }
-  .tema-btn.tema-solto { position: fixed; right: 12px; top: calc(10px + env(safe-area-inset-top, 0px)); z-index: 150; }
+  .tema-btn.tema-solto { position: fixed; right: 54px; top: calc(10px + env(safe-area-inset-top, 0px)); z-index: 150; }
   .tema-btn:hover, .tema-btn:focus-visible { opacity: 1; color: var(--text-2); }
   .tema-btn .tc-bola { position: absolute; top: 1px; left: 1px; width: 16px; height: 16px;
     border-radius: 999px; background: var(--card); box-shadow: var(--sombra-card);
@@ -793,6 +857,34 @@
   .tema-btn .ic-lua { display: none; }
   :root[data-tema="escuro"] .tema-btn .ic-lua { display: flex; }
   :root[data-tema="escuro"] .tema-btn .ic-sol { display: none; }
+  /* Compartilhar o site (2026-11-21): ícone no canto direito do topo, logo
+     depois da chave do tema (o script põe o botão ao lado dela, nas páginas
+     geradas e nas mantidas à mão), e a janelinha com Copiar e Compartilhar. */
+  .comp-btn { flex: none; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border); border-radius: 999px; background: var(--card); color: var(--text-2);
+    padding: 0; cursor: pointer; }
+  .comp-btn svg { width: 17px; height: 17px; }
+  .comp-btn:hover, .comp-btn:focus-visible { border-color: var(--acc); color: var(--text); }
+  header.brand > .comp-btn { position: absolute; right: 0; top: 14px; }
+  .comp-btn.comp-solto { position: fixed; right: 12px; top: calc(4px + env(safe-area-inset-top, 0px)); z-index: 150; }
+  .comp-dlg { margin: auto; width: min(420px, calc(100vw - 32px)); border: 1px solid var(--border); border-radius: 16px;
+    background: var(--card); color: var(--text); padding: 16px; box-shadow: var(--sombra-card); font-family: var(--sans); }
+  .comp-dlg::backdrop { background: rgba(0,0,0,.45); }
+  .comp-dlg .comp-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .comp-dlg h3 { margin: 0; font-size: 17px; }
+  .comp-dlg .comp-x { width: 40px; height: 40px; border: 0; background: transparent; color: var(--text-3);
+    font-size: 24px; line-height: 1; cursor: pointer; border-radius: 10px; }
+  .comp-dlg .comp-txt { margin: 6px 0 12px; font-size: 14px; color: var(--text-2); }
+  .comp-dlg .comp-link { width: 100%; box-sizing: border-box; min-height: 44px; padding: 0 12px; font: inherit;
+    font-size: 16px; color: var(--text-2); background: var(--card-2); border: 1px solid var(--border); border-radius: 10px; }
+  .comp-dlg .comp-acoes { display: flex; gap: 8px; margin-top: 14px; justify-content: flex-end; }
+  .comp-dlg .comp-bt { min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--card); color: var(--text); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .comp-dlg .comp-bt.comp-pri { background: var(--acc); color: var(--acc-txt); border-color: var(--acc); }
+  .comp-dlg .comp-bt[hidden] { display: none; }
+  .comp-aviso { position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+    z-index: 9998; background: var(--acc); color: var(--acc-txt); font-size: 13px; font-weight: 600;
+    padding: 10px 16px; border-radius: 999px; pointer-events: none; }
 
   :root { --c-10331d: #e6f5ec; --c-111d17: #edf4f0; --c-121a21: #ecf0f4; --c-152a22: #e9f3ef; --c-16222c: #e9eef3; --c-191424: #eeebf3; --c-241713: #f3edeb; --c-241d2e: #ece9f0; --c-25d366: #25d366; --c-33221d: #f0eae8; --c-4fbf92: #4fbf92; --c-5a3fa0: #5a3fa0; --c-6fa8dc: #2869a5; --c-7fe6bd: #1d9566; --c-8ec0ea: #195587; --c-93b5c9: #3f667d; --c-9b8ec4: #534482; --c-a9c6d8: #2f5268; --c-b6a9dd: #392968; --c-c4b5e0: #39275c; --c-cfc4ae: #615439; --c-e0655a: #ba2f23; --c-e07a52: #c35023; --c-e6c07a: #9a6e1d; --c-eaa9a9: #6a1a1a; --c-f0a58f: #862c12; --c-f28a63: #b43c0f; }
   :root[data-tema="escuro"] { --c-10331d: #10331d; --c-111d17: #111d17; --c-121a21: #121a21; --c-152a22: #152a22; --c-16222c: #16222c; --c-191424: #191424; --c-241713: #241713; --c-241d2e: #241d2e; --c-25d366: #25d366; --c-33221d: #33221d; --c-4fbf92: #4fbf92; --c-5a3fa0: #5a3fa0; --c-6fa8dc: #6fa8dc; --c-7fe6bd: #7fe6bd; --c-8ec0ea: #8ec0ea; --c-93b5c9: #93b5c9; --c-9b8ec4: #9b8ec4; --c-a9c6d8: #a9c6d8; --c-b6a9dd: #b6a9dd; --c-c4b5e0: #c4b5e0; --c-cfc4ae: #cfc4ae; --c-e0655a: #e0655a; --c-e07a52: #e07a52; --c-e6c07a: #e6c07a; --c-eaa9a9: #eaa9a9; --c-f0a58f: #f0a58f; --c-f28a63: #f28a63; }
@@ -1104,7 +1196,7 @@ WhatsApp — Rodrigo (Coordenação de Bares)</a>
   <div class="sino-lista" id="sino-lista-nov" hidden></div>
 </div>
 
-<p class="nota">Portal do Bar · Bento · atualizado em 03/11/2026.
+<p class="nota">Portal do Bar · Bento · atualizado em 23/11/2026.
 Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à mão.</p>
 <script>if (window.FilaOffline) window.FilaOffline.iniciarSelo({"elId": "fila-selo", "destinos": {"registro": "controladoria-registro.html", "turno": "controladoria-turno.html"}});</script>
 
@@ -1134,7 +1226,7 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
 </div>
 <script>
 (function () {
-  var BUILD = 'a51ba2c9e022';
+  var BUILD = '065f4a570fb4';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var ultimo = 0, mostrando = false;
