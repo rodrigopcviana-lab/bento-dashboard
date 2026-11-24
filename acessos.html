@@ -1279,6 +1279,8 @@ senhas antigas.</p>
   <div id="ac-criados"></div>
   <div class="ac-sec">SENHAS QUE JÁ EXISTEM</div>
   <div id="ac-secrets"></div>
+  <div class="ac-sec">WHATSAPP DE CADA PESSOA</div>
+  <div id="ac-contatos"></div>
 </div>
 </div>
 
@@ -1350,6 +1352,25 @@ senhas antigas.</p>
     document.getElementById('ac-criados').innerHTML = resto.length
       ? resto.map(linhaCriado).join('') : '<p class="ac-vazio">Ninguém criou login pelo site ainda.</p>';
     document.getElementById('ac-secrets').innerHTML = (dados.secrets || []).map(linhaSecret).join('');
+    // Número vem só desta resposta (rota do dono), nunca do HTML publicado.
+    var ct = dados.contatos || [];
+    document.getElementById('ac-contatos').innerHTML = (ct.length
+      ? ct.map(linhaContato).join('')
+      : '<p class="ac-vazio">Ninguém cadastrou ainda.</p>') +
+      '<p class="ac-vazio">Cada pessoa cadastra o próprio número em Meu perfil. O Mural lembra quem ainda não cadastrou. Nada é enviado sozinho.</p>';
+  }
+
+  function fmtCel(c) {
+    var d = String(c || '').replace(/\D/g, '').replace(/^55/, '');
+    return d.length === 11 ? '(' + d.slice(0, 2) + ') ' + d.slice(2, 7) + '-' + d.slice(7) : d;
+  }
+  function linhaContato(c) {
+    var dig = String(c.celular || '').replace(/\D/g, '');
+    return '<div class="ac-linha"><div class="ac-topo">' +
+      '<div class="ac-nome"><b>' + esc(c.nome) + '</b><span>atualizado ' + quando(c.atualizado_em) +
+      (c.confirmado ? ' · confirmado' : ' · ainda não confirmado') + '</span></div>' +
+      '<a class="ac-bt" href="https://wa.me/' + esc(dig) + '" target="_blank" rel="noopener">' + esc(fmtCel(c.celular)) + '</a>' +
+      '</div></div>';
   }
 
   function senhaHtml(a) {
@@ -1721,7 +1742,7 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
 </div>
 <script>
 (function () {
-  var BUILD = '66a0cdb8cd98';
+  var BUILD = '0ba3f8dc7310';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var PARADO = 30000;         // 30s sem tocar na tela = pode recarregar

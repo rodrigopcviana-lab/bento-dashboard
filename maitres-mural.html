@@ -940,8 +940,8 @@
     z-index: 9998; background: var(--acc); color: var(--acc-txt); font-size: 13px; font-weight: 600;
     padding: 10px 16px; border-radius: 999px; pointer-events: none; }
 
-  :root { --c-10331d: #e6f5ec; --c-25d366: #25d366; --c-5a3fa0: #5a3fa0; --c-93b5c9: #3f667d; --c-a9c6d8: #2f5268; --c-b6a9dd: #392968; --c-c4b5e0: #39275c; --c-cfc4ae: #615439; --c-e0655a: #ba2f23; --c-e6c07a: #9a6e1d; --c-eaa9a9: #6a1a1a; }
-  :root[data-tema="escuro"] { --c-10331d: #10331d; --c-25d366: #25d366; --c-5a3fa0: #5a3fa0; --c-93b5c9: #93b5c9; --c-a9c6d8: #a9c6d8; --c-b6a9dd: #b6a9dd; --c-c4b5e0: #c4b5e0; --c-cfc4ae: #cfc4ae; --c-e0655a: #e0655a; --c-e6c07a: #e6c07a; --c-eaa9a9: #eaa9a9; }
+  :root { --c-10331d: #e6f5ec; --c-1a1408: #f8f4ec; --c-25d366: #25d366; --c-5a3fa0: #5a3fa0; --c-93b5c9: #3f667d; --c-a9c6d8: #2f5268; --c-b6a9dd: #392968; --c-c4b5e0: #39275c; --c-cfc4ae: #615439; --c-e0655a: #ba2f23; --c-e6c07a: #9a6e1d; --c-eaa9a9: #6a1a1a; }
+  :root[data-tema="escuro"] { --c-10331d: #10331d; --c-1a1408: #1a1408; --c-25d366: #25d366; --c-5a3fa0: #5a3fa0; --c-93b5c9: #93b5c9; --c-a9c6d8: #a9c6d8; --c-b6a9dd: #b6a9dd; --c-c4b5e0: #c4b5e0; --c-cfc4ae: #cfc4ae; --c-e0655a: #e0655a; --c-e6c07a: #e6c07a; --c-eaa9a9: #eaa9a9; }
 </style><!--TEMA:FIM-->
 </head>
 <body>
@@ -1327,13 +1327,13 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 
   <div class="pm-off" id="pm-off" hidden></div>
 </div>
-<!-- ?v=66a0cdb8cd98: sem isso o navegador (e o service worker) servem a
+<!-- ?v=0ba3f8dc7310: sem isso o navegador (e o service worker) servem a
      cópia velha depois de publicar, e o painel roda lógica antiga com casca
      nova. Pego na verificação da página real em 2026-09-14 — o .js ficou em
      cache e o rótulo novo não apareceu, com o HTML já atualizado. Mesma
      razão do portal.css?v= (seção de cache do CLAUDE.md). -->
-<script src="reconcilia-vidraria.js?v=66a0cdb8cd98"></script>
-<script src="maitre-painel.js?v=66a0cdb8cd98"></script>
+<script src="reconcilia-vidraria.js?v=0ba3f8dc7310"></script>
+<script src="maitre-painel.js?v=0ba3f8dc7310"></script>
 <script>
 /* Preenchimento do Painel do Maître. TUDO aqui é "melhor esforço": a casca
    acima já é utilizável só com os links, e é assim que ela fica se qualquer
@@ -1458,6 +1458,43 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 </div>
 <span class="mh-sub" id="mural-sub"></span>
 </div>
+
+<div class="wpp-lembrete" id="wpp-lembrete" hidden>
+<span class="wl-tx"><b>Cadastre seu WhatsApp</b> para a administração falar com você.</span>
+<span class="wl-bt"><a href="maitres-meu-perfil.html#whatsapp">Cadastrar</a><button type="button" id="wpp-adiar">Agora não</button></span>
+</div>
+<style>
+  .wpp-lembrete { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
+                  background: var(--card); border: 1px solid var(--ambar); border-radius: 12px;
+                  padding: 9px 12px; margin: 8px 0 10px; font-size: 13px; color: var(--text-2); }
+  .wpp-lembrete[hidden] { display: none; }
+  .wpp-lembrete .wl-tx { flex: 1 1 200px; min-width: 0; }
+  .wpp-lembrete .wl-tx b { color: var(--text); font-weight: 600; }
+  .wpp-lembrete .wl-bt { display: flex; gap: 8px; align-items: center; }
+  .wpp-lembrete a { background: var(--ambar); color: var(--c-1a1408); font-weight: 600; text-decoration: none;
+                    border-radius: 9px; padding: 7px 12px; font-size: 13px; }
+  .wpp-lembrete button { background: none; border: none; color: var(--text-3); font: inherit;
+                         font-size: 12.5px; cursor: pointer; padding: 7px 4px; }
+</style>
+<script>
+(function () {
+  var REG = window.BENTO_WORKER, s = window.sessaoBentoLer && window.sessaoBentoLer();
+  if (!REG || !s || !s.pessoa || !s.token) return;
+  if (window.previaBento && window.previaBento()) return; // "Ver como" do admin: nada de cobrança
+  var CH = 'bento_wpp_lembrete';
+  try { var ate = +localStorage.getItem(CH); if (ate && ate > Date.now()) return; } catch (e) {}
+  var box = document.getElementById('wpp-lembrete');
+  fetch(REG + '/api/meu-whatsapp', { headers: { 'X-Token': s.token } })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) { if (d && d.pedir) box.hidden = false; })
+    .catch(function () {});
+  document.getElementById('wpp-adiar').addEventListener('click', function () {
+    box.hidden = true;
+    try { localStorage.setItem(CH, String(Date.now() + 3 * 24 * 3600 * 1000)); } catch (e) {}
+    fetch(REG + '/api/meu-whatsapp/adiar', { method: 'POST', headers: { 'X-Token': s.token } }).catch(function () {});
+  });
+})();
+</script>
 
 
 
@@ -1917,7 +1954,7 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
 </div>
 <script>
 (function () {
-  var BUILD = '66a0cdb8cd98';
+  var BUILD = '0ba3f8dc7310';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var PARADO = 30000;         // 30s sem tocar na tela = pode recarregar
