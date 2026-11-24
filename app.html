@@ -95,6 +95,14 @@ a.linha .v::after,.linha.vai .v::after{content:"";display:inline-block;width:7px
 :root[data-tema="escuro"] .btn{color:#2b2620}
 .btn.sec{background:var(--sup2);color:var(--tx)}
 .acoes{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+/* Ações do topo da parte Copos (24/11/2026): dois botões lado a lado, fora do
+   cartão do resumo. */
+.inv-bts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 12px}
+.inv-bts .btn{width:100%;min-height:48px;padding:0 10px;font-size:14.5px;white-space:nowrap}
+.qb-tot{display:flex;gap:8px;margin:6px 0 10px}
+.qb-tot div{flex:1;padding:10px 12px;border-radius:12px;background:var(--bg)}
+.qb-tot b{display:block;font-size:22px;font-family:var(--serif);font-weight:500}
+.qb-tot small{font-size:12px;color:var(--tx3)}
 .seg{display:inline-flex;background:var(--sup2);border-radius:999px;padding:3px;gap:2px}
 .seg button{padding:9px 15px;border-radius:999px;font-size:14px;color:var(--tx2)}
 .seg button.on{background:var(--sup);color:var(--tx);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.12)}
@@ -2150,14 +2158,22 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   INV_DESENHA.copos = function (c) {
     if (CONTANDO_COPOS && pode('copos.contar')) return desenhaContarCopos(c);
     var controle = pode('copos.controle');
+    // Os dois botões ficam em cima, fora do cartão (24/11/2026, pedido do
+    // Rodrigo), e não esperam a situação da semana: sem ela (rede, base fora
+    // do ar) ainda dá para contar e registrar quebra.
+    var bts = (pode('copos.contar') ? '<button type="button" class="btn" data-cc-abre>' + (Object.keys(rascCopos()).length ? 'Continuar contagem' : 'Contar copos') + '</button>' : '') +
+      (pode('copos.quebra') ? '<a class="btn sec" href="' + legado('quebras.html') + '">' + ic('taca-trincada', 18) + 'Registrar quebra</a>' : '');
+    if (bts) c.insertAdjacentHTML('beforeend', '<div class="inv-bts">' + bts + '</div>');
     var b1 = bloco(c);
-    // Os botões não esperam a situação da semana: sem ela (rede, base fora do
-    // ar) ainda dá para contar e registrar quebra.
     b1.innerHTML = '<h2>Contagem da semana</h2><div data-cc-st><div class="esq" style="height:44px"></div></div>' +
-      '<div class="acoes">' + (pode('copos.contar') ? '<button type="button" class="btn" data-cc-abre>' + (Object.keys(rascCopos()).length ? 'Continuar contagem' : 'Contar copos') + '</button>' : '') +
-      (pode('copos.quebra') ? '<a class="btn sec" href="' + legado('quebras.html') + '">' + ic('taca-trincada', 18) + 'Registrar quebra</a>' : '') + '</div>' +
       '<p class="vazio" style="margin-top:10px">Quebrou? Registre na hora. Quebra registrada explica a diferença; a que ninguém registra aparece como sumiço na contagem seguinte.</p>';
-    var ab = b1.querySelector('[data-cc-abre]');
+    // Histórico de quebras logo abaixo do resumo, sem depender do controle
+    // contra o par (que só chega depois e pode falhar sozinho).
+    if (pode('copos.quebras')) {
+      var bQ0 = bloco(c);
+      dados.quebras().then(function (rq) { desenhaHistQuebras(bQ0, rq); });
+    }
+    var ab = c.querySelector('[data-cc-abre]');
     if (ab) ab.addEventListener('click', function () { CONTANDO_COPOS = true; vai(); });
     dados.semanas().then(function (r) {
       var el = b1.querySelector('[data-cc-st]');
@@ -2171,20 +2187,18 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     if (!controle) return;
 
     var bR = bloco(c, 'destaque'), bP = bloco(c), bT = bloco(c);
-    var bQ = pode('copos.quebras') ? bloco(c) : null;
-    Promise.all([dados.historico(), bQ ? dados.quebras() : Promise.resolve(null)]).then(function (rs) {
+    Promise.all([dados.historico(), pode('copos.quebras') ? dados.quebras() : Promise.resolve(null)]).then(function (rs) {
       var rh = rs[0], rq = rs[1];
-      if (!rh.ok) { falhou(bR, 'Controle de copos', rh); bP.remove(); bT.remove(); if (bQ) bQ.remove(); return; }
+      if (!rh.ok) { falhou(bR, 'Controle de copos', rh); bP.remove(); bT.remove(); return; }
       var queb = rq && rq.ok ? rq.d : null;
       var k = controleCopos(rh.d, queb);
       if (!k) {
         bR.innerHTML = '<h2>Controle de copos</h2><p class="vazio">Nenhuma contagem de copos com número nos últimos seis meses.</p>';
-        bP.remove(); bT.remove(); if (bQ) bQ.remove(); return;
+        bP.remove(); bT.remove(); return;
       }
       desenhaResumoCopos(bR, k);
       desenhaReporCopos(bP, k);
       desenhaTabelaCopos(bT, k);
-      if (bQ) desenhaQuebrasCopos(bQ, k, rq);
     });
   };
 
@@ -2261,21 +2275,34 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     b.innerHTML = h;
   }
 
-  function desenhaQuebrasCopos(b, k, rq) {
-    if (!rq || !rq.ok) { falhou(b, 'Quebras registradas', rq); return; }
+  // Histórico de quebras (24/11/2026): totais de 30 dias e de 6 meses, e as
+  // últimas quebras registradas agrupadas por mês.
+  var QB_VER_TODAS = false;
+  function desenhaHistQuebras(b, rq) {
+    if (!rq || !rq.ok) { falhou(b, 'Histórico de quebras', rq); return; }
     var todas = [];
     (rq.d.meses || []).forEach(function (m) { (m.entradas || []).forEach(function (e) { todas.push(e); }); });
     todas.sort(function (x, y) { return (x.data || '') < (y.data || '') ? 1 : -1; });
-    var depois = todas.filter(function (e) { return (e.data || '') > k.atual.data; });
-    var nDepois = depois.reduce(function (s, e) { return s + (e.quantidade || 0); }, 0);
-    var h = '<h2>Quebras registradas</h2><div class="linha"><div class="t">Desde a última contagem (' + dataBr(k.atual.data) + ')</div><span class="v">' +
-      (nDepois ? '<span class="pill atencao">' + nDepois + (nDepois === 1 ? ' peça' : ' peças') + '</span>' : 'nenhuma') + '</span></div>';
-    h += todas.length ? todas.slice(0, 6).map(function (e) {
-      return '<div class="linha"><div class="t">' + esc(e.nome) + '<small>' + esc(e.motivo || '') + (e.responsavel ? ' · ' + esc(e.responsavel) : '') +
-        '</small></div><span class="v">' + esc(e.quantidade) + ' · ' + dataBr(e.data) + '</span></div>';
-    }).join('') : '<p class="vazio">Nenhuma quebra registrada nos últimos seis meses.</p>';
-    h += '<div class="acoes"><a class="btn sec" href="' + legado('quebras-historico.html') + '">' + ic('chart', 18) + 'Histórico de quebras</a></div>';
+    var lim = isoLocal(new Date(Date.now() - 30 * 864e5));
+    var soma = function (l) { return l.reduce(function (s2, e) { return s2 + (Number(e.quantidade) || 0); }, 0); };
+    var n30 = soma(todas.filter(function (e) { return (e.data || '') >= lim; })), n6 = soma(todas);
+    var h = '<h2>Histórico de quebras</h2><div class="qb-tot"><div><b>' + n30 + '</b><small>peças nos últimos 30 dias</small></div>' +
+      '<div><b>' + n6 + '</b><small>peças em 6 meses</small></div></div>';
+    if (!todas.length) {
+      h += '<p class="vazio">Nenhuma quebra registrada nos últimos seis meses.</p>';
+    } else {
+      var lista = QB_VER_TODAS ? todas : todas.slice(0, 8), mes = '';
+      lista.forEach(function (e) {
+        var m = (e.data || '').slice(0, 7);
+        if (m !== mes) { mes = m; h += '<h3 class="ct-sec">' + esc(m ? MESES[Number(m.slice(5)) - 1] + ' de ' + m.slice(0, 4) : 'Sem data') + '</h3>'; }
+        h += '<div class="linha"><div class="t">' + esc(e.nome) + '<small>' + esc(e.motivo || '') + (e.responsavel ? ' · ' + esc(e.responsavel) : '') +
+          '</small></div><span class="v">' + esc(e.quantidade) + (Number(e.quantidade) === 1 ? ' peça' : ' peças') + ' · ' + dataBr(e.data).slice(0, 5) + '</span></div>';
+      });
+      if (todas.length > 8) h += '<div class="acoes"><button type="button" class="btn sec" data-qb-todas>' + (QB_VER_TODAS ? 'Ver menos' : 'Ver todas (' + todas.length + ')') + '</button></div>';
+    }
     b.innerHTML = h;
+    var bt = b.querySelector('[data-qb-todas]');
+    if (bt) bt.addEventListener('click', function () { QB_VER_TODAS = !QB_VER_TODAS; desenhaHistQuebras(b, rq); });
   }
 
   // --- Contagem ---------------------------------------------------------------
