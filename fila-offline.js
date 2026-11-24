@@ -19,7 +19,10 @@
  * um número/booleano (intervalo de poll, backoff opcional).
  */
 (function () {
-  var KEY_MAP = { registro: 'registro_fila', turno: 'bento_turno_fila' };
+  // 'contagem' (2026-11-24): as 9 páginas de contagem (bento/corrige_contagem_fila.py).
+  // Uma fila só para os 3 tipos — o endpoint sai de cada item (cfg.endpoint
+  // como função), então abrir qualquer formulário de contagem drena os três.
+  var KEY_MAP = { registro: 'registro_fila', turno: 'bento_turno_fila', contagem: 'bento_contagem_fila' };
   var LAST_SYNC_KEY = 'fila_offline_ultimo_sync';
   // filaKeys que TÊM instância criar() ativa nesta página (ex.: 'registro' na
   // registro.html). O selo global IGNORA essas — a própria página já mostra o
@@ -82,6 +85,11 @@
   //   intervaloMs: período do poll de reforço (default 15000),
   //   backoff: {inicialMs, maxMs} | null — null = sem retry acelerado,
   //     só o intervalo/gatilhos tentam de novo (comportamento do Turno hoje).
+  //   endpoint também pode ser função(item) -> url (a contagem usa: um tipo
+  //     por item, uma fila só).
+  //   substituir: true = enfileirar um id que já está na fila TROCA o item
+  //     pela versão nova (a contagem corrigida antes de o sinal voltar vale
+  //     mais que a velha). Sem isso o id repetido é ignorado (registro/turno).
   // }
   function criar(cfg) {
     var filaKey = cfg.filaKey;
@@ -114,6 +122,9 @@
       var id = idDe(dadosItem);
       var ja = fila.some(function (x) { return idDe(x) === id; });
       if (!ja) { fila.push(dadosItem); salvarFila(filaKey, fila); }
+      else if (cfg.substituir) {
+        salvarFila(filaKey, fila.map(function (x) { return idDe(x) === id ? dadosItem : x; }));
+      }
       if (aoConcluir) {
         aguardando[id] = aguardando[id] || [];
         aguardando[id].push(aoConcluir);
@@ -130,14 +141,19 @@
       var item = fila[0];
       var id = idDe(item);
       var body = cfg.montarBody(item);
-      fetch(cfg.endpoint, {
+      var enviado = JSON.stringify(item);
+      fetch(typeof cfg.endpoint === 'function' ? cfg.endpoint(item) : cfg.endpoint, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
       }).then(function (r) {
         return r.json().catch(function () { return {}; }).then(function (json) {
           enviando = false;
           var acao = cfg.onResultado(r.status, json, item) || {};
           if (acao.remover) {
-            salvarFila(filaKey, lerFila(filaKey).filter(function (x) { return idDe(x) !== id; }));
+            // Com substituir, a versão nova pode ter entrado enquanto esta ia
+            // pela rede: só sai da fila o item que foi de fato enviado.
+            salvarFila(filaKey, lerFila(filaKey).filter(function (x) {
+              return idDe(x) !== id || (cfg.substituir && JSON.stringify(x) !== enviado);
+            }));
             if (backoffCfg) backoffMs = backoffCfg.inicialMs;
             if (acao.sucesso) {
               registrarSync();
@@ -227,5 +243,9 @@
     contarPendentes: contarPendentes,
     ultimoSync: ultimoSync,
     iniciarSelo: iniciarSelo,
+    // A contagem só usa a fila se ESTA versão carregou (fila 'contagem',
+    // endpoint por item, substituir). Uma cópia antiga em cache não tem a
+    // chave e gravaria a fila em localStorage['undefined'].
+    aceitaContagem: true,
   };
 })();

@@ -93,6 +93,8 @@
 
 
 
+
+
 <!--TEMA:INICIO--><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap"><script>
 (function () {
   var COR = {"claro": "#f6f7f9", "escuro": "#1e1f22"}, BOTAO = "<button class=\"tema-btn\" id=\"tema-btn\" type=\"button\" role=\"switch\" title=\"Ligar modo escuro\" aria-label=\"Modo escuro\" aria-checked=\"false\"><span class=\"tc-bola\"><span class=\"ic-sol\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4\"/></svg></span><span class=\"ic-lua\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z\"/></svg></span></span></button>", COMP = "<button class=\"comp-btn\" id=\"comp-btn\" type=\"button\" title=\"Compartilhar o site\" aria-label=\"Compartilhar o site\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"18\" cy=\"5\" r=\"2.5\"/><circle cx=\"6\" cy=\"12\" r=\"2.5\"/><circle cx=\"18\" cy=\"19\" r=\"2.5\"/><path d=\"M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4\"/></svg></button>";
@@ -489,7 +491,7 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
 </div>
 <script>
 (function () {
-  var BUILD = '0ba3f8dc7310';
+  var BUILD = '47897b768404';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
   var PARADO = 30000;         // 30s sem tocar na tela = pode recarregar
@@ -861,6 +863,64 @@ identificado. Dúvida com algum item?
     status.appendChild(a);
   }
 
+/* CONTAGEM-FILA v1 */
+  // Fila offline da contagem (bento/corrige_contagem_fila.py, 2026-11-24).
+  function mostraPendente(status, motivo) {
+    status.className = 'status pendente';
+    // Curto de propósito: a barra fixa do rodapé (CONTAGEM-UX) repete este
+    // texto; o quadro acima do botão explica o resto.
+    status.textContent = motivo === 'sessao'
+      ? 'Sessão venceu. Contagem guardada: entre de novo e ela vai.'
+      : motivo === 'servidor'
+        ? 'Servidor sem resposta. Contagem guardada, vai sozinha.'
+        : 'Sem sinal. Contagem guardada, vai sozinha quando voltar.';
+  }
+
+  function efeitosDoSalvo(item, json) {
+    try {
+      localStorage.setItem('bento_contagem_salva_' + item.tipo + '_' + item.corpo.data,
+        json && json.semana_confirmada ? 'semana' : '1');
+    } catch (e) {}
+    // Rascunho mexido DEPOIS do envio é trabalho novo: fica.
+    try {
+      var raw = localStorage.getItem(chaveRascunho(item.tipo));
+      var r = raw ? JSON.parse(raw) : null;
+      if (!r || !r._salvo_em || r._salvo_em <= item._em) localStorage.removeItem(chaveRascunho(item.tipo));
+    } catch (e) {}
+  }
+
+  function montaAvisoFila(form) {
+    var st = document.createElement('style');
+    st.textContent = '.status.pendente{color:var(--ambar-2)}'
+      // A barra fixa espelha qualquer status; texto longo a deixava com meia tela.
+      + '.ct-barra .ct-txt{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}'
+      + '.ct-fila{display:none;align-items:center;justify-content:space-between;gap:10px;font-size:13px;'
+      + 'color:var(--ambar-2);border:1px solid var(--ambar-2);border-radius:10px;padding:8px 10px;margin:10px 0 6px}'
+      + '.ct-fila button{flex:none;min-height:36px;padding:0 12px;border-radius:8px;border:1px solid currentColor;'
+      + 'background:transparent;color:inherit;font:inherit;font-weight:600;cursor:pointer}';
+    document.head.appendChild(st);
+    var box = document.createElement('div');
+    box.className = 'ct-fila';
+    box.setAttribute('role', 'status');
+    var txt = document.createElement('span');
+    var bt = document.createElement('button');
+    bt.type = 'button';
+    bt.textContent = 'Enviar agora';
+    box.appendChild(txt);
+    box.appendChild(bt);
+    var botao = form.querySelector('.enviar');
+    if (botao && botao.parentNode) botao.parentNode.insertBefore(box, botao);
+    else form.appendChild(box);
+    return { box: box, txt: txt, bt: bt };
+  }
+
+  function atualizaAvisoFila(av, n) {
+    av.box.style.display = n > 0 ? 'flex' : 'none';
+    av.txt.textContent = n === 1
+      ? '1 contagem guardada neste aparelho, esperando para ir.'
+      : n + ' contagens guardadas neste aparelho, esperando para ir.';
+  }
+
   function configurarForm(tipo, montarItens) {
     var form = document.getElementById('form-' + tipo);
     var status = form.querySelector('[data-status-for="' + tipo + '"]');
@@ -868,6 +928,76 @@ identificado. Dúvida com algum item?
     dataInput.value = hoje();
 
     restaurarRascunho(form, tipo);
+    /* CONTAGEM-FILA v1 */
+    var respostas = {};
+    var avisoFila = montaAvisoFila(form);
+    // fila-offline.js vem no FIM da página, depois deste script: a fila nasce
+    // quando ele já carregou (DOMContentLoaded) ou no primeiro envio.
+    var FILA = null;
+    function filaPronta() {
+      if (FILA || !window.FilaOffline || !window.FilaOffline.aceitaContagem) return FILA;
+      FILA = criaFila();
+      atualizaAvisoFila(avisoFila, FILA.pendentes());
+      return FILA;
+    }
+    document.addEventListener('DOMContentLoaded', filaPronta);
+    window.addEventListener('load', filaPronta);
+    avisoFila.bt.addEventListener('click', function () { if (filaPronta()) FILA.processar(); });
+    // Reserva sem fila (fila-offline.js não carregou ou é a cópia antiga do
+    // cache): o envio direto de antes, com o rascunho guardado se falhar.
+    function envioDireto(item, liberar) {
+      fetch(WORKER_URL + '/api/contagem/' + item.tipo, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item.corpo)
+      }).then(function (res) { return res.json().then(function (json) { return { res: res, json: json }; }); })
+        .then(function (r) {
+          if (r.res.ok && r.json.ok) {
+            efeitosDoSalvo(item, r.json);
+            mostraConfirmacao(status, r.json);
+            status.className = 'status ok';
+            if (tipo === 'insumos') carregaConferenciaSistema(item.corpo.data);
+          } else {
+            status.textContent = 'Deu erro salvando (' + (r.json.erro || (r.json.falhas || []).length + ' item(ns) falharam') + '). O rascunho continua salvo — pode tentar de novo.';
+            status.className = 'status erro';
+          }
+        })
+        .catch(function () {
+          status.textContent = 'Sem conexão com o backend agora. O rascunho continua salvo neste aparelho — tente de novo em instantes.';
+          status.className = 'status erro';
+        })
+        .finally(liberar);
+    }
+    function criaFila() { return window.FilaOffline.criar({
+      filaKey: 'contagem', idField: '_idemp', substituir: true,
+      endpoint: function (item) { return WORKER_URL + '/api/contagem/' + item.tipo; },
+      montarBody: function (item) { return item.corpo; },
+      onResultado: function (st, json, item) {
+        if (st >= 200 && st < 300 && json && json.ok) {
+          respostas[item._idemp] = json;
+          return { remover: true, sucesso: true };
+        }
+        if (st === 401 || st === 403) return { remover: false, motivo: 'sessao' };
+        if (st === 408 || st === 429 || st >= 500) return { remover: false, motivo: 'servidor' };
+        // Recusa definitiva (item inválido, 4xx): reenviar não conserta.
+        if (item.tipo === tipo) {
+          status.textContent = 'Deu erro salvando (' + ((json && json.erro) || ((json && json.falhas) || []).length + ' item(ns) falharam')
+            + '). O rascunho continua salvo — pode tentar de novo.';
+          status.className = 'status erro';
+        }
+        return { remover: true, sucesso: false, motivo: 'recusado' };
+      },
+      onSucesso: function (item) {
+        var json = respostas[item._idemp] || {};
+        delete respostas[item._idemp];
+        efeitosDoSalvo(item, json);
+        if (item.tipo !== tipo) return;
+        mostraConfirmacao(status, json);
+        status.className = 'status ok';
+        if (tipo === 'insumos') carregaConferenciaSistema(item.corpo.data);
+      },
+      onMudou: function (n) { atualizaAvisoFila(avisoFila, n); },
+      intervaloMs: 20000,
+      backoff: { inicialMs: 15000, maxMs: 120000 }
+    }); }
     form.addEventListener('input', function () { salvarRascunho(form, tipo); });
     /* CONTAGEM-FIX v1 */
     avisaDataNaoHoje(form);
@@ -918,33 +1048,27 @@ identificado. Dúvida com algum item?
       submitBtn.disabled = true;
       status.textContent = 'Enviando…';
       status.className = 'status';
-
-      fetch(WORKER_URL + '/api/contagem/' + tipo, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          data: fd.get('data'),
-          responsavel: fd.get('responsavel'),
-          chave: CHAVE,
-          itens: itens
-        })
-      }).then(function (res) { return res.json().then(function (json) { return { res: res, json: json }; }); })
-        .then(function (r) {
-          if (r.res.ok && r.json.ok) {
-            mostraConfirmacao(status, r.json); /* CONTAGEM-SEMANAL v1 */
-            status.className = 'status ok';
-            localStorage.removeItem(chaveRascunho(tipo));
-            try { localStorage.setItem('bento_contagem_salva_' + tipo + '_' + fd.get('data'), r.json.semana_confirmada ? 'semana' : '1'); } catch (e) {} /* CONTAGEM-SEMANAL v1 */
-          } else {
-            status.textContent = 'Deu erro salvando (' + (r.json.erro || (r.json.falhas || []).length + ' item(ns) falharam') + '). O rascunho continua salvo — pode tentar de novo.';
-            status.className = 'status erro';
-          }
-        })
-        .catch(function () {
-          status.textContent = 'Sem conexão com o backend agora. O rascunho continua salvo neste aparelho — tente de novo em instantes.';
-          status.className = 'status erro';
-        })
-        .finally(function () { submitBtn.disabled = false; });
+      /* CONTAGEM-FILA v1 */
+      var item = {
+        _idemp: tipo + '|' + fd.get('data'), _em: Date.now(), tipo: tipo,
+        corpo: { data: fd.get('data'), responsavel: fd.get('responsavel'), chave: CHAVE, itens: itens }
+      };
+      if (!filaPronta()) {
+        envioDireto(item, function () { submitBtn.disabled = false; });
+        return;
+      }
+      var respondeu = false;
+      function liberaPendente(motivo) {
+        if (respondeu) return;
+        respondeu = true;
+        submitBtn.disabled = false;
+        if (motivo) mostraPendente(status, motivo);
+      }
+      FILA.enfileirar(item, function (res) { liberaPendente(res.aindaNaFila ? res.motivo : null); });
+      // Outro envio preso na frente (ou rede que nunca responde) não pode
+      // deixar o botão travado: em 20s a tela diz que ficou guardado.
+      if (navigator.onLine === false) liberaPendente('rede');
+      else setTimeout(function () { liberaPendente('servidor'); }, 20000);
     });
   }
 
