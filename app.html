@@ -42,10 +42,17 @@ a{color:var(--acento)}
 .faixa .fx-esq b{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .faixa .fx-esq small{font-size:11.5px;opacity:.7;margin-top:2px}
 .faixa .fx-dir.ics{gap:6px}
-.fx-ic{position:relative;width:38px;height:38px;border-radius:999px;border:1px solid var(--faixa-linha);display:inline-flex;align-items:center;justify-content:center;color:var(--faixa-tx);flex-shrink:0;text-decoration:none}
+.fx-ic{position:relative;width:30px;height:30px;border-radius:999px;border:1px solid var(--faixa-linha);display:inline-flex;align-items:center;justify-content:center;color:var(--faixa-tx);flex-shrink:0;text-decoration:none}
 .fx-ic.on{background:rgba(255,255,255,.17)}
-.fx-ic .cont{position:absolute;top:-5px;right:-5px}
-@media (max-width:360px){.fx-ic{width:34px;height:34px}.faixa .fx-dir.ics{gap:4px}}
+.fx-ic .cont{position:absolute;top:-6px;right:-7px;min-width:17px;height:17px;font-size:10.5px;padding:0 4px}
+.faixa .fx-dir.ics{gap:8px}
+.fx-ic .ic{width:16px;height:16px}
+/* Chave dia/noite flutuante (24/11/2026): canto inferior direito, acima da
+   barra de baixo; no chat sobe acima do campo de escrever. */
+.tema-fl{position:fixed;right:14px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:40;width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--sup);color:var(--tx2);border:1px solid var(--linha);box-shadow:0 4px 14px rgba(0,0,0,.18)}
+body[data-tela="chat"] .tema-fl{bottom:calc(176px + env(safe-area-inset-bottom))}
+body.digitando .tema-fl{display:none}
+@media (min-width:900px){.tema-fl,body[data-tela="chat"] .tema-fl{bottom:20px;right:20px}}
 .conta-l{display:flex;flex-direction:column;gap:2px;margin:4px 0 0}
 .conta-l a,.conta-l button{display:flex;align-items:center;gap:10px;min-height:46px;padding:0 6px;border-radius:10px;color:var(--tx);font-size:15px;text-align:left;text-decoration:none;width:100%}
 .conta-l a:hover,.conta-l button:hover{background:var(--bg)}
@@ -817,11 +824,10 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     var f = '<div class="fx1"><span class="fx-esq"><b data-sauda>' + esc(saudacao() + (nome1 ? ', ' + nome1 : '')) + '</b>' +
       '<small>Bento · app piloto</small></span>' +
       '<span class="fx-dir ics">' +
-      (pode('caixa.ver') ? '<a class="fx-ic" href="#/caixa" aria-label="Caixa de entrada" title="Caixa de entrada">' + ic('sino', 20) + '<span class="cont" data-cont hidden></span></a>' : '') +
-      (temEscala ? '<a class="fx-ic" href="#/escala" data-fx-tela="escala" aria-label="Minha escala" title="Minha escala">' + ic('calendar', 20) + '</a>' : '') +
-      '<button type="button" class="fx-ic" data-tema-troca>' + ic(temaEscuro() ? 'sol' : 'lua', 20) + '</button>' +
-      '<button type="button" class="fx-ic" data-comp-abre aria-label="Compartilhar o app" title="Compartilhar o app">' + ic('compartilhar', 18) + '</button>' +
-      '<button type="button" class="fx-ic" data-conta aria-label="Minha conta" title="Minha conta">' + ic('pessoa', 20) + '</button>' +
+      (pode('caixa.ver') ? '<a class="fx-ic" href="#/caixa" aria-label="Caixa de entrada" title="Caixa de entrada">' + ic('sino', 16) + '<span class="cont" data-cont hidden></span></a>' : '') +
+      (temEscala ? '<a class="fx-ic" href="#/escala" data-fx-tela="escala" aria-label="Minha escala" title="Minha escala">' + ic('calendar', 16) + '</a>' : '') +
+      '<button type="button" class="fx-ic" data-comp-abre aria-label="Compartilhar o app" title="Compartilhar o app">' + ic('compartilhar', 15) + '</button>' +
+      '<button type="button" class="fx-ic" data-conta aria-label="Minha conta" title="Minha conta">' + ic('pessoa', 16) + '</button>' +
       '</span></div>';
     if (CTX.tabela) {
       f += '<div class="como" role="group" aria-label="Ver como"><span>Ver como</span><span class="seg">' +
@@ -831,6 +837,9 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
         }).join('') + '</span></div>';
     }
     $('faixa').innerHTML = f;
+    if (!document.getElementById('tema-fl')) {
+      document.body.insertAdjacentHTML('beforeend', '<button type="button" id="tema-fl" class="tema-fl" data-tema-troca></button>');
+    }
     rotulaTema();
     Array.prototype.forEach.call(document.querySelectorAll('[data-modo]'), function (b) {
       b.addEventListener('click', function () { poeModo(b.getAttribute('data-modo')); });
@@ -933,6 +942,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
       b.classList.toggle('on', on);
       if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
+    document.body.setAttribute('data-tela', id);
     Array.prototype.forEach.call(document.querySelectorAll('[data-fx-tela]'), function (a) {
       a.classList.toggle('on', a.getAttribute('data-fx-tela') === id);
     });
@@ -1645,7 +1655,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   // site pode servir o app.html antigo. O app confere app-versao.json (sempre
   // rede: o sw.js nunca guarda *versao.json) e oferece atualizar, limpando os
   // caches. Mesmo desenho do aviso do site (JS_VERSAO_BENTO).
-  var APP_BUILD = 'qbcsspchdgsd';
+  var APP_BUILD = 'cergbrcqmdnn';
   var NV_DISP = 'bento_app_versao_dispensada';
   function atualizaApp() {
     var fim = function () { location.reload(); };
@@ -1688,7 +1698,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     Array.prototype.forEach.call(document.querySelectorAll('[data-tema-troca]'), function (b) {
       var txt = e ? 'Usar tema claro' : 'Usar tema escuro';
       b.setAttribute('aria-label', txt); b.title = txt;
-      if (b.classList.contains('fx-ic')) b.innerHTML = ic(e ? 'sol' : 'lua', 20);
+      if (b.classList.contains('tema-fl')) b.innerHTML = ic(e ? 'sol' : 'lua', 20);
       else b.innerHTML = ic(e ? 'sol' : 'lua', 20) + '<span>' + txt + '</span>';
     });
   }
