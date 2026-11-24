@@ -580,6 +580,15 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
 .ch-alt{display:flex;gap:6px;padding:8px 12px;background:var(--sup);border-bottom:1px solid var(--linha)}
 .ch-alt button{flex:1;padding:7px 0;border-radius:9px;font-size:13.5px;border:1px solid var(--linha)}
 .ch-alt button.on{background:var(--acento-bg);border-color:var(--acento);color:var(--acento-tx);font-weight:600}
+/* Campo do chat sempre aberto, com + antes (24/11/2026, como WhatsApp). */
+.ch-in button.mais{width:34px;height:34px;align-self:center;margin-bottom:4px;background:transparent;color:var(--tx2);border:1px solid var(--linha);font-size:22px;font-weight:300;line-height:1}
+.ch-in button.mais[aria-expanded="true"]{background:var(--sup2);color:var(--tx)}
+.ch-mais{position:absolute;left:8px;bottom:calc(100% + 6px);z-index:20;min-width:220px;padding:6px;border-radius:14px;background:var(--sup);border:1px solid var(--linha);box-shadow:0 10px 28px rgba(0,0,0,.22)}
+.ch-mais a,.ch-mais button{display:flex!important;align-items:center;gap:10px;width:100%!important;height:auto!important;min-height:44px;padding:6px 10px;border-radius:10px!important;background:none!important;color:var(--tx)!important;font-size:15px!important;text-align:left;text-decoration:none}
+.ch-mais a:hover,.ch-mais button:hover{background:var(--bg)!important}
+.ch-mais .ic2{width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--sup2);color:var(--tx);font-family:var(--serif);font-weight:700;font-size:15px}
+.ch-mais .ic2.a{background:var(--acento);color:#fff}
+.ch-mais .ic2 svg{width:15px;height:15px}
 .ch-opc{position:sticky;bottom:58px;display:flex;flex-wrap:wrap;gap:6px;padding:8px 10px 0;background:var(--sup);border-top:1px solid var(--linha)}
 .ch-opc button{border:1px solid var(--linha);border-radius:999px;padding:7px 12px;font-size:13px}
 .ch-opc button.on{background:var(--acento-bg);border-color:var(--acento);color:var(--acento-tx);font-weight:600}
@@ -1884,7 +1893,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   // site pode servir o app.html antigo. O app confere app-versao.json (sempre
   // rede: o sw.js nunca guarda *versao.json) e oferece atualizar, limpando os
   // caches. Mesmo desenho do aviso do site (JS_VERSAO_BENTO).
-  var APP_BUILD = 'qbqcmcjjabqb';
+  var APP_BUILD = 'mnhpqajpnhqc';
   var NV_DISP = 'bento_app_versao_dispensada';
   function atualizaApp() {
     var fim = function () { location.reload(); };
@@ -3504,7 +3513,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
         h += '</div>';
       }
       if (d.pode_escrever) {
-        h += '<div id="ch-comp">' + compDois() + '</div>';
+        h += '<div id="ch-comp">' + compCampo('p') + '</div>';
       } else if (coord) {
         if (alvoP) h += '<label class="ch-ensina"><input type="checkbox" id="ch-ensina" checked> Ensinar ao cérebro: a resposta vale para todos da próxima vez</label>';
         h += '<form class="ch-in coord" id="ch-form" data-pergunta="' + (alvoP ? esc(alvoP.id) : '') + '"><textarea id="ch-txt" rows="1" placeholder="' +
@@ -3772,26 +3781,42 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
       (f ? '<button type="button" class="f" data-foto-fase="" title="Foto do bar no começo ou no fim do turno"><span class="ic">' + ic('camera', 15) + '</span>Foto</button>' : '') +
       '</div>';
   }
+  // Campo sempre aberto (24/11/2026): digitar é perguntar. O + antes do campo
+  // abre Avisar ou pedir, Foto do bar e Registrar quebra, como no WhatsApp.
+  // Em modo aviso, o × volta para a pergunta.
   function compCampo(m) {
     var a = m === 'a';
-    return '<form class="ch-in" id="ch-form"><button type="button" class="modo" data-msg="x" aria-label="Voltar aos dois botões">×</button>' +
-      '<span class="mtag' + (a ? ' a' : '') + '" aria-hidden="true">' + (a ? '!' : '?') + '</span>' +
-      '<textarea id="ch-txt" rows="1" placeholder="' + (a ? 'Acabou, quebrou, falta…' : 'Sua pergunta…') + '" aria-label="' +
+    var opc = (pode('chat.avisar') ? '<button type="button" data-msg="a"><span class="ic2 a">!</span>Avisar ou pedir</button>' : '') +
+      (pode('chat.foto') ? '<button type="button" data-foto-fase=""><span class="ic2">' + ic('camera', 15) + '</span>Foto do bar (turno)</button>' : '') +
+      (pode('copos.quebra') ? '<a href="' + esc(legado('quebras.html')) + '"><span class="ic2">' + ic('taca-trincada', 15) + '</span>Registrar quebra</a>' : '');
+    return '<form class="ch-in" id="ch-form">' +
+      (a ? '<button type="button" class="modo" data-msg="p" aria-label="Voltar para pergunta">×</button><span class="mtag a" aria-hidden="true">!</span>'
+        : opc ? '<button type="button" class="mais" data-mais aria-label="Mais opções" aria-expanded="false">+</button><div class="ch-mais" hidden>' + opc + '</div>' : '') +
+      '<textarea id="ch-txt" rows="1" placeholder="' + (a ? 'Acabou, quebrou, falta…' : 'Pergunte algo…') + '" aria-label="' +
       (a ? 'Aviso ou pedido' : 'Pergunta') + '"></textarea><button type="submit" aria-label="Enviar">➤</button></form>';
   }
   function ligaComp(c, completo) {
     var box = c.querySelector('#ch-comp');
-    function poe(m) {
-      box.innerHTML = m ? compCampo(m) : compDois();
+    function poe(m, foca) {
+      m = m || 'p';
+      box.innerHTML = compCampo(m);
       var bf = box.querySelector('[data-foto-fase]');
       if (bf) bf.addEventListener('click', function () { fotoTurno(c, completo, '', ''); });
       Array.prototype.forEach.call(box.querySelectorAll('[data-msg]'), function (b) {
-        b.addEventListener('click', function () { var v = b.getAttribute('data-msg'); poe(v === 'x' ? null : v); });
+        b.addEventListener('click', function () { poe(b.getAttribute('data-msg'), true); });
       });
-      if (!m) return;
+      var bm = box.querySelector('[data-mais]'), menu = box.querySelector('.ch-mais');
+      if (bm) {
+        var abre = function (sim) { menu.hidden = !sim; bm.setAttribute('aria-expanded', String(sim)); };
+        bm.addEventListener('click', function (e) { e.stopPropagation(); abre(menu.hidden); });
+        document.addEventListener('click', function fora(e) {
+          if (!document.body.contains(menu)) { document.removeEventListener('click', fora); return; }
+          if (!menu.hidden && !menu.contains(e.target)) abre(false);
+        });
+      }
       var f = box.querySelector('#ch-form'), ta = box.querySelector('#ch-txt');
       ligaCampo(f, ta);
-      ta.focus();
+      if (foca) ta.focus();
       f.addEventListener('submit', function (e) {
         e.preventDefault();
         var texto = ta.value.trim();
@@ -3815,10 +3840,10 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
           return;
         }
         if (texto.length < 5) { toast('Escreva um pouco mais: pelo menos 5 letras.'); return; }
-        avisoFluxo(c, completo, texto, function () { poe(null); }, box);
+        avisoFluxo(c, completo, texto, function () { poe('p'); }, box);
       });
     }
-    poe(null);
+    poe('p');
   }
 
   // --- Foto do bar (24/11/2026) -------------------------------------------------
