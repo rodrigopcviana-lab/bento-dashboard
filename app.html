@@ -130,6 +130,28 @@ a.linha .v::after,.linha.vai .v::after{content:"";display:inline-block;width:7px
 .chk input{width:18px;height:18px;accent-color:var(--acento)}
 .envios{display:flex;flex-wrap:wrap;gap:6px}
 .grupo h3{font-size:13px;font-weight:600;color:var(--tx2);margin:14px 0 2px}
+/* Rotina (24/11/2026): calendário e tarefas diárias x periódicas. */
+.rc-sec{font-family:var(--serif);font-weight:500;font-size:19px;margin:18px 0 0;display:flex;align-items:baseline;gap:8px}
+.rc-sec:first-child{margin-top:0}
+.rc-sec small{font-family:var(--sans,inherit);font-size:12.5px;color:var(--tx3);font-weight:400}
+.rc-cal .cab{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.rc-cal .cab b{flex:1;font-family:var(--serif);font-weight:500;font-size:17px}
+.rc-cal .cab button{height:34px;min-width:34px;border-radius:999px;font-size:18px;color:var(--tx2)}
+.rc-cal .cab .mes-bt{font-size:13px;font-weight:600;padding:0 12px;border:1px solid var(--linha);color:var(--tx)}
+.rc-cal .grade{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.rc-cal .grade .ds{font-size:10.5px;color:var(--tx3);text-transform:uppercase;text-align:center}
+.rc-cal .grade button{border-radius:10px;padding:5px 0 6px;text-align:center;min-width:0}
+.rc-cal .grade .n{font-size:15px;font-weight:600;line-height:1.2}
+.rc-cal .grade button.on{background:var(--acento-bg);outline:1px solid var(--acento)}
+.rc-cal .grade button.on .n{color:var(--acento-tx)}
+.rc-cal .grade button.hj .n{text-decoration:underline;text-underline-offset:3px}
+.rc-cal .grade button.fora .n{color:var(--tx3);opacity:.55}
+.rc-cal .pts{display:flex;justify-content:center;gap:3px;height:6px;margin-top:3px}
+.rc-cal .pts i{width:6px;height:6px;border-radius:50%}
+.rc-cal .pts .p{background:var(--acento)}.rc-cal .pts .v{background:var(--verde)}
+.rc-cal .leg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--tx3);margin-top:8px}
+.rc-cal .leg i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:1px}
+.rc-aviso{font-size:13.5px;color:var(--tx2);background:var(--sup2);border-radius:10px;padding:9px 12px;margin-bottom:10px}
 .grupo:first-child h3{margin-top:0}
 .ck{display:flex;align-items:flex-start;gap:12px;padding:11px 0;border-top:1px solid var(--linha);width:100%;text-align:left}
 .ck .box{width:24px;height:24px;border-radius:7px;border:2px solid var(--tx3);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;color:transparent}
@@ -1129,13 +1151,107 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   // --- Turno: o checklist do dia, marcável -----------------------------------
   var turnoSel = null, faseSel = null, soMeus = null;
 
+  // --- Calendário da Rotina (24/11/2026) --------------------------------------
+  // Semana com setas e, num toque em "Mês", a grade do mês. Dia futuro mostra
+  // o que está agendado (do horizonte publicado); dia passado mostra o que foi
+  // marcado e os envios (D1). Marcar só no dia de hoje.
+  var RCAL = { dia: null, ver: 'semana', ref: null, meses: {} };
+  function rcMes(mes) {
+    if (!RCAL.meses[mes]) RCAL.meses[mes] = api('/api/rotinas/mes?mes=' + mes).then(function (r) {
+      if (!r.ok) delete RCAL.meses[mes];
+      return r.ok ? r.d : null;
+    });
+    return RCAL.meses[mes];
+  }
+  function rcHoje() { return RC.diaOperacional(); }
+  function rcDiaDe(d) { return (d && d.dia) || rcHoje(); }
+  function rcEditavel(d) { return rcDiaDe(d) === rcHoje(); }
+  function desenhaCal(el, c) {
+    var hoje = rcHoje(), dia = RCAL.dia || hoje;
+    var ref = RCAL.ref || dia;
+    var h = '';
+    var dias;
+    if (RCAL.ver === 'mes') {
+      var mesRef = ref.slice(0, 7), ini = mesRef + '-01';
+      var x = dDate(ini);
+      h += '<div class="cab"><button type="button" data-rc-nav="-1" aria-label="Mês anterior">‹</button><b>' +
+        MESES[x.getUTCMonth()].replace(/^./, function (m) { return m.toUpperCase(); }) + ' ' + x.getUTCFullYear() +
+        '</b><button type="button" data-rc-nav="1" aria-label="Próximo mês">›</button><button type="button" class="mes-bt" data-rc-ver="semana">Semana</button></div>';
+      dias = semanaDe(ini);
+      while (somaDias(dias[dias.length - 1], 1).slice(0, 7) === mesRef) dias = dias.concat(semanaDe(somaDias(dias[dias.length - 1], 1)));
+    } else {
+      dias = semanaDe(ref);
+      var a = dDate(dias[0]), z = dDate(dias[6]);
+      h += '<div class="cab"><button type="button" data-rc-nav="-1" aria-label="Semana anterior">‹</button><b>' +
+        a.getUTCDate() + (a.getUTCMonth() !== z.getUTCMonth() ? ' ' + MESES[a.getUTCMonth()].slice(0, 3) : '') + ' a ' + z.getUTCDate() + ' ' + MESES[z.getUTCMonth()].slice(0, 3) +
+        '</b><button type="button" data-rc-nav="1" aria-label="Próxima semana">›</button><button type="button" class="mes-bt" data-rc-ver="mes">Mês</button></div>';
+    }
+    h += '<div class="grade">' + DIAS_SEM.slice(1).concat(DIAS_SEM[0]).map(function (n) { return '<div class="ds">' + n + '</div>'; }).join('') +
+      dias.map(function (d) {
+        var fora = RCAL.ver === 'mes' && d.slice(0, 7) !== ref.slice(0, 7);
+        return '<button type="button" data-rc-dia="' + d + '" class="' + (d === dia ? 'on ' : '') + (d === hoje ? 'hj ' : '') + (fora ? 'fora' : '') +
+          '" aria-label="' + esc(diaTxt(d)) + '"><div class="n">' + dDate(d).getUTCDate() + '</div><div class="pts" data-rc-pt="' + d + '"></div></button>';
+      }).join('') + '</div>' +
+      '<div class="leg"><span><i style="background:var(--acento)"></i>periódica agendada</span><span><i style="background:var(--verde)"></i>dia com registro</span></div>';
+    el.innerHTML = h;
+    Array.prototype.forEach.call(el.querySelectorAll('[data-rc-dia]'), function (b) {
+      b.addEventListener('click', function () {
+        var d = b.getAttribute('data-rc-dia');
+        RCAL.dia = d === hoje ? null : d; RCAL.ref = d;
+        if (RCAL.ver === 'mes') RCAL.ver = 'semana';
+        c.innerHTML = '';
+        RCAL.interno = true;
+        TELAS.turno(c);
+        window.scrollTo(0, 0);
+      });
+    });
+    Array.prototype.forEach.call(el.querySelectorAll('[data-rc-nav]'), function (b) {
+      b.addEventListener('click', function () {
+        var n = Number(b.getAttribute('data-rc-nav'));
+        if (RCAL.ver === 'mes') { var m = dDate(ref.slice(0, 7) + '-15'); m.setUTCMonth(m.getUTCMonth() + n); RCAL.ref = m.toISOString().slice(0, 10); }
+        else RCAL.ref = somaDias(ref, 7 * n);
+        desenhaCal(el, c);
+      });
+    });
+    Array.prototype.forEach.call(el.querySelectorAll('[data-rc-ver]'), function (b) {
+      b.addEventListener('click', function () { RCAL.ver = b.getAttribute('data-rc-ver'); RCAL.ref = dia; desenhaCal(el, c); });
+    });
+    var meses = {};
+    dias.forEach(function (d) { meses[d.slice(0, 7)] = 1; });
+    Object.keys(meses).forEach(function (m) {
+      rcMes(m).then(function (r) {
+        if (!r) return;
+        Object.keys(r.dias || {}).forEach(function (d) {
+          var alvo = el.querySelector('[data-rc-pt="' + d + '"]'), x = r.dias[d];
+          if (!alvo) return;
+          alvo.innerHTML = (x.per && x.per.length ? '<i class="p"></i>' : '') + (d <= r.hoje && (x.feitos || x.envios) ? '<i class="v"></i>' : '');
+          if (x.per && x.per.length) alvo.parentNode.title = x.per.join(' · ');
+        });
+      });
+    });
+  }
+
   TELAS.turno = function (c) {
-    topo(c, 'Rotina', 'Hoje · ' + hojeExtenso());
+    // Entrar na Rotina pelo menu volta para hoje; só o toque num dia do
+    // calendário mantém o dia escolhido.
+    if (!RCAL.interno) { RCAL.dia = null; RCAL.ref = null; RCAL.ver = 'semana'; }
+    RCAL.interno = false;
+    var hoje = rcHoje(), dia = RCAL.dia || hoje;
+    topo(c, 'Rotina', dia === hoje ? 'Hoje · ' + hojeExtenso() : diaTxt(dia).replace(/^./, function (m) { return m.toUpperCase(); }));
+    var cal = bloco(c, 'rc-cal');
+    desenhaCal(cal, c);
     var b = bloco(c);
     var bl = bloco(c);
-    dados.rotinas().then(function (r) {
+    var pede = dia === hoje ? dados.rotinas() : busca('rotinas:' + dia, function () { return api('/api/rotinas?dia=' + dia); });
+    pede.then(function (r) {
       if (!r.ok) {
-        if (r.status === 404) { b.innerHTML = '<h2>Rotina</h2><p class="vazio">A rotina de hoje ainda não foi publicada.</p>'; bl.remove(); return; }
+        if (r.status === 404) {
+          var hz = r.d && r.d.horizonte;
+          b.innerHTML = '<h2>Rotina</h2><p class="vazio">' + (dia === hoje ? 'A rotina de hoje ainda não foi publicada.'
+            : dia > hoje ? 'Este dia ainda não foi planejado.' + (hz && hz.fim ? ' A rotina publicada vai até ' + esc(dataBr(hz.fim)) + '.' : '')
+            : 'Sem registro neste dia.') + '</p>';
+          bl.remove(); return;
+        }
         falhou(b, 'Rotina', r); bl.remove(); return;
       }
       var d = r.d;
@@ -1163,7 +1279,17 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
       prog = { feitos: mf, total: mi, pct: mi ? Math.round(mf / mi * 100) : 0 };
       rotProg = 'dos seus itens marcados';
     }
-    var h = '<div class="controles">' +
+    var editavel = rcEditavel(d), futuro = rcDiaDe(d) > rcHoje();
+    var h = editavel ? '' : '<p class="rc-aviso">' + (futuro
+      ? 'Dia futuro: o que está agendado para ' + esc(diaTxt(rcDiaDe(d))) + '. Marcar fica para o dia.'
+      : 'Histórico de ' + esc(diaTxt(rcDiaDe(d))) + ': o que foi marcado e os envios do turno.') + '</p>';
+    if (d.passado) {
+      var nTurno = 0, fT = BP.feitosNoTurno(d, turnoSel);
+      Object.keys(fT).forEach(function () { nTurno++; });
+      prog = null;
+      rotProg = nTurno + (nTurno === 1 ? ' item marcado' : ' itens marcados') + ' no ' + TURNO_ROT[turnoSel].toLowerCase() + '.';
+    }
+    h += '<div class="controles">' +
       '<div class="seg" role="group" aria-label="Turno">' + ['Dia', 'Noite'].map(function (t) {
         return '<button type="button" data-turno="' + t + '" class="' + (t === turnoSel ? 'on' : '') + '" aria-pressed="' + (t === turnoSel) + '">' + TURNO_ROT[t] + '</button>';
       }).join('') + '</div>' +
@@ -1171,17 +1297,17 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
         return '<button type="button" data-fase="' + f[0] + '" class="' + (f[0] === faseSel ? 'on' : '') + '" aria-pressed="' + (f[0] === faseSel) + '">' + f[1] + '</button>';
       }).join('') + '</div>' +
       (meus && meus.length ? '<label class="chk"><input type="checkbox" id="so-meus"' + (soMeus ? ' checked' : '') + '> Só os meus</label>' : '') +
-      '</div>' +
+      '</div>' + (futuro ? '' : !prog ? '<p class="vazio">' + rotProg + '</p>' :
       '<div class="barra" role="progressbar" aria-valuemin="0" aria-valuemax="' + prog.total + '" aria-valuenow="' + prog.feitos +
-      '"><i style="width:' + prog.pct + '%"></i></div><p class="vazio">' + prog.feitos + ' de ' + prog.total + ' ' + rotProg + '</p>';
-    if (pode('turno.envios')) {
+      '"><i style="width:' + prog.pct + '%"></i></div><p class="vazio">' + prog.feitos + ' de ' + prog.total + ' ' + rotProg + '</p>');
+    if (pode('turno.envios') && !futuro) {
       var env = d.turnos_enviados || [];
       h += '<div class="envios" style="margin-top:10px">' + [['Dia', 'abertura'], ['Dia', 'fechamento'], ['Noite', 'abertura'], ['Noite', 'fechamento']].map(function (x) {
         var e = env.filter(function (y) { return BP._mesmoTurno(y.turno, x[0]) && y.fase === x[1]; })[0];
         return '<span class="pill ' + (e ? 'ok' : '') + '">' + TURNO_ROT[x[0]] + ' · ' + x[1] + (e ? ' · ' + esc(primeiroNome(e.pessoa)) : ' · não enviado') + '</span>';
       }).join('') + '</div>';
     }
-    if (pode('turno.enviar')) {
+    if (pode('turno.enviar') && editavel) {
       h += '<div class="acoes"><a class="btn sec" href="' + legado(faseSel === 'abertura' ? 'turno-abertura.html' : 'turno.html') +
         '">' + ic('camera', 18) + (faseSel === 'abertura' ? 'Enviar a abertura' : 'Enviar o fechamento') + ' com foto</a></div>';
     }
@@ -1209,43 +1335,75 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     (d.blocos || []).forEach(function (x) { meta[x.chave] = x.rotulo; });
     var tarefasPorBloco = {};
     (d.tarefas || []).forEach(function (t) { (tarefasPorBloco[t.bloco || 'durante'] = tarefasPorBloco[t.bloco || 'durante'] || []).push(t); });
-    var podeMarcar = pode('turno.marcar') && !CTX.como;
+    var podeMarcar = pode('turno.marcar') && !CTX.como && rcEditavel(d);
     var h = '';
+    // Diárias x periódicas (24/11/2026): item com frequência semanal,
+    // quinzenal ou mensal (e o bloco "Periódicas") vai para a seção de baixo,
+    // junto das tarefas pontuais; o resto é a rotina de todo dia.
+    function periodico(id) { var it = d.itens[id]; return it.bloco === 'periodica' || !!RC.freqLegivel(it.freq); }
+    function idsDe(bk) {
+      return ((d.hoje && d.hoje.blocos && d.hoje.blocos[bk]) || []).filter(function (id) {
+        return d.itens && d.itens[id] && (!filtro || filtro.indexOf(id) >= 0) && (!d.passado || feitos[id]);
+      });
+    }
+    function linhaItem(id) {
+      var it = d.itens[id];
+      var tags = [];
+      if (it.prio) tags.push('<span class="pill atencao">prioritário</span>');
+      var fq = RC.freqLegivel(it.freq);
+      if (fq) tags.push('<span>' + fq + '</span>');
+      if (donos[id]) tags.push('<span>' + esc(donos[id].join(', ')) + '</span>');
+      if (feitos[id] && feitos[id].pessoa) tags.push('<span>marcado por ' + esc(primeiroNome(feitos[id].pessoa)) + '</span>');
+      return item(id, it.t, !!feitos[id], tags, podeMarcar);
+    }
+    var hd = '';
     blocos.forEach(function (bk) {
-      var ids = ((d.hoje && d.hoje.blocos && d.hoje.blocos[bk]) || []).filter(function (id) {
-        return d.itens && d.itens[id] && (!filtro || filtro.indexOf(id) >= 0);
+      if (bk === 'periodica') return;
+      var ids = idsDe(bk).filter(function (id) { return !periodico(id); });
+      if (!ids.length) return;
+      hd += '<div class="grupo"><h3>' + esc(meta[bk] || bk) + '</h3>' + ids.map(linhaItem).join('') + '</div>';
+    });
+    var per = [];
+    blocos.concat(blocos.indexOf('periodica') < 0 ? ['periodica'] : []).forEach(function (bk) {
+      idsDe(bk).forEach(function (id) { if (periodico(id) && per.indexOf(id) < 0) per.push(id); });
+    });
+    var tarTodas = [];
+    blocos.forEach(function (bk) {
+      (tarefasPorBloco[bk] || []).forEach(function (t) {
+        if (!filtro || !t.responsavel || t.responsavel.toLowerCase() === String(CTX.pessoa || '').toLowerCase()) tarTodas.push(t);
       });
-      // Tarefa sem responsável é do time e aparece sempre; com responsável, o
-      // filtro "Só os meus" esconde a dos outros.
-      var tar = (tarefasPorBloco[bk] || []).filter(function (t) {
-        return !filtro || !t.responsavel || t.responsavel.toLowerCase() === String(CTX.pessoa || '').toLowerCase();
-      });
-      if (!ids.length && !tar.length) return;
-      h += '<div class="grupo"><h3>' + esc(meta[bk] || bk) + '</h3>';
-      ids.forEach(function (id) {
-        var it = d.itens[id];
-        var tags = [];
-        if (it.prio) tags.push('<span class="pill atencao">prioritário</span>');
-        var fq = RC.freqLegivel(it.freq);
-        if (fq) tags.push('<span>' + fq + '</span>');
-        if (donos[id]) tags.push('<span>' + esc(donos[id].join(', ')) + '</span>');
-        if (feitos[id] && feitos[id].pessoa) tags.push('<span>marcado por ' + esc(primeiroNome(feitos[id].pessoa)) + '</span>');
-        h += item(id, it.t, !!feitos[id], tags, podeMarcar);
-      });
-      tar.forEach(function (t) {
+    });
+    h += '<h2 class="rc-sec">Tarefas diárias</h2>' + (hd || '<p class="vazio">' + (d.passado ? 'Nenhuma tarefa diária marcada neste turno.' : filtro ? 'Nada seu nesta fase. Desmarque "Só os meus" para ver o resto.' : 'Nada nesta fase.') + '</p>');
+    h += '<h2 class="rc-sec">Tarefas periódicas <small>semanais, quinzenais, mensais e pontuais</small></h2>';
+    if (per.length) h += '<div class="grupo">' + per.map(linhaItem).join('') + '</div>';
+    if (tarTodas.length) {
+      h += '<div class="grupo"><h3>Pontuais</h3>' + tarTodas.map(function (t) {
         var tags = ['<span class="pill">tarefa</span>'];
         if (t.prio) tags.push('<span class="pill atencao">prioritário</span>');
         if (t.prazo) tags.push('<span>até ' + dataBr(t.prazo) + '</span>');
         if (t.responsavel) tags.push('<span>para ' + esc(t.responsavel) + '</span>');
-        h += item(t.id, t.titulo, !!feitos[t.id], tags, podeMarcar);
+        return item(t.id, t.titulo, !!feitos[t.id], tags, podeMarcar);
+      }).join('') + '</div>';
+    }
+    if (!per.length && !tarTodas.length) h += '<p class="vazio" data-rc-prox>Nenhuma tarefa periódica neste dia.</p>';
+    bl.innerHTML = h;
+    var px = bl.querySelector('[data-rc-prox]');
+    if (px && !d.passado) {
+      var dia0 = rcDiaDe(d), m0 = dia0.slice(0, 7), m1 = dDate(m0 + '-15'); m1.setUTCMonth(m1.getUTCMonth() + 1);
+      Promise.all([rcMes(m0), rcMes(m1.toISOString().slice(0, 7))]).then(function (rs) {
+        var achou = null;
+        rs.forEach(function (r) {
+          if (!r || achou) return;
+          Object.keys(r.dias || {}).sort().forEach(function (k) { if (!achou && k > dia0 && r.dias[k].per && r.dias[k].per.length) achou = [k, r.dias[k].per]; });
+        });
+        if (achou && px.isConnected) px.textContent = 'Nenhuma tarefa periódica neste dia. A próxima: ' + diaTxt(achou[0]) + ' · ' + achou[1].join(', ') + '.';
       });
-      h += '</div>';
-    });
-    bl.innerHTML = h || '<p class="vazio">' + (filtro ? 'Nada seu nesta fase. Desmarque "Só os meus" para ver o resto.' : 'Nada nesta fase hoje.') + '</p>';
+    }
     Array.prototype.forEach.call(bl.querySelectorAll('.ck'), function (x) {
       x.addEventListener('click', function () { marca(x, bl, d); });
     });
   }
+
 
   function item(id, titulo, feito, tags, podeMarcar) {
     return '<button type="button" class="ck' + (feito ? ' feito' : '') + '" data-id="' + esc(id) + '" data-feito="' + (feito ? 1 : 0) +
@@ -1662,7 +1820,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   // site pode servir o app.html antigo. O app confere app-versao.json (sempre
   // rede: o sw.js nunca guarda *versao.json) e oferece atualizar, limpando os
   // caches. Mesmo desenho do aviso do site (JS_VERSAO_BENTO).
-  var APP_BUILD = 'cajdfnrkmmjn';
+  var APP_BUILD = 'qndbjprqajhh';
   var NV_DISP = 'bento_app_versao_dispensada';
   function atualizaApp() {
     var fim = function () { location.reload(); };
