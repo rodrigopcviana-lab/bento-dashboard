@@ -1218,19 +1218,86 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
     color: var(--bg); }
   .vn-x { flex: none; background: none; border: none; color: var(--text-2, var(--text-2));
     font-size: 18px; line-height: 1; cursor: pointer; padding: 2px 4px; }
+  .ver-feita { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%) translateY(16px); z-index: 96; max-width: calc(100% - 24px);
+    background: var(--card-2, var(--card-2)); border: 1px solid var(--ambar, var(--ambar)); border-radius: 12px;
+    padding: 9px 14px; font-size: 12.5px; color: var(--text, var(--text)); display: flex; gap: 8px;
+    align-items: center; box-shadow: 0 8px 24px rgba(0,0,0,calc(.45*var(--sombra-k))); opacity: 0; pointer-events: none;
+    transition: opacity .25s, transform .25s; }
+  .ver-feita.on { opacity: 1; transform: translateX(-50%); }
+  .ver-feita svg { flex: none; color: var(--ambar, var(--ambar)); }
+  @media (prefers-reduced-motion: reduce) { .ver-feita { transition: none; } }
 </style>
 <div class="ver-nova" id="ver-nova" role="status" aria-live="polite">
   <svg class="ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 3.5V9h-5.5"/></svg>
-  <div class="vn-txt"><b>Nova versão disponível.</b> Atualize pra ver o conteúdo mais recente.</div>
+  <div class="vn-txt" id="vn-txt"><b>Nova versão disponível.</b> Atualize pra ver o conteúdo mais recente.</div>
   <button type="button" class="vn-ok" id="vn-ok">Atualizar</button>
   <button type="button" class="vn-x" id="vn-x" aria-label="Dispensar">&times;</button>
 </div>
 <script>
 (function () {
-  var BUILD = '065f4a570fb4';
+  var BUILD = '66a0cdb8cd98';
   var ALVO = 'versao.json';
   var MIN_ENTRE = 60000;      // não martelar a rede a cada troca de aba
-  var ultimo = 0, mostrando = false;
+  var PARADO = 30000;         // 30s sem tocar na tela = pode recarregar
+  var ultimo = 0, mostrando = false, pendente = null, espera = null;
+
+  // Atualização automática (2026-11-23, pedido do Rodrigo): achou build novo,
+  // a página recarrega sozinha e mostra "Página atualizada". Só NÃO recarrega
+  // quando a pessoa mexeu em algum campo desta tela (o que ela digitou se
+  // perderia): aí fica o aviso antigo, com o botão. Ler a tela não conta
+  // como "mexeu"; a recarga só espera 30s sem toque, para não puxar a página
+  // no meio de uma rolagem. Fila offline e rascunhos moram no localStorage e
+  // sobrevivem à recarga.
+  var mexeu = false, ultToque = Date.now();
+  function campo(el) {
+    return el && el.closest && el.closest('input, textarea, select, [contenteditable="true"]') &&
+      !el.closest('#busca, [type="search"], .vn-ok, .vn-x');
+  }
+  document.addEventListener('input', function (e) { if (campo(e.target)) mexeu = true; }, true);
+  document.addEventListener('change', function (e) { if (campo(e.target)) mexeu = true; }, true);
+  ['pointerdown', 'keydown', 'scroll', 'touchstart'].forEach(function (ev) {
+    window.addEventListener(ev, function () { ultToque = Date.now(); }, { capture: true, passive: true });
+  });
+  // Formulário enviado com sucesso volta a ser "limpo": as páginas zeram os
+  // campos (reset) depois de gravar.
+  document.addEventListener('reset', function () { mexeu = false; }, true);
+
+  // Trava contra laço: o CDN do GitHub Pages pode servir o HTML velho por um
+  // minuto depois do push. Se a recarga já foi tentada para este build e a
+  // página voltou velha, não tenta de novo nesta aba: cai no aviso com botão.
+  var tentou = null;
+  try { tentou = sessionStorage.getItem('bento_atualizou'); } catch (e) {}
+
+  function aplica(novo, voltou) {
+    pendente = novo;
+    if (mexeu || tentou === novo) { mostra(novo); return; }
+    if (!voltou && Date.now() - ultToque < PARADO) {
+      clearTimeout(espera);
+      espera = setTimeout(function () { aplica(novo, false); }, 5000);
+      return;
+    }
+    try { sessionStorage.setItem('bento_atualizou', novo); } catch (e) {}
+    atualiza();
+  }
+
+  // Depois da recarga automática: o aviso curto de que a página mudou.
+  (function avisaFeita() {
+    if (!tentou || tentou !== BUILD) return;   // não tentou, ou voltou velha
+    try { sessionStorage.removeItem('bento_atualizou'); } catch (e) {}
+    tentou = null;
+    var go = function () {
+      var t = document.createElement('div');
+      t.className = 'ver-feita';
+      t.setAttribute('role', 'status');
+      t.innerHTML = '<svg class="ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 3.5V9h-5.5"/></svg><span>Página atualizada com a versão mais recente.</span>';
+      document.body.appendChild(t);
+      requestAnimationFrame(function () { t.classList.add('on'); });
+      setTimeout(function () { t.classList.remove('on'); }, 4500);
+      setTimeout(function () { t.remove(); }, 5000);
+    };
+    if (document.body) go(); else document.addEventListener('DOMContentLoaded', go);
+  })();
 
   function mostra(novo) {
     if (mostrando) return;
@@ -1238,6 +1305,8 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
     mostrando = true;
     var box = document.getElementById('ver-nova');
     if (!box) return;
+    if (mexeu) document.getElementById('vn-txt').innerHTML =
+      '<b>Nova versão disponível.</b> Você tem algo preenchido nesta tela: termine e toque em Atualizar.';
     box.classList.add('on');
     document.getElementById('vn-x').onclick = function () {
       try { localStorage.setItem('bento_build_dispensado', novo); } catch (e) {}
@@ -1266,26 +1335,29 @@ Gerado automaticamente por bento/portal_gen.py — não editar este arquivo à m
     Promise.all(t).then(recarrega, recarrega);
   }
 
-  function confere() {
+  // `voltou`: a pessoa acabou de abrir a página ou de voltar a ela pelo
+  // alternador. Nesse momento ela ainda não começou a ler: recarrega na hora.
+  function confere(voltou) {
     if (mostrando) return;
+    if (pendente) { aplica(pendente, voltou); return; }
     var agora = Date.now();
     if (agora - ultimo < MIN_ENTRE) return;
     ultimo = agora;
     fetch(ALVO + '?t=' + agora, { cache: 'no-store' })
       .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (d) { if (d && d.build && d.build !== BUILD) mostra(d.build); })
+      .then(function (d) { if (d && d.build && d.build !== BUILD) aplica(d.build, voltou); })
       .catch(function () {});
   }
 
   // Expostos pra um eventual botão manual "Buscar atualização" (Meu perfil).
   window.bentoAtualiza = atualiza;
-  window.bentoConfere = function () { ultimo = 0; confere(); };
+  window.bentoConfere = function () { ultimo = 0; confere(true); };
 
-  setTimeout(confere, 4000);                       // não competir com o render
-  setInterval(function () { if (!document.hidden) confere(); }, 600000);
+  setTimeout(function () { confere(true); }, 4000);   // não competir com o render
+  setInterval(function () { if (!document.hidden) confere(false); }, 600000);
   document.addEventListener('visibilitychange', function () {
     // o caso que só isto alcança: app em standalone voltando do alternador.
-    if (!document.hidden) confere();
+    if (!document.hidden) confere(true);
   });
 })();
 </script>
