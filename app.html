@@ -72,6 +72,21 @@ body.digitando .tema-fl{display:none}
 .pf-it .dl{font-size:12px;font-weight:600;margin-left:6px}
 .pf-it .dl.up{color:var(--verde-tx)}
 .pf-it .dl.dn{color:var(--coral-tx)}
+/* Busca do topo (24/11/2026): em toda tela, procura tela, ficha, venda e aula. */
+.fx-busca{position:relative;margin-top:10px}
+.fx-busca input{width:100%;height:40px;padding:0 14px 0 38px;border-radius:999px;border:1px solid var(--faixa-linha);background:rgba(255,255,255,.09);color:var(--faixa-tx);font:inherit;font-size:16px;-webkit-appearance:none;appearance:none}
+.fx-busca input::placeholder{color:var(--faixa-tx);opacity:.6}
+.fx-busca>.ic{position:absolute;left:13px;top:12px;width:16px;height:16px;opacity:.7;pointer-events:none}
+.bg-res{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:60;max-height:min(62vh,520px);overflow:auto;background:var(--sup);color:var(--tx);border:1px solid var(--linha);border-radius:14px;box-shadow:0 12px 32px rgba(0,0,0,.28);padding:6px 0}
+.bg-res h4{margin:8px 14px 2px;font-size:11.5px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.03em}
+.bg-res button{display:flex;align-items:center;gap:10px;width:100%;min-height:44px;padding:6px 14px;color:var(--tx);text-align:left;font-size:15px}
+.bg-res button:hover,.bg-res button.foco{background:var(--bg)}
+.bg-res button small{display:block;font-size:12.5px;color:var(--tx3);margin-top:1px}
+.bg-res button .ic{color:var(--tx3)}
+.bg-res p{margin:10px 14px;font-size:14px;color:var(--tx3)}
+.pf-cats{margin:-4px 0 10px}
+.pf-filtro{display:inline-flex;align-items:center;gap:6px;margin:0 0 10px;padding:5px 6px 5px 12px;border-radius:999px;background:var(--acento-bg,var(--sup2));color:var(--acento-tx);font-size:13.5px;font-weight:600}
+.pf-filtro button{width:26px;height:26px;border-radius:50%;font-size:17px;line-height:1;color:inherit}
 .faixa .site{padding:8px 0;color:var(--faixa-tx);opacity:.85;font-size:12.5px;text-decoration:underline;text-underline-offset:3px}
 .faixa .como{display:flex;align-items:center;gap:10px;margin-top:10px}
 .faixa .como>span{font-size:12px;opacity:.7;flex-shrink:0}
@@ -888,7 +903,9 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
       (temEscala ? '<a class="fx-ic" href="#/escala" data-fx-tela="escala" aria-label="Minha escala" title="Minha escala">' + ic('calendar', 16) + '</a>' : '') +
       '<button type="button" class="fx-ic" data-comp-abre aria-label="Compartilhar o app" title="Compartilhar o app">' + ic('compartilhar', 15) + '</button>' +
       '<button type="button" class="fx-ic" data-conta aria-label="Minha conta" title="Minha conta">' + ic('pessoa', 16) + '</button>' +
-      '</span></div>';
+      '</span></div>' +
+      '<div class="fx-busca" role="search">' + ic('lupa', 16) + '<input type="search" id="busca-g" placeholder="Buscar drink, ficha, tela, aula…" autocomplete="off" enterkeyhint="search" aria-label="Buscar no app" aria-controls="busca-res" aria-expanded="false">' +
+      '<div class="bg-res" id="busca-res" role="listbox" hidden></div></div>';
     if (CTX.tabela) {
       f += '<div class="como" role="group" aria-label="Ver como"><span>Ver como</span><span class="seg">' +
         [['garcom', 'Garçom'], ['equipe', 'Equipe'], ['maitres', 'Maîtres'], ['marketing', 'Mkt'], ['admin', 'Você']].map(function (x) {
@@ -897,6 +914,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
         }).join('') + '</span></div>';
     }
     $('faixa').innerHTML = f;
+    ligaBusca();
     if (!document.getElementById('tema-fl')) {
       document.body.insertAdjacentHTML('beforeend', '<button type="button" id="tema-fl" class="tema-fl" data-tema-troca></button>');
     }
@@ -1851,7 +1869,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   // site pode servir o app.html antigo. O app confere app-versao.json (sempre
   // rede: o sw.js nunca guarda *versao.json) e oferece atualizar, limpando os
   // caches. Mesmo desenho do aviso do site (JS_VERSAO_BENTO).
-  var APP_BUILD = 'mpsrqdmkhbrj';
+  var APP_BUILD = 'eanqnjkqfgae';
   var NV_DISP = 'bento_app_versao_dispensada';
   function atualizaApp() {
     var fim = function () { location.reload(); };
@@ -1953,25 +1971,64 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   // Quantidade vendida de cada coquetel e suco, mês a mês. Faturamento não
   // aparece: protegido:performance nasce sem valor de dinheiro
   // (bento/performance_base.py).
-  var PF = { grupo: 'coqueteis', per: null, dados: null };
+  var PF = { grupo: 'coqueteis', per: null, dados: null, cat: 'todas', busca: '' };
   function pfNum(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
-  TELAS.performance = function (c) {
-    topo(c, 'Performance', 'Quanto sai de cada coquetel e suco');
-    var b = bloco(c);
-    var pega = PF.dados ? Promise.resolve({ ok: true, d: PF.dados }) : api('/api/protegido/performance').then(function (r) {
+  function pfPega() {
+    return PF.dados ? Promise.resolve({ ok: true, d: PF.dados }) : api('/api/protegido/performance').then(function (r) {
       if (!r.ok) return r;
       try { PF.dados = JSON.parse(r.d.conteudo); return { ok: true, d: PF.dados }; }
       catch (e) { return { ok: false, status: 500, d: { erro: 'Os números vieram num formato que eu não conheço.' } }; }
     });
-    pega.then(function (r) {
+  }
+  // Categoria do coquetel = a seção da ficha técnica (Autorais, Clássicos,
+  // Tonic & Spritz, Caipirinhas, Mocktails). O PDV só diz "Drinks e coquetéis",
+  // então a casca casa o nome com as fichas que já carrega; o que não casa cai
+  // numa regra pelo nome e, sem regra, em "Outros".
+  var PF_CATS = null;
+  function pfCat(nome) {
+    var n = ' ' + norm(nome) + ' ';
+    if (/^ caipi?/.test(n)) return 'caipirinhas';
+    if (/ (soda italiana|mocktail|luci|lady ?berries) /.test(n)) return 'mocktails';
+    if (!PF_CATS) {
+      PF_CATS = [];
+      (FICHAS.fichas || []).forEach(function (f) {
+        if (f.s === 'producoes' || f.s === 'caipirinhas') return;
+        var k = norm(String(f.n).replace(/\(.*?\)/g, ''));
+        if (k.length >= 4) PF_CATS.push([' ' + k + ' ', f.s]);
+      });
+      PF_CATS.sort(function (a, z) { return z[0].length - a[0].length; });
+    }
+    for (var i = 0; i < PF_CATS.length; i++) if (n.indexOf(PF_CATS[i][0]) >= 0) return PF_CATS[i][1];
+    // Grafias que o PDV e a ficha escrevem diferente ("Veltet" é a da ficha).
+    if (/ velvet berries | veltet berries /.test(n)) return 'autorais';
+    if (/ whiske?y sour | mark twain /.test(n)) return 'classicos';
+    if (/ (spritz|tonica?|tonico|tonic|clericot|kir royal) /.test(n)) return 'tonic';
+    return 'outros';
+  }
+  TELAS.performance = function (c) {
+    topo(c, 'Performance', 'Quanto sai de cada coquetel e suco');
+    var b = bloco(c);
+    pfPega().then(function (r) {
       if (!r.ok) { falhou(b, 'Performance', r); return; }
       pfDesenha(b, r.d);
     });
   };
   function pfDesenha(b, d) {
     var g = PF.grupo, meses = d.meses || [], ult = (d.ultimo_mes_com_dado || {})[g];
-    var itens = (d.itens || []).filter(function (x) { return x.grupo === g; });
-    if (ult == null || ult < 0 || !itens.length) { b.innerHTML = '<h2>Performance</h2><p class="vazio">Sem vendas deste grupo na base.</p>'; return; }
+    var doGrupo = (d.itens || []).filter(function (x) { return x.grupo === g; });
+    // Categorias só dos coquetéis (suco é uma coisa só); só as que têm item.
+    var nomesCat = {};
+    (FICHAS.secoes || []).forEach(function (x) { nomesCat[x[0]] = x[1]; });
+    nomesCat.outros = 'Outros';
+    var cats = [];
+    if (g === 'coqueteis') doGrupo.forEach(function (x) { var k = pfCat(x.nome); if (cats.indexOf(k) < 0) cats.push(k); });
+    cats.sort(function (a, z) { var o = ['autorais', 'classicos', 'tonic', 'caipirinhas', 'mocktails', 'outros']; return o.indexOf(a) - o.indexOf(z); });
+    if (cats.indexOf(PF.cat) < 0) PF.cat = 'todas';
+    var bq = norm(PF.busca);
+    var itens = doGrupo.filter(function (x) {
+      return (PF.cat === 'todas' || pfCat(x.nome) === PF.cat) && (!bq || norm(x.nome).indexOf(bq) >= 0);
+    });
+    if (ult == null || ult < 0 || !doGrupo.length) { b.innerHTML = '<h2>Performance</h2><p class="vazio">Sem vendas deste grupo na base.</p>'; return; }
     // Períodos: cada mês com dado, mais os últimos 3 e os últimos 12 meses.
     var opc = [['3m', 'Últimos 3 meses'], ['12m', 'Últimos 12 meses']];
     for (var i = ult; i >= 0; i--) opc.push(['m' + i, meses[i]]);
@@ -1998,10 +2055,15 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
       var on = p[0] === g;
       return '<button type="button" role="tab" aria-selected="' + on + '" data-pf-g="' + p[0] + '"' + (on ? ' class="on"' : '') + '>' + p[1] + '</button>';
     }).join('') + '</div>' +
+      (cats.length > 1 ? '<div class="chips pf-cats" role="group" aria-label="Categoria">' + [['todas', 'Todas']].concat(cats.map(function (k) { return [k, nomesCat[k] || k]; })).map(function (x) {
+        var on = x[0] === PF.cat;
+        return '<button type="button" data-pf-cat="' + x[0] + '" aria-pressed="' + on + '"' + (on ? ' class="on"' : '') + '>' + esc(x[1]) + '</button>';
+      }).join('') + '</div>' : '') +
+      (PF.busca ? '<span class="pf-filtro">Busca: ' + esc(PF.busca) + '<button type="button" data-pf-limpa aria-label="Tirar a busca">×</button></span>' : '') +
       '<label class="pf-sel">Período <select data-pf-per>' + opc.map(function (o) {
         return '<option value="' + o[0] + '"' + (o[0] === PF.per ? ' selected' : '') + '>' + esc(o[1]) + '</option>';
       }).join('') + '</select></label>' +
-      '<p class="pf-tot"><b>' + pfNum(tot) + '</b>' + (g === 'sucos' ? 'sucos' : 'coquetéis') + ' em ' + esc(nomePer.toLowerCase().indexOf('últimos') === 0 ? nomePer.toLowerCase() : nomePer) +
+      '<p class="pf-tot"><b>' + pfNum(tot) + '</b>' + (g === 'sucos' ? 'sucos' : PF.cat !== 'todas' ? esc((nomesCat[PF.cat] || '').toLowerCase()) : 'coquetéis') + ' em ' + esc(nomePer.toLowerCase().indexOf('últimos') === 0 ? nomePer.toLowerCase() : nomePer) +
       (ant ? ' · comparado com ' + (tam === 1 ? esc(meses[ant[0]]) : 'os ' + tam + ' meses anteriores') : '') + '</p>';
     h += lista.length ? lista.map(function (x, k) {
       var dl = '';
@@ -2027,9 +2089,125 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     h += '<p class="vazio" style="margin-top:14px">Só quantidade, sem faturamento. De mar/26 em diante o relatório de vendas é outro: compare esses meses com os anteriores com cuidado.</p>';
     b.innerHTML = h;
     Array.prototype.forEach.call(b.querySelectorAll('[data-pf-g]'), function (x) {
-      x.addEventListener('click', function () { PF.grupo = x.getAttribute('data-pf-g'); PF.per = null; pfDesenha(b, d); });
+      x.addEventListener('click', function () { PF.grupo = x.getAttribute('data-pf-g'); PF.per = null; PF.cat = 'todas'; pfDesenha(b, d); });
     });
+    Array.prototype.forEach.call(b.querySelectorAll('[data-pf-cat]'), function (x) {
+      x.addEventListener('click', function () { PF.cat = x.getAttribute('data-pf-cat'); pfDesenha(b, d); });
+    });
+    var bl = b.querySelector('[data-pf-limpa]');
+    if (bl) bl.addEventListener('click', function () { PF.busca = ''; pfDesenha(b, d); });
     b.querySelector('[data-pf-per]').addEventListener('change', function (e) { PF.per = e.target.value; pfDesenha(b, d); });
+  }
+
+  // --- Busca do topo (24/11/2026) ---------------------------------------------
+  // Um campo só, em toda tela. Procura no que a casca já tem (telas do menu,
+  // fichas técnicas, aulas do Conteúdo) e nas vendas de coquetel e suco (só
+  // para quem vê a Performance; busca o número na primeira vez que o campo
+  // ganha foco). Tocar num resultado abre a tela já filtrada.
+  var BG = { foco: -1 };
+  function bgIndice() {
+    var out = [];
+    CTX.nav.forEach(function (t) {
+      out.push({ g: 'Telas', t: t.rotulo, d: '', i: t.icone || 'list', ir: function () { bgVai('#/' + t.id); } });
+    });
+    if (pode('caixa.ver')) out.push({ g: 'Telas', t: 'Caixa de entrada', d: 'avisos e respostas', i: 'sino', ir: function () { bgVai('#/caixa'); } });
+    if (pode('fichas.ver')) (FICHAS.fichas || []).forEach(function (f) {
+      var ings = (f.i || []).map(function (x) { return x[1]; }).join(' ');
+      out.push({ g: 'Fichas técnicas', t: String(f.n).replace(/\s*\(.*?\)\s*/g, ' ').trim(), d: (f.i || []).slice(0, 3).map(function (x) { return x[1]; }).join(', '),
+        x: ings, i: 'cocktail', ir: function () { fichaSec = 'todas'; fichaBusca = String(f.n).replace(/\s*\(.*?\)\s*/g, ' ').trim(); bgVai('#/fichas'); } });
+    });
+    if (PF.dados && pode('performance.ver')) (PF.dados.itens || []).forEach(function (x) {
+      var tot = x.q.reduce(function (a, v) { return a + (v || 0); }, 0);
+      out.push({ g: 'Vendas', t: x.nome, d: (x.grupo === 'sucos' ? 'suco' : 'coquetel') + ' · ' + pfNum(tot) + ' vendidos no histórico', i: 'grafico',
+        ir: function () { PF.grupo = x.grupo; PF.cat = 'todas'; PF.per = null; PF.busca = x.nome; bgVai('#/performance'); } });
+    });
+    if (pode('conteudo.ver')) ctModulos().forEach(function (m) {
+      m.a.forEach(function (a) {
+        out.push({ g: 'Conteúdo', t: a.t, d: m.t, i: 'estudo', ir: function () { bgVai('#/conteudo/a/' + m.id + '/' + a.id); } });
+      });
+    });
+    return out;
+  }
+  function bgVai(h) {
+    var inp = $('busca-g');
+    if (inp) { inp.value = ''; inp.blur(); }
+    bgFecha();
+    if (location.hash === h) vai(); else location.hash = h;
+    window.scrollTo(0, 0);
+  }
+  function bgFecha() {
+    var r = $('busca-res'), inp = $('busca-g');
+    if (r) { r.hidden = true; r.innerHTML = ''; }
+    if (inp) inp.setAttribute('aria-expanded', 'false');
+    BG.foco = -1; BG.lista = [];
+  }
+  function bgProcura(q) {
+    var r = $('busca-res'), inp = $('busca-g');
+    var t = norm(q);
+    if (!t) { bgFecha(); return; }
+    var pal = t.split(' ');
+    var achados = bgIndice().map(function (x) {
+      var nt = norm(x.t), nx = nt + ' ' + norm(x.d) + ' ' + norm(x.x || '');
+      if (!pal.every(function (w) { return nx.indexOf(w) >= 0; })) return null;
+      var pts = nt === t ? 0 : nt.indexOf(t) === 0 ? 1 : nt.indexOf(t) >= 0 ? 2 : 3;
+      return { x: x, p: pts };
+    }).filter(Boolean).sort(function (a, z) { return a.p - z.p || a.x.t.localeCompare(z.x.t); });
+    var ordem = ['Telas', 'Fichas técnicas', 'Vendas', 'Conteúdo'], h = '', lista = [];
+    ordem.forEach(function (g) {
+      var dg = achados.filter(function (a) { return a.x.g === g; }).slice(0, g === 'Telas' ? 4 : 6);
+      if (!dg.length) return;
+      h += '<h4>' + esc(g) + '</h4>' + dg.map(function (a) {
+        lista.push(a.x);
+        return '<button type="button" role="option" data-bg="' + (lista.length - 1) + '">' + ic(a.x.i, 18) + '<span>' + esc(a.x.t) + (a.x.d ? '<small>' + esc(a.x.d) + '</small>' : '') + '</span></button>';
+      }).join('');
+    });
+    BG.lista = lista; BG.foco = -1;
+    r.innerHTML = h || '<p>Nada encontrado para “' + esc(q.trim()) + '”.</p>';
+    r.hidden = false;
+    inp.setAttribute('aria-expanded', 'true');
+  }
+  function bgMarca(n) {
+    var as = document.querySelectorAll('#busca-res [data-bg]');
+    if (!as.length) return;
+    BG.foco = (n + as.length) % as.length;
+    Array.prototype.forEach.call(as, function (a, k) { a.classList.toggle('foco', k === BG.foco); });
+    as[BG.foco].scrollIntoView({ block: 'nearest' });
+  }
+  function ligaBusca() {
+    var inp = $('busca-g'), r = $('busca-res');
+    if (!inp) return;
+    var espera = null;
+    var pedindo = false;
+    function vendas() {
+      // As vendas chegam na primeira busca (foco ou digitação) e refazem a lista.
+      if (PF.dados || pedindo || !pode('performance.ver')) return;
+      pedindo = true;
+      pfPega().then(function () { pedindo = false; if (inp.value.trim() && !r.hidden) bgProcura(inp.value); });
+    }
+    inp.addEventListener('focus', function () {
+      vendas();
+      if (inp.value.trim()) bgProcura(inp.value);
+    });
+    inp.addEventListener('input', function () { vendas(); clearTimeout(espera); espera = setTimeout(function () { bgProcura(inp.value); }, 120); });
+    inp.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); bgMarca(BG.foco + 1); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); bgMarca(BG.foco - 1); }
+      else if (e.key === 'Escape') { inp.value = ''; bgFecha(); inp.blur(); }
+      else if (e.key === 'Enter') {
+        e.preventDefault();
+        var x = BG.lista && BG.lista[BG.foco >= 0 ? BG.foco : 0];
+        if (x) x.ir();
+      }
+    });
+    r.addEventListener('mousedown', function (e) { e.preventDefault(); }); // não perde o foco antes do clique
+    r.addEventListener('click', function (e) {
+      var a = e.target.closest('[data-bg]');
+      if (!a) return;
+      e.preventDefault();
+      var x = BG.lista[Number(a.getAttribute('data-bg'))];
+      if (x) x.ir();
+    });
+    inp.addEventListener('blur', function () { setTimeout(bgFecha, 150); });
   }
 
   // --- Eventos (24/11/2026) ---------------------------------------------------
