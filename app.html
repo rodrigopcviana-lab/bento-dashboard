@@ -122,6 +122,22 @@ a.linha .v::after,.linha.vai .v::after{content:"";display:inline-block;width:7px
 .qb-tot div{flex:1;padding:10px 12px;border-radius:12px;background:var(--bg)}
 .qb-tot b{display:block;font-size:22px;font-family:var(--serif);font-weight:500}
 .qb-tot small{font-size:12px;color:var(--tx3)}
+/* Quebras por mês (24/11/2026): barras dos 12 meses, mês escolhido embaixo. */
+.qb-barras{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:4px;align-items:end;height:118px;margin:4px 0 2px}
+.qb-barras button{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;min-width:0;padding:0;border-radius:8px}
+.qb-barras .n{font-size:10.5px;color:var(--tx2);margin-bottom:2px;font-variant-numeric:tabular-nums}
+.qb-barras i{display:block;width:72%;max-width:26px;border-radius:5px 5px 2px 2px;background:var(--linha);min-height:3px}
+.qb-barras .m{font-size:10px;color:var(--tx3);margin-top:4px;text-transform:uppercase}
+.qb-barras button.tem i{background:var(--coral)}
+.qb-barras button.on i{background:var(--acento)}
+.qb-barras button.on .m{color:var(--acento-tx);font-weight:700}
+.qb-nav{display:flex;align-items:center;gap:6px;margin:14px 0 6px;padding-top:12px;border-top:1px solid var(--linha)}
+.qb-nav b{flex:1;font-family:var(--serif);font-weight:500;font-size:19px}
+.qb-nav button{width:36px;height:36px;border-radius:50%;font-size:20px;color:var(--tx2);border:1px solid var(--linha)}
+.qb-nav button[disabled]{opacity:.35}
+.qb-res{font-size:13.5px;color:var(--tx2);margin-bottom:8px}
+.qb-top{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px}
+.qb-dia{font-size:12px;font-weight:600;color:var(--tx3);margin:10px 0 0;text-transform:uppercase;letter-spacing:.02em}
 .seg{display:inline-flex;background:var(--sup2);border-radius:999px;padding:3px;gap:2px}
 .seg button{padding:9px 15px;border-radius:999px;font-size:14px;color:var(--tx2)}
 .seg button.on{background:var(--sup);color:var(--tx);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.12)}
@@ -775,7 +791,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     // 26 semanas é o teto da rota: cobre a contagem anterior mesmo quando o
     // bar fica meses sem contar (aconteceu entre 07/09 e 09/11).
     historico: function (f) { return busca('historico', function () { return api('/api/contagem/historico', { metodo: 'POST', corpo: { semanas: 26 } }); }, f); },
-    quebras: function (f) { return busca('quebras', function () { return api('/api/quebras/historico', { metodo: 'POST', corpo: { meses: 6 } }); }, f); },
+    quebras: function (f) { return busca('quebras', function () { return api('/api/quebras/historico', { metodo: 'POST', corpo: { meses: 12 } }); }, f); },
     custos: function (f) { return busca('custos', function () { return api('/api/fichas-custos'); }, f); },
     escala: function (desde, ate, f) { return busca('escala', function () { return api('/api/escala?oficial=1&desde=' + desde + '&ate=' + ate); }, f); },
   };
@@ -1820,7 +1836,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   // site pode servir o app.html antigo. O app confere app-versao.json (sempre
   // rede: o sw.js nunca guarda *versao.json) e oferece atualizar, limpando os
   // caches. Mesmo desenho do aviso do site (JS_VERSAO_BENTO).
-  var APP_BUILD = 'qndbjprqajhh';
+  var APP_BUILD = 'abkpghfdgdre';
   var NV_DISP = 'bento_app_versao_dispensada';
   function atualizaApp() {
     var fim = function () { location.reload(); };
@@ -2498,34 +2514,89 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     b.innerHTML = h;
   }
 
-  // Histórico de quebras (24/11/2026): totais de 30 dias e de 6 meses, e as
-  // últimas quebras registradas agrupadas por mês.
-  var QB_VER_TODAS = false;
+  // Histórico de quebras por mês (24/11/2026): totais de 30 dias e de 12
+  // meses, barras de peças por mês (toque escolhe o mês) e, do mês escolhido,
+  // os itens que mais quebraram, os motivos e cada registro. Sem dinheiro.
+  var QB_MES = null;
   function desenhaHistQuebras(b, rq) {
     if (!rq || !rq.ok) { falhou(b, 'Histórico de quebras', rq); return; }
-    var todas = [];
-    (rq.d.meses || []).forEach(function (m) { (m.entradas || []).forEach(function (e) { todas.push(e); }); });
-    todas.sort(function (x, y) { return (x.data || '') < (y.data || '') ? 1 : -1; });
-    var lim = isoLocal(new Date(Date.now() - 30 * 864e5));
-    var soma = function (l) { return l.reduce(function (s2, e) { return s2 + (Number(e.quantidade) || 0); }, 0); };
-    var n30 = soma(todas.filter(function (e) { return (e.data || '') >= lim; })), n6 = soma(todas);
-    var h = '<h2>Histórico de quebras</h2><div class="qb-tot"><div><b>' + n30 + '</b><small>peças nos últimos 30 dias</small></div>' +
-      '<div><b>' + n6 + '</b><small>peças em 6 meses</small></div></div>';
-    if (!todas.length) {
-      h += '<p class="vazio">Nenhuma quebra registrada nos últimos seis meses.</p>';
-    } else {
-      var lista = QB_VER_TODAS ? todas : todas.slice(0, 8), mes = '';
-      lista.forEach(function (e) {
-        var m = (e.data || '').slice(0, 7);
-        if (m !== mes) { mes = m; h += '<h3 class="ct-sec">' + esc(m ? MESES[Number(m.slice(5)) - 1] + ' de ' + m.slice(0, 4) : 'Sem data') + '</h3>'; }
-        h += '<div class="linha"><div class="t">' + esc(e.nome) + '<small>' + esc(e.motivo || '') + (e.responsavel ? ' · ' + esc(e.responsavel) : '') +
-          '</small></div><span class="v">' + esc(e.quantidade) + (Number(e.quantidade) === 1 ? ' peça' : ' peças') + ' · ' + dataBr(e.data).slice(0, 5) + '</span></div>';
+    var porMes = {};
+    (rq.d.meses || []).forEach(function (m) {
+      (m.entradas || []).forEach(function (e) {
+        var k = (e.data || '').slice(0, 7);
+        if (k) (porMes[k] = porMes[k] || []).push(e);
       });
-      if (todas.length > 8) h += '<div class="acoes"><button type="button" class="btn sec" data-qb-todas>' + (QB_VER_TODAS ? 'Ver menos' : 'Ver todas (' + todas.length + ')') + '</button></div>';
+    });
+    var soma = function (l) { return l.reduce(function (s2, e) { return s2 + (Number(e.quantidade) || 0); }, 0); };
+    // Os 12 meses até o atual, mesmo os sem quebra (barra vazia diz "zero").
+    var hoje = new Date(), meses = [];
+    for (var k = 11; k >= 0; k--) {
+      var d0 = new Date(hoje.getFullYear(), hoje.getMonth() - k, 1);
+      meses.push(d0.getFullYear() + '-' + ('0' + (d0.getMonth() + 1)).slice(-2));
+    }
+    if (!QB_MES || meses.indexOf(QB_MES) < 0) {
+      QB_MES = meses[meses.length - 1];
+      // Mês atual sem nada: abre no último mês com quebra.
+      if (!porMes[QB_MES]) for (var x = meses.length - 1; x >= 0; x--) if (porMes[meses[x]]) { QB_MES = meses[x]; break; }
+    }
+    var tot = meses.map(function (m) { return soma(porMes[m] || []); });
+    var max = Math.max.apply(null, tot.concat([1]));
+    var lim = isoLocal(new Date(Date.now() - 30 * 864e5));
+    var todas = [];
+    Object.keys(porMes).forEach(function (m) { todas = todas.concat(porMes[m]); });
+    var n30 = soma(todas.filter(function (e) { return (e.data || '') >= lim; }));
+    var n12 = tot.reduce(function (a, v) { return a + v; }, 0);
+    var nomeMes = function (m, curto) { var n = MESES[Number(m.slice(5)) - 1]; return curto ? n.slice(0, 3) : n.charAt(0).toUpperCase() + n.slice(1) + ' de ' + m.slice(0, 4); };
+
+    var h = '<h2>Histórico de quebras</h2><div class="qb-tot"><div><b>' + n30 + '</b><small>peças nos últimos 30 dias</small></div>' +
+      '<div><b>' + n12 + '</b><small>peças em 12 meses</small></div></div>';
+    h += '<div class="qb-barras" role="group" aria-label="Peças quebradas por mês">' + meses.map(function (m, ix) {
+      var v = tot[ix], alt = v ? Math.max(6, Math.round(v / max * 78)) : 3;
+      return '<button type="button" data-qb-mes="' + m + '" class="' + (v ? 'tem ' : '') + (m === QB_MES ? 'on' : '') + '" aria-label="' + esc(nomeMes(m) + ': ' + v + (v === 1 ? ' peça' : ' peças')) + '" aria-pressed="' + (m === QB_MES) + '">' +
+        '<span class="n">' + (v || '') + '</span><i style="height:' + alt + 'px"></i><span class="m">' + nomeMes(m, true) + '</span></button>';
+    }).join('') + '</div>';
+
+    var ix = meses.indexOf(QB_MES), doMes = (porMes[QB_MES] || []).slice().sort(function (a2, b2) { return (a2.data || '') < (b2.data || '') ? 1 : -1; });
+    h += '<div class="qb-nav"><button type="button" data-qb-passo="-1" aria-label="Mês anterior"' + (ix <= 0 ? ' disabled' : '') + '>‹</button><b>' + esc(nomeMes(QB_MES)) +
+      '</b><button type="button" data-qb-passo="1" aria-label="Próximo mês"' + (ix >= meses.length - 1 ? ' disabled' : '') + '>›</button></div>';
+    if (!doMes.length) {
+      h += '<p class="vazio">Nenhuma quebra registrada neste mês.</p>';
+    } else {
+      var nMes = soma(doMes);
+      var itens = {}, motivos = {};
+      doMes.forEach(function (e) {
+        itens[e.nome] = (itens[e.nome] || 0) + (Number(e.quantidade) || 0);
+        var mo = e.motivo || 'Sem motivo';
+        motivos[mo] = (motivos[mo] || 0) + (Number(e.quantidade) || 0);
+      });
+      var ord = function (o) { return Object.keys(o).sort(function (a2, b2) { return o[b2] - o[a2]; }); };
+      var ant = ix > 0 ? tot[ix - 1] : null;
+      h += '<p class="qb-res"><b>' + nMes + (nMes === 1 ? ' peça' : ' peças') + '</b> em ' + doMes.length + (doMes.length === 1 ? ' registro' : ' registros') +
+        (ant != null ? ' · ' + (ant === nMes ? 'igual ao mês anterior' : (nMes > ant ? '+' : '−') + Math.abs(nMes - ant) + ' que ' + nomeMes(meses[ix - 1], true)) : '') + '</p>';
+      h += '<h3 class="ct-sec">O que mais quebrou</h3><div class="qb-top">' + ord(itens).slice(0, 6).map(function (n) {
+        return '<span class="pill">' + esc(n) + ' · ' + itens[n] + '</span>';
+      }).join('') + '</div>';
+      h += '<h3 class="ct-sec">Motivos</h3><div class="qb-top">' + ord(motivos).map(function (n) {
+        return '<span class="pill atencao">' + esc(n) + ' · ' + motivos[n] + '</span>';
+      }).join('') + '</div>';
+      h += '<h3 class="ct-sec">Registros</h3>';
+      var dia = '';
+      doMes.forEach(function (e) {
+        if (e.data !== dia) { dia = e.data; h += '<div class="qb-dia">' + esc(e.data ? diaTxt(e.data) : 'Sem data') + '</div>'; }
+        h += '<div class="linha"><div class="t">' + esc(e.nome) + '<small>' + esc(e.motivo || 'Sem motivo') + (e.responsavel ? ' · ' + esc(e.responsavel) : '') +
+          (e.detalhe ? ' · ' + esc(e.detalhe) : '') + '</small></div><span class="v">' + esc(e.quantidade) + (Number(e.quantidade) === 1 ? ' peça' : ' peças') + '</span></div>';
+      });
     }
     b.innerHTML = h;
-    var bt = b.querySelector('[data-qb-todas]');
-    if (bt) bt.addEventListener('click', function () { QB_VER_TODAS = !QB_VER_TODAS; desenhaHistQuebras(b, rq); });
+    Array.prototype.forEach.call(b.querySelectorAll('[data-qb-mes]'), function (bt) {
+      bt.addEventListener('click', function () { QB_MES = bt.getAttribute('data-qb-mes'); desenhaHistQuebras(b, rq); });
+    });
+    Array.prototype.forEach.call(b.querySelectorAll('[data-qb-passo]'), function (bt) {
+      bt.addEventListener('click', function () {
+        var n = meses.indexOf(QB_MES) + Number(bt.getAttribute('data-qb-passo'));
+        if (n >= 0 && n < meses.length) { QB_MES = meses[n]; desenhaHistQuebras(b, rq); }
+      });
+    });
   }
 
   // --- Contagem ---------------------------------------------------------------
