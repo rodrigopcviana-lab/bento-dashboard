@@ -532,12 +532,19 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
 .bb.alvo{outline:2px solid var(--verde)}
 /* Os dois botões do chat do dia: "?" pergunta, "!" avisa ou pede */
 .ch-cancela{position:sticky;bottom:0;display:flex;justify-content:center;padding:8px 10px calc(8px + env(safe-area-inset-bottom));background:var(--sup);border-top:1px solid var(--linha)}
-.ch-dois{position:sticky;bottom:0;display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:8px 10px calc(8px + env(safe-area-inset-bottom));background:var(--sup);border-top:1px solid var(--linha)}
+.ch-dois{position:sticky;bottom:0;display:grid;grid-template-columns:repeat(var(--n,2),1fr);gap:8px;padding:8px 10px calc(8px + env(safe-area-inset-bottom));background:var(--sup);border-top:1px solid var(--linha)}
 /* Compactos (24/11/2026): uma linha de 44px, sem subtítulo. */
-.ch-dois button{display:flex;align-items:center;justify-content:center;gap:7px;min-width:0;height:44px;padding:0 10px;border-radius:999px;border:1px solid var(--linha);background:var(--bg);font-size:14.5px;font-weight:600;white-space:nowrap}
+.ch-dois button,.ch-dois a{color:inherit;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:7px;min-width:0;height:44px;padding:0 10px;border-radius:999px;border:1px solid var(--linha);background:var(--bg);font-size:14.5px;font-weight:600;white-space:nowrap}
 .ch-dois .ic{width:26px;height:26px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-weight:700;font-size:16px}
 .ch-dois .p .ic{background:var(--sup2);color:var(--tx)}
 .ch-dois .a .ic{background:var(--acento);color:#fff}
+/* Quatro ações (24/11/2026): ícone em cima, rótulo curto embaixo. */
+.ch-dois.q4{gap:6px;padding-left:8px;padding-right:8px}
+.ch-dois.q4 button,.ch-dois.q4 a{flex-direction:column;gap:2px;height:54px;padding:0 4px;border-radius:14px;font-size:12px}
+.ch-dois.q4 .ic{width:24px;height:24px;font-size:15px}
+.ch-dois .q .ic,.ch-dois .f .ic{background:var(--sup2);color:var(--tx)}
+.ch-dois .ic svg{width:15px;height:15px}
+.bb .foto-ok{display:inline-flex;align-items:center;gap:6px;font-weight:600}
 :root[data-tema="escuro"] .ch-dois .a .ic{color:#2b2620}
 .ch-in .modo{width:32px;height:42px;border-radius:999px;background:none;font-size:22px;color:var(--tx3);padding:0;align-self:center}
 .ch-in .mtag{align-self:center;flex-shrink:0;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:16px;font-weight:700;background:var(--sup2);color:var(--tx)}
@@ -1655,7 +1662,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   // site pode servir o app.html antigo. O app confere app-versao.json (sempre
   // rede: o sw.js nunca guarda *versao.json) e oferece atualizar, limpando os
   // caches. Mesmo desenho do aviso do site (JS_VERSAO_BENTO).
-  var APP_BUILD = 'cergbrcqmdnn';
+  var APP_BUILD = 'cajdfnrkmmjn';
   var NV_DISP = 'bento_app_versao_dispensada';
   function atualizaApp() {
     var fim = function () { location.reload(); };
@@ -3097,6 +3104,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
         return '<div class="bb eu"><span class="mt a">! Aviso</span><br>' + esc(m.texto) +
           (ex.setor_label ? '<br><span class="selo">' + esc(ex.setor_label + (ex.urgencia ? ' · ' + ex.urgencia : '')) + '</span>' : '') + hr + '</div>';
       }
+      if (m.tipo === 'foto') return '<div class="bb eu"><span class="foto-ok">' + ic('camera', 16) + esc(m.texto) + '</span>' + hr + '</div>';
       var selo = m.status === 'aguardando' ? '<br><span class="selo atencao">Aguardando coordenação</span>'
         : m.status === 'respondida' ? '<br><span class="selo ok">Respondida</span>' : '';
       return '<div class="bb eu">' + (m.tipo === 'texto' ? '<span class="mt">? Pergunta</span><br>' : '') + esc(m.texto) + selo + hr + '</div>';
@@ -3115,6 +3123,9 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
       h = fichaHtml(ex.ficha || '');
     } else if (m.tipo === 'video') {
       h = videoHtml(ex.video || '');
+    } else if (m.tipo === 'pedefoto') {
+      h = esc(m.texto) + (m.resposta ? '<br><span class="selo ok">Foto enviada</span>'
+        : podeEscrever ? '<button type="button" class="ir" data-foto-fase="' + esc(ex.fase || '') + '" data-foto-turno="' + esc(ex.turno || '') + '">' + ic('camera', 16) + ' Mandar a foto agora ›</button>' : '');
     } else if (m.tipo === 'pedido') {
       h = esc(m.texto) + '<div class="rec"><div><span>Tipo</span>' + esc(ex.categoria || '') + '</div><div><span>Urgência</span>' +
         esc(ex.urgencia || '') + '</div></div>' +
@@ -3152,6 +3163,9 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     });
     Array.prototype.forEach.call(c.querySelectorAll('[data-abre-setor]'), function (b) {
       b.addEventListener('click', function () { abreSetor(b.getAttribute('data-abre-setor')); });
+    });
+    Array.prototype.forEach.call(c.querySelectorAll('.ch-msgs [data-foto-fase]'), function (b) {
+      b.addEventListener('click', function () { fotoTurno(c, completo, b.getAttribute('data-foto-fase'), b.getAttribute('data-foto-turno')); });
     });
     if (c.querySelector('#ch-comp')) return ligaComp(c, completo);
     // Coordenação respondendo no chat de outra pessoa.
@@ -3191,10 +3205,17 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   // a pessoa confirma com um toque, escolhe a urgência, vê a dica de resolver
   // sozinha e só então o pedido grava (POST /api/chat/setor, o mesmo dos chats
   // de setor). Os passos do meio só existem na tela: nada grava antes do envio.
+  // Quebra e Foto (24/11/2026): quebra abre o formulário de quebras; foto
+  // pergunta começo ou fim do turno, abre a câmera e grava como envio do turno.
   function compDois() {
-    return '<div class="ch-dois">' +
+    var q = pode('copos.quebra'), f = pode('chat.foto'), n = 2 + (q ? 1 : 0) + (f ? 1 : 0);
+    var curto = n > 2;
+    return '<div class="ch-dois' + (curto ? ' q4' : '') + '" style="--n:' + n + '">' +
       '<button type="button" class="p" data-msg="p" title="Receita, dúvida, como usar"><span class="ic">?</span>Perguntar</button>' +
-      '<button type="button" class="a" data-msg="a" title="Acabou, quebrou, preciso de"><span class="ic">!</span>Avisar ou pedir</button></div>';
+      '<button type="button" class="a" data-msg="a" title="Acabou, quebrou, preciso de"><span class="ic">!</span>' + (curto ? 'Avisar' : 'Avisar ou pedir') + '</button>' +
+      (q ? '<a class="q" href="' + esc(legado('quebras.html')) + '" title="Registrar copo ou louça quebrada"><span class="ic">' + ic('taca-trincada', 15) + '</span>Quebra</a>' : '') +
+      (f ? '<button type="button" class="f" data-foto-fase="" title="Foto do bar no começo ou no fim do turno"><span class="ic">' + ic('camera', 15) + '</span>Foto</button>' : '') +
+      '</div>';
   }
   function compCampo(m) {
     var a = m === 'a';
@@ -3207,6 +3228,8 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     var box = c.querySelector('#ch-comp');
     function poe(m) {
       box.innerHTML = m ? compCampo(m) : compDois();
+      var bf = box.querySelector('[data-foto-fase]');
+      if (bf) bf.addEventListener('click', function () { fotoTurno(c, completo, '', ''); });
       Array.prototype.forEach.call(box.querySelectorAll('[data-msg]'), function (b) {
         b.addEventListener('click', function () { var v = b.getAttribute('data-msg'); poe(v === 'x' ? null : v); });
       });
@@ -3232,6 +3255,79 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
       });
     }
     poe(null);
+  }
+
+  // --- Foto do bar (24/11/2026) -------------------------------------------------
+  // Começo ou fim? (o pedido do chat já diz) -> câmera -> reduz para 1600px ->
+  // /api/anexo -> /api/chat/foto, que grava como envio do turno. Quem não está
+  // na escala de hoje escolhe almoço ou jantar.
+  function reduzFoto(arq) {
+    return new Promise(function (ok) {
+      var url = URL.createObjectURL(arq), img = new Image();
+      img.onload = function () {
+        var k = Math.min(1, 1600 / Math.max(img.width, img.height));
+        var cv = document.createElement('canvas');
+        cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
+        cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+        URL.revokeObjectURL(url);
+        cv.toBlob(function (b) { ok(b || arq); }, 'image/jpeg', 0.82);
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); ok(arq); };
+      img.src = url;
+    });
+  }
+  function fotoTurno(c, completo, fase, turno) {
+    var lista = c.querySelector('#ch-msgs');
+    function add(html) { lista.insertAdjacentHTML('beforeend', html); window.scrollTo(0, document.body.scrollHeight); return lista.lastElementChild; }
+    function escolhe(perg, ops, cb) {
+      add('<div class="bb site">' + esc(perg) + '</div>');
+      var el = add('<div class="ch-bot fluxo">' + ops.map(function (o) { return '<button type="button" data-v="' + o[0] + '">' + esc(o[1]) + '</button>'; }).join('') + '</div>');
+      Array.prototype.forEach.call(el.querySelectorAll('button'), function (b) {
+        b.addEventListener('click', function () {
+          Array.prototype.forEach.call(el.querySelectorAll('button'), function (x) { x.disabled = true; });
+          b.classList.add('esc'); cb(b.getAttribute('data-v'));
+        });
+      });
+    }
+    function camera() {
+      var inp = document.createElement('input');
+      inp.type = 'file'; inp.accept = 'image/*'; inp.setAttribute('capture', 'environment');
+      inp.style.display = 'none'; document.body.appendChild(inp);
+      inp.addEventListener('change', function () {
+        var arq = inp.files && inp.files[0];
+        inp.remove();
+        if (!arq) return;
+        var st = add('<div class="bb site"><span class="pensa">Enviando a foto…</span></div>');
+        var idemp = 'chatfoto-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+        reduzFoto(arq).then(function (blob) {
+          return fetch(W + '/api/anexo', { method: 'POST', headers: { 'X-Token': S.token, 'Content-Type': 'image/jpeg', 'X-Nome': 'bar.jpg' }, body: blob })
+            .then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, d: d }; }); });
+        }).then(function (up) {
+          if (!up.ok || !up.d.id) throw new Error((up.d && up.d.erro) || 'Não consegui subir a foto.');
+          return envia(up.d.id, idemp, st);
+        }).catch(function (e) {
+          st.innerHTML = esc(e && e.message === 'Failed to fetch' ? 'Sem conexão agora. A foto não foi enviada.' : (e && e.message) || 'Não consegui enviar a foto.');
+        });
+      });
+      inp.click();
+    }
+    function envia(anexo, idemp, st) {
+      return api('/api/chat/foto', { metodo: 'POST', corpo: { anexo: anexo, fase: fase, turno: turno || undefined, _idemp: idemp } }).then(function (r) {
+        if (r.ok) { chatDia(c, completo); return; }
+        if (r.d && r.d.erro_codigo === 'sem_turno') {
+          st.innerHTML = 'Você não está na escala de hoje.';
+          escolhe('A foto é de qual turno?', [['Dia', 'Almoço'], ['Noite', 'Jantar']], function (v) { turno = v; envia(anexo, idemp, st); });
+          return;
+        }
+        st.innerHTML = esc(r.status === 0 ? 'Sem conexão agora. A foto não foi enviada.' : (r.d && r.d.erro) || 'Não consegui enviar a foto.');
+      });
+    }
+    if (fase) return camera();
+    var hr = new Date().getHours();
+    var sugere = (hr >= 12 && hr < 15) || (hr >= 17 && hr < 20) ? 'abertura' : 'fechamento';
+    var ops = [['abertura', 'Começo do turno'], ['fechamento', 'Fim do turno']];
+    if (sugere === 'fechamento') ops.reverse();
+    escolhe('Foto de como está o bar. É do começo ou do fim do turno?', ops, function (v) { fase = v; camera(); });
   }
 
   // --- Teclado no celular (24/11/2026) -----------------------------------------
