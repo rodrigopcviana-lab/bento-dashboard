@@ -203,6 +203,9 @@ body.modo-chat .lado,body.modo-chat .barra-nav{display:none!important}
 body.modo-chat main{padding:0 0 24px}
 body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
 .ch{display:flex;flex-direction:column;min-height:calc(100vh - 42px);background:var(--bg)}
+.ch-abas{display:flex;justify-content:center;padding:10px 16px;background:var(--sup);border-bottom:1px solid var(--linha)}
+.ch-abas .seg{width:100%;max-width:360px}
+.ch-abas .seg button{flex:1}
 .ch-topo{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--linha);background:var(--sup);position:sticky;top:0;z-index:3}
 .ch-topo .volta{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--tx2);font-size:22px;line-height:1}
 .ch-av{width:38px;height:38px;border-radius:50%;background:var(--acento-bg);color:var(--acento-tx);display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0}
@@ -1618,10 +1621,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
 
   function telaChat(c, completo) {
     if (CH.timer) { clearTimeout(CH.timer); CH.timer = null; }
-    if (!completo) {
-      if (pode('chat.conversas') && !CTX.pessoa) return chatConversas(c, true);
-      return chatDia(c, false);
-    }
+    if (!completo) return chatFuncoes(c);
     if (CH.vista === 'mes') return chatMes(c);
     if (CH.pessoa) return chatDia(c, true);
     if (CH.sala === 'meu') return chatDia(c, true);
@@ -1639,6 +1639,31 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     vai();
   }
   TELAS.chat = function (c) { telaChat(c, false); };
+
+  // Chat dentro de Funções (24/11/2026, pedido do Rodrigo): enxuto, só o
+  // próprio chat do dia e o grupo da equipe. A lista com o chat de cada pessoa,
+  // os setores e os vídeos fica no modo Chat (a chave do topo).
+  var CHAT_FUNC_ABA = 'dia';
+  function chatFuncoes(c) {
+    var abas = [['dia', 'Meu dia']];
+    if (pode('chat.grupo')) abas.push(['grupo', 'Equipe']);
+    if (!abas.some(function (a) { return a[0] === CHAT_FUNC_ABA; })) CHAT_FUNC_ABA = 'dia';
+    var h = abas.length > 1 ? '<div class="ch-abas"><div class="seg" role="tablist">' + abas.map(function (a) {
+      var on = a[0] === CHAT_FUNC_ABA;
+      return '<button type="button" role="tab" aria-selected="' + on + '" data-chaba="' + a[0] + '"' + (on ? ' class="on"' : '') + '>' + esc(a[1]) + '</button>';
+    }).join('') + '</div></div>' : '';
+    c.innerHTML = h + '<div data-chsub></div>';
+    Array.prototype.forEach.call(c.querySelectorAll('[data-chaba]'), function (b) {
+      b.addEventListener('click', function () {
+        if (b.getAttribute('data-chaba') === CHAT_FUNC_ABA) return;
+        CHAT_FUNC_ABA = b.getAttribute('data-chaba');
+        vai();
+      });
+    });
+    var sub = c.querySelector('[data-chsub]');
+    if (CHAT_FUNC_ABA === 'grupo') return chatGrupo(sub, true);
+    return chatDia(sub, false);
+  }
 
   function topoChat(titulo, sub, op) {
     op = op || {};
@@ -2240,25 +2265,30 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   }
 
   /** Grupo "Equipe Bento": uma conversa contínua, separada por dia. */
-  function chatGrupo(c) {
+  // `emb`: dentro do Chat de Funções, sem "‹" (não há lista para onde voltar).
+  function chatGrupo(c, emb) {
     c.innerHTML = '<div class="ch"><div class="esq" style="margin:16px"></div></div>';
     CH.grupoAntigas = [];
+    CH.grupoEmb = emb ? c : null;
     carregaGrupo(c);
   }
+  function grupoAtivo(c) { return CH.sala === 'grupo' || (CH.grupoEmb === c && document.body.contains(c)); }
   function carregaGrupo(c, rolar) {
     api('/api/chat/grupo').then(function (r) {
-      if (CH.sala !== 'grupo') return;
+      if (!grupoAtivo(c)) return;
+      var emb = CH.grupoEmb === c;
       if (!r.ok) {
-        c.innerHTML = '<div class="ch">' + topoChat('Equipe Bento', 'Grupo da equipe', { volta: true, inicial: 'E' }) +
+        c.innerHTML = '<div class="ch">' + topoChat('Equipe Bento', 'Grupo da equipe', { volta: !emb, sino: emb, inicial: 'E' }) +
           '<p class="vazio" style="padding:16px">' + esc(r.status === 0 ? 'Sem conexão agora.' : (r.d && r.d.erro) || 'Não consegui abrir o grupo.') + '</p></div>';
-        c.querySelector('[data-ch="volta"]').addEventListener('click', voltaChat);
+        var bv1 = c.querySelector('[data-ch="volta"]');
+        if (bv1) bv1.addEventListener('click', voltaChat);
         return;
       }
       var d = r.d, msgs = (CH.grupoAntigas || []).concat(d.mensagens || []);
       if (CTX.como) d.pode_escrever = false; // prévia: escreveria como a própria administração
       var rascunho = c.querySelector('#ch-txt');
       if (rascunho && rascunho.value.trim() && !rolar) { agendaGrupo(c); return; } // não atropela quem está digitando
-      var h = '<div class="ch">' + topoChat('Equipe Bento', d.pode_escrever ? 'Grupo de todos do bar' : 'Grupo de todos do bar · só leitura', { volta: true, inicial: 'E' });
+      var h = '<div class="ch">' + topoChat('Equipe Bento', d.pode_escrever ? 'Grupo de todos do bar' : 'Grupo de todos do bar · só leitura', { volta: !emb, sino: emb, inicial: 'E' });
       h += '<div class="ch-msgs" id="ch-msgs">';
       if (d.mais_antigas && !(CH.grupoAntigas || []).length) h += '<button type="button" class="ch-mais" data-antes="' + (msgs[0] ? msgs[0].id : 0) + '">Mensagens anteriores</button>';
       var diaAnt = null;
@@ -2283,7 +2313,8 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
       }
       h += '</div>';
       c.innerHTML = h;
-      c.querySelector('[data-ch="volta"]').addEventListener('click', voltaChat);
+      var bv2 = c.querySelector('[data-ch="volta"]');
+      if (bv2) bv2.addEventListener('click', voltaChat);
       var bm = c.querySelector('[data-antes]');
       if (bm) bm.addEventListener('click', function () {
         bm.disabled = true;
@@ -2303,8 +2334,8 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     if (CH.timer) clearTimeout(CH.timer);
     CH.timer = setTimeout(function () {
       CH.timer = null;
-      if (CH.sala === 'grupo' && document.body.contains(c) && document.visibilityState === 'visible') carregaGrupo(c, false);
-      else if (CH.sala === 'grupo' && document.body.contains(c)) agendaGrupo(c);
+      if (grupoAtivo(c) && document.body.contains(c) && document.visibilityState === 'visible') carregaGrupo(c, false);
+      else if (grupoAtivo(c) && document.body.contains(c)) agendaGrupo(c);
     }, 20000);
   }
 
