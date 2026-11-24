@@ -6,6 +6,13 @@
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#f6f5f2">
 <title>Bento · App (piloto)</title>
+<link rel="manifest" href="app.webmanifest">
+<link rel="apple-touch-icon" href="app-icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="app-icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Bento App">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <!-- Piloto do app único (PLANO_APP_PILOTO_BENTO.md). Fonte: app_piloto/casca.html,
      gerado por app_piloto/gera.py. Não editar o app.html publicado à mão. -->
 <script>
@@ -97,6 +104,11 @@ a.linha .v::after,.linha.vai .v::after{content:"";display:inline-block;width:7px
 .acoes{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
 /* Ações do topo da parte Copos (24/11/2026): dois botões lado a lado, fora do
    cartão do resumo. */
+/* Aviso de nova versão (24/11/2026), como o do site. */
+.nova-v{position:fixed;left:12px;right:12px;top:calc(10px + env(safe-area-inset-top));z-index:60;display:flex;align-items:center;gap:10px;padding:10px 10px 10px 14px;border-radius:14px;background:var(--faixa);color:var(--faixa-tx);box-shadow:0 8px 24px rgba(0,0,0,.25);font-size:14px}
+.nova-v span{flex:1}
+.nova-v .ok{min-height:40px;padding:0 14px;border-radius:999px;background:var(--acento);color:#fff;font-weight:600}
+.nova-v .x{width:36px;height:40px;font-size:22px;color:var(--faixa-tx);opacity:.7}
 .inv-bts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 12px}
 .inv-bts .btn{width:100%;min-height:48px;padding:0 10px;font-size:14.5px;white-space:nowrap}
 .qb-tot{display:flex;gap:8px;margin:6px 0 10px}
@@ -1627,6 +1639,42 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   // Três partes: Agenda (posts planejados e publicados, D1), Sugestões (margem
   // boa + saída baixa + sem post recente, montadas no worker) e Reputação (nota
   // do Google do Bento e do Radisson). Nenhum CMV ou valor de dinheiro chega aqui.
+
+  // --- Nova versão do app (24/11/2026) ---------------------------------------
+  // O GitHub Pages guarda cada arquivo por até 10 min e o service worker do
+  // site pode servir o app.html antigo. O app confere app-versao.json (sempre
+  // rede: o sw.js nunca guarda *versao.json) e oferece atualizar, limpando os
+  // caches. Mesmo desenho do aviso do site (JS_VERSAO_BENTO).
+  var APP_BUILD = 'qbcsspchdgsd';
+  var NV_DISP = 'bento_app_versao_dispensada';
+  function atualizaApp() {
+    var fim = function () { location.reload(); };
+    setTimeout(fim, 2500);
+    var limpa = window.caches ? caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); }) : Promise.resolve();
+    var sw = navigator.serviceWorker && navigator.serviceWorker.getRegistrations
+      ? navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.update(); })); }) : Promise.resolve();
+    Promise.all([limpa, sw]).then(fim, fim);
+  }
+  function confereVersao() {
+    if (document.visibilityState === 'hidden' || document.getElementById('nova-v')) return;
+    fetch('app-versao.json?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+      if (!d || !d.build || d.build === APP_BUILD) return;
+      var disp = null;
+      try { disp = localStorage.getItem(NV_DISP); } catch (e) {}
+      if (disp === d.build) return;
+      var el = document.createElement('div');
+      el.id = 'nova-v'; el.className = 'nova-v'; el.setAttribute('role', 'status');
+      el.innerHTML = '<span>Nova versão do app disponível.</span><button type="button" class="ok">Atualizar</button><button type="button" class="x" aria-label="Agora não">&times;</button>';
+      document.body.appendChild(el);
+      el.querySelector('.ok').addEventListener('click', function () { el.querySelector('.ok').textContent = 'Atualizando…'; atualizaApp(); });
+      el.querySelector('.x').addEventListener('click', function () { try { localStorage.setItem(NV_DISP, d.build); } catch (e) {} el.remove(); });
+    }).catch(function () {});
+  }
+  setTimeout(confereVersao, 4000);
+  setInterval(confereVersao, 10 * 60 * 1000);
+  // App instalado voltando do alternador não recarrega nada: só este evento
+  // pega esse caso.
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') confereVersao(); });
 
   // --- Saudação, tema e conta (24/11/2026) -------------------------------------
   function saudacao() {
