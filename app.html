@@ -224,6 +224,10 @@ tr.sec td{font-weight:600;color:var(--tx3);font-size:12px;text-transform:upperca
 @keyframes pulsa{50%{opacity:.5}}
 .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(20px);background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:calc(100% - 32px);text-align:center;z-index:9}
 .toast.on{opacity:1;transform:translateX(-50%)}
+/* Sem internet (24/11/2026): pílula fixa no topo */
+.rede{position:fixed;left:50%;top:calc(6px + env(safe-area-inset-top));transform:translateX(-50%);z-index:12;background:#7a4b1f;color:#fff;font-size:12.5px;line-height:1.3;padding:6px 12px;border-radius:999px;box-shadow:0 4px 14px rgba(0,0,0,.25);max-width:calc(100% - 24px);text-align:center;display:none}
+.rede.on{display:block}
+.rede.volta{background:#2f7a4a}
 .folha{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;z-index:10}
 .folha.on{display:flex}
 .folha .caixa{background:var(--sup);width:100%;max-width:440px;border-radius:18px 18px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom))}
@@ -772,6 +776,119 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   var S = sessao();
   if (!S) { location.replace('index.html?volta=app#acesso'); return; }
 
+  // --- Sem internet (24/11/2026) ---------------------------------------------
+  // 1) Toda leitura que deu certo fica guardada no aparelho; sem sinal, a tela
+  //    recebe essa cópia e a pílula do topo diz de quando ela é.
+  // 2) Envio feito sem sinal (pergunta, pedido, contagem de copos, item da
+  //    rotina) entra numa fila e sai sozinho quando o sinal volta.
+  // Nada de custo, acesso ou senha vai para a cópia (OFF_NUNCA).
+  var OFF_POST = { '/api/contagens/semanas': 1, '/api/contagem/historico': 1, '/api/quebras/historico': 1 };
+  var OFF_NUNCA = /^\/api\/(acessos|custos|fichas-custos|chat\/audio|anexo)/;
+  var OFF_PRE = 'bento_app_off:';
+  function offQuem() { return (S.pessoa || '') + '|' + S.nivel + '|'; }
+  function offPode(caminho, op) {
+    var m = op.metodo || 'GET', base = caminho.split('?')[0];
+    if (OFF_NUNCA.test(base)) return false;
+    return m === 'GET' || (m === 'POST' && !!OFF_POST[base]);
+  }
+  function offChave(caminho, op) { return OFF_PRE + offQuem() + caminho + (op.corpo ? '|' + JSON.stringify(op.corpo) : ''); }
+  function offLe(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
+  function offApaga(manter) {
+    try {
+      Object.keys(localStorage).forEach(function (k) {
+        if (k.indexOf(OFF_PRE) === 0 && (!manter || k.indexOf(OFF_PRE + manter) !== 0)) localStorage.removeItem(k);
+      });
+    } catch (e) {}
+  }
+  function offGuarda(k, d) {
+    var v;
+    try { v = JSON.stringify({ em: Date.now(), d: d }); } catch (e) { return; }
+    if (v.length > 600000) return;
+    try { localStorage.setItem(k, v); } catch (e) { offApaga(); try { localStorage.setItem(k, v); } catch (e2) {} }
+  }
+  // Troca de pessoa no aparelho: a cópia de quem saiu não fica.
+  offApaga(offQuem());
+
+  var FILA_K = 'bento_app_fila';
+  function fila() { try { return JSON.parse(localStorage.getItem(FILA_K) || '[]').filter(function (x) { return x.quem === offQuem(); }); } catch (e) { return []; } }
+  function filaTudo() { try { return JSON.parse(localStorage.getItem(FILA_K) || '[]'); } catch (e) { return []; } }
+  function filaGrava(l) { try { if (l.length) localStorage.setItem(FILA_K, JSON.stringify(l)); else localStorage.removeItem(FILA_K); } catch (e) {} }
+  /** Guarda um envio para mandar quando o sinal voltar. */
+  function filaPoe(caminho, corpo, rotulo) {
+    var l = filaTudo();
+    l.push({ id: Date.now() + '-' + Math.random().toString(36).slice(2, 7), quem: offQuem(), caminho: caminho, corpo: corpo, rotulo: rotulo, em: Date.now(), tent: 0 });
+    filaGrava(l);
+    pintaRede();
+  }
+  var drenando = false;
+  function filaDrena() {
+    if (drenando || !fila().length) return;
+    drenando = true;
+    var enviados = 0;
+    (function proximo() {
+      var meu = fila()[0];
+      if (!meu) return fim();
+      fetch(W + meu.caminho, { method: 'POST', cache: 'no-store', headers: { 'X-Token': S.token, 'Content-Type': 'application/json' }, body: JSON.stringify(meu.corpo) })
+        .then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { return { status: r.status, ok: r.ok, d: d }; }); })
+        .catch(function () { return { status: 0 }; })
+        .then(function (r) {
+          if (r.status === 0) return fim();
+          var l = filaTudo(), i = -1;
+          l.forEach(function (x, j) { if (x.id === meu.id) i = j; });
+          if (i < 0) return proximo();
+          // 5xx: tenta de novo mais tarde (até 5 vezes). 4xx ou ok:false: não adianta repetir.
+          if (r.status >= 500 && l[i].tent < 4) { l[i].tent++; filaGrava(l); return fim(); }
+          l.splice(i, 1); filaGrava(l);
+          if (r.ok && !(r.d && r.d.ok === false)) enviados++;
+          else toast('Não consegui enviar ' + (meu.rotulo || 'um envio guardado') + ': ' + ((r.d && r.d.erro) || 'erro ' + r.status) + '.');
+          proximo();
+        });
+    })();
+    function fim() {
+      drenando = false;
+      pintaRede();
+      if (!enviados) return;
+      toast(enviados === 1 ? 'Sinal de volta: 1 envio guardado foi enviado.' : 'Sinal de volta: ' + enviados + ' envios guardados foram enviados.');
+      cache = {};
+      // Redesenha a tela para mostrar o que acabou de ir, menos com alguém digitando.
+      var foco = document.activeElement;
+      if (!(foco && /^(TEXTAREA|INPUT)$/.test(foco.tagName))) vai();
+    }
+  }
+
+  var semRede = false, offEm = 0, voltaT = null;
+  function pintaRede(acabouDeVoltar) {
+    var el = $('rede');
+    if (!el) return;
+    var n = fila().length;
+    clearTimeout(voltaT);
+    if (semRede) {
+      el.className = 'rede on';
+      el.textContent = 'Sem internet' + (offEm ? ' · dados de ' + hora(offEm) : '') + (n ? ' · ' + n + (n === 1 ? ' envio esperando' : ' envios esperando') : '');
+    } else if (n) {
+      el.className = 'rede on';
+      el.textContent = n === 1 ? '1 envio esperando para sair' : n + ' envios esperando para sair';
+    } else if (acabouDeVoltar) {
+      el.className = 'rede on volta';
+      el.textContent = 'Internet de volta';
+      voltaT = setTimeout(function () { el.className = 'rede'; }, 2500);
+    } else el.className = 'rede';
+  }
+  function marcaRede(temRede, copiaEm) {
+    if (!temRede) {
+      if (copiaEm && (!offEm || copiaEm < offEm)) offEm = copiaEm;
+      if (!semRede) { semRede = true; }
+      pintaRede();
+      return;
+    }
+    if (semRede) { semRede = false; offEm = 0; pintaRede(true); }
+    filaDrena();
+  }
+  window.addEventListener('online', function () { filaDrena(); api('/api/app'); });
+  window.addEventListener('offline', function () { semRede = true; pintaRede(); });
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') filaDrena(); });
+  setInterval(function () { if (fila().length) filaDrena(); }, 20000);
+
   function api(caminho, op) {
     op = op || {};
     var h = { 'X-Token': S.token };
@@ -783,6 +900,15 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
       })
       .catch(function () { return { status: 0, ok: false, d: {} }; })
       .then(function (res) {
+        if (offPode(caminho, op)) {
+          var k = offChave(caminho, op);
+          if (res.ok) offGuarda(k, res.d);
+          else if (res.status === 0) {
+            var g = offLe(k);
+            if (g) res = { status: 200, ok: true, d: g.d, offline: g.em };
+          }
+        }
+        marcaRede(res.status !== 0 && !res.offline, res.offline);
         if (res.status === 401 && CTX && !sessaoCaiu) confereSessao();
         return res;
       });
@@ -882,6 +1008,9 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
       }
       CTX = r.d;
       montaMoldura();
+      if (!$('rede')) { var rd = document.createElement('div'); rd.id = 'rede'; rd.className = 'rede'; rd.setAttribute('role', 'status'); document.body.appendChild(rd); }
+      pintaRede();
+      filaDrena();
       navN = 0;
       try { history.replaceState(estadoApp(), ''); } catch (e) {}
       vai();
@@ -1499,6 +1628,15 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
         return;
       }
       x.classList.remove('ocupado');
+      if (r.status === 0) {
+        filaPoe('/api/rotina/concluir', { senha_pessoa: senha, dia: RC.diaOperacional(), turno: turnoSel, item_id: x.getAttribute('data-id'), feito: feito },
+          'um item da rotina');
+        x.setAttribute('data-feito', feito ? '1' : '0');
+        x.classList.toggle('feito', feito);
+        fechaSenha();
+        toast(feito ? 'Sem sinal: marquei aqui e envio quando voltar.' : 'Sem sinal: desmarquei aqui e envio quando voltar.');
+        return;
+      }
       if (r.status === 403 && /senha/i.test(r.d.erro || '')) {
         lsPoe(LS.senha, null);
         pedeSenha(x, bl, d, r.d.erro);
@@ -1879,7 +2017,17 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   // site pode servir o app.html antigo. O app confere app-versao.json (sempre
   // rede: o sw.js nunca guarda *versao.json) e oferece atualizar, limpando os
   // caches. Mesmo desenho do aviso do site (JS_VERSAO_BENTO).
-  var APP_BUILD = 'hcrsmscedbaf';
+  // O service worker do site (sw.js, mesma pasta) guarda o app.html e os
+  // ícones: com ele o app abre sem sinal. Antes o app não o registrava, e quem
+  // só usava o app ficava sem cópia nenhuma no aparelho.
+  // Só quando a API mora em outro domínio (produção): o sw.js refaz o pedido
+  // pela URL e perderia o X-Token de uma API no mesmo endereço (teste local).
+  var swPode = false;
+  try { swPode = new URL(W, location.href).origin !== location.origin; } catch (e) {}
+  if (swPode && 'serviceWorker' in navigator) {
+    window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+  }
+  var APP_BUILD = 'sqaqmncdksje';
   var NV_DISP = 'bento_app_versao_dispensada';
   function atualizaApp() {
     var fim = function () { location.reload(); };
@@ -2579,6 +2727,14 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
         bt.disabled = true; bt.textContent = 'Enviando…';
         api('/api/contagem/copos', { metodo: 'POST', corpo: { data: isoLocal(new Date()), itens: itens, responsavel: quem ? quem.value.trim() : undefined } })
           .then(function (r) {
+            if (r.status === 0) {
+              filaPoe('/api/contagem/copos', { data: isoLocal(new Date()), itens: itens, responsavel: quem ? quem.value.trim() : undefined }, 'a contagem de copos');
+              lsPoe(CC_RASC, null);
+              CONTANDO_COPOS = false;
+              toast('Sem sinal: a contagem ficou guardada e sai sozinha quando o sinal voltar.');
+              vai();
+              return;
+            }
             if (!r.ok || !r.d || r.d.ok === false) {
               bt.disabled = false; bt.textContent = 'Enviar';
               toast((r.d && (r.d.erro || (r.d.falhas && r.d.falhas[0] && r.d.falhas[0].erro))) || (r.status === 0 ? 'Sem conexão. O rascunho ficou guardado.' : 'Não consegui enviar.'));
@@ -3805,7 +3961,16 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
             window.scrollTo(0, document.body.scrollHeight);
           }
           var fi = casaFicha(texto), vi = fi ? null : casaVideo(texto);
-          api('/api/chat', { metodo: 'POST', corpo: fi ? { texto: texto, ficha: fi.n } : vi ? { texto: texto, video: vi.id } : { texto: texto } }).then(function (r) {
+          var corpoP = fi ? { texto: texto, ficha: fi.n } : vi ? { texto: texto, video: vi.id } : { texto: texto };
+          api('/api/chat', { metodo: 'POST', corpo: corpoP }).then(function (r) {
+            if (r.status === 0) {
+              filaPoe('/api/chat', corpoP, 'a sua pergunta');
+              ta.disabled = false; ta.value = '';
+              Array.prototype.forEach.call(c.querySelectorAll('.bb.pensa'), function (x) {
+                x.classList.remove('pensa'); x.textContent = 'Sem sinal agora. A pergunta ficou guardada e vai sozinha quando o sinal voltar; a resposta aparece aqui.';
+              });
+              return;
+            }
             if (!r.ok) {
               ta.disabled = false;
               Array.prototype.forEach.call(c.querySelectorAll('.bb.pensa'), function (x) { var p = x.previousElementSibling; if (p) p.remove(); x.remove(); });
@@ -4025,6 +4190,11 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
       var el = site('<span class="pensa">Enviando…</span>');
       api('/api/chat/setor', { metodo: 'POST', corpo: { setor: A.setor, categoria: A.cat, urgencia: A.urg, texto: texto, origem: 'meu_chat' } })
         .then(function (r) {
+          if (r.status === 0) {
+            filaPoe('/api/chat/setor', { setor: A.setor, categoria: A.cat, urgencia: A.urg, texto: texto, origem: 'meu_chat' }, 'o seu pedido');
+            el.innerHTML = 'Sem sinal agora. O pedido ficou guardado no celular e vai sozinho quando o sinal voltar.';
+            return;
+          }
           if (!r.ok) return erro(el, r, 'Não consegui enviar. Nada foi gravado.');
           chatDia(c, completo);
         });
@@ -4193,164 +4363,6 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   }
 
   /** Raiz do modo Chat: as conversas, no jeito da lista do WhatsApp. */
-  function chatLista(c) {
-    c.innerHTML = '<div class="ch">' + topoChat('Conversas', CTX.pessoa ? CTX.pessoa + ' · Bento' : 'Bento', { sino: true, semAv: true }) +
-      '<div id="ch-lista" class="ch-lista"><div class="esq" style="margin:16px"></div></div></div>';
-    var pg = pode('chat.grupo') ? api('/api/chat/grupo') : Promise.resolve(null);
-    var ps = pode('chat.setores') ? api('/api/chat/setores').then(function (r) {
-      if (r.ok && r.d.pode_ver_todos) return api('/api/chat/setores?todos=1');
-      return r;
-    }) : Promise.resolve(null);
-    Promise.all([pg, ps]).then(function (rr) {
-      var box = c.querySelector('#ch-lista');
-      if (!box) return;
-      var g = rr[0], s = rr[1], h = '';
-      // 1. O que é seu: o chat do dia (instruções + perguntas) e os vídeos.
-      var nv = videosDoNivel().length;
-      h += '<div class="ch-sec">Para você</div><div class="ch-grupo">' +
-        itemLista({ sala: 'meu', icone: 'chat', tom: 'forte', titulo: 'Meu chat', sub: 'Instruções do dia e as suas perguntas' }) +
-        (nv ? itemLista({ sala: 'videos', icone: 'play', titulo: 'Vídeos de como usar',
-          sub: plural(nv, 'vídeo curto', 'vídeos curtos') + ' sobre o chat e cada tela' }) : '') + '</div>';
-      // 2. A equipe: o grupo e (só administração) o chat de cada pessoa.
-      var eq = '';
-      if (g) {
-        var gm = g.ok ? g.d.mensagens || [] : [], ug = gm[gm.length - 1];
-        var sub = !g.ok ? 'Não consegui carregar agora' : !ug ? 'Ainda sem mensagens'
-          : (ug.autor === 'site' ? 'Portal: ' : ug.minha ? 'Você: ' : primeiroNome(ug.autor_nome || '') + ': ') + ug.texto;
-        eq += itemLista({ sala: 'grupo', icone: 'pessoas', tom: 'verde', titulo: 'Equipe Bento', sub: sub,
-          quando: ug ? (ug.dia === g.d.hoje ? hora(ug.criado_em) : dataBr(ug.dia)) : '' });
-      }
-      if (pode('chat.conversas')) eq += itemLista({ sala: 'conversas', icone: 'list', titulo: 'Chat de cada pessoa',
-        sub: 'A semana de cada um e as perguntas esperando você' });
-      if (eq) h += '<div class="ch-sec">Equipe</div><div class="ch-grupo">' + eq + '</div>';
-      // 3. Pedidos aos setores: com pedido aberto primeiro (o mais cheio no
-      // topo); na fila de todos, os setores vazios viram atalhos compactos.
-      if (s) {
-        if (!s.ok) {
-          h += '<div class="ch-sec">Pedidos aos setores</div><p class="ch-nota">' + esc((s.d && s.d.erro) || 'Não consegui carregar os setores.') + '</p>';
-        } else {
-          var d = s.d;
-          CH.podeTodos = !!d.pode_ver_todos;
-          CH.setores = d;
-          var linhas = (d.setores || []).map(function (st, i) {
-            var dms = (d.demandas || []).filter(function (x) { return x.setor === st.slug; });
-            return { st: st, i: i, dms: dms, abertas: dms.filter(aberta).length, semResp: dms.filter(esperando).length };
-          });
-          var totAb = linhas.reduce(function (a, x) { return a + x.abertas; }, 0);
-          h += '<div class="ch-sec"><span>Pedidos aos setores</span><small>' +
-            (d.todos ? (totAb ? plural(totAb, 'aberto', 'abertos') + ' · fila de todos' : 'fila de todos') : 'os seus') + '</small></div>';
-          if (d.sem_pessoa) h += '<p class="ch-nota">Entre com a sua senha individual para fazer pedidos.</p>';
-          if (d.aviso) h += '<p class="ch-nota">' + esc(d.aviso) + '</p>';
-          linhas.sort(function (a, b) { return (b.abertas - a.abertas) || (a.i - b.i); });
-          var cheios = d.todos ? linhas.filter(function (x) { return x.abertas; }) : linhas;
-          var vazios = d.todos ? linhas.filter(function (x) { return !x.abertas; }) : [];
-          var lh = cheios.map(function (x) {
-            var st = x.st, u = x.dms[0];
-            var sub = u ? (d.todos ? primeiroNome(u.solicitante || '') + ': ' : '') + u.descricao
-              : st.categorias.length === 1 && st.categorias[0].slug === 'outro' ? 'O que não cabe nos outros setores'
-                : 'Peça aqui: ' + st.categorias.map(function (y) { return y.label.toLowerCase(); }).slice(0, 2).join(', ');
-            // Uma pílula só: "sem resposta" (coral) pesa mais que "abertos".
-            var pill = d.todos && x.semResp ? plural(x.semResp, 'sem resposta', 'sem resposta')
-              : x.abertas ? plural(x.abertas, 'aberto', 'abertos') : '';
-            return itemLista({ sala: 'setor:' + st.slug, icone: ICONE_SETOR[st.slug] || 'list', titulo: st.label, sub: sub,
-              quando: u ? quandoIso(u.recebido_em) : '', pill: pill, pillTom: d.todos && x.semResp ? 'sr' : '' });
-          }).join('');
-          if (vazios.length) {
-            lh += '<div class="ch-livres"><span class="ch-livres-t">Sem pedido aberto · toque para pedir</span>' +
-              vazios.map(function (x) {
-                return '<button type="button" data-sala="setor:' + esc(x.st.slug) + '">' + ic(ICONE_SETOR[x.st.slug] || 'list', 16) +
-                  esc(x.st.label) + '</button>';
-              }).join('') + '</div>';
-          }
-          if (lh) h += '<div class="ch-grupo">' + lh + '</div>';
-        }
-      }
-      box.innerHTML = h;
-      Array.prototype.forEach.call(box.querySelectorAll('[data-sala]'), function (b) {
-        b.addEventListener('click', function () {
-          // fila: null — o recibo de um pedido abre o setor em "Meus pedidos",
-          // mas entrar pela lista volta à fila padrão de quem pode ver todos.
-          irChat({ sala: b.getAttribute('data-sala'), pessoa: null, dia: null, vista: 'dia', alvo: null, fila: null });
-        });
-      });
-    });
-  }
-
-  /** Grupo "Equipe Bento": uma conversa contínua, separada por dia. */
-  // `emb`: dentro do Chat de Funções, sem "‹" (não há lista para onde voltar).
-  function chatGrupo(c, emb) {
-    c.innerHTML = '<div class="ch"><div class="esq" style="margin:16px"></div></div>';
-    CH.grupoAntigas = [];
-    CH.grupoEmb = emb ? c : null;
-    carregaGrupo(c);
-  }
-  function grupoAtivo(c) { return CH.sala === 'grupo' || (CH.grupoEmb === c && document.body.contains(c)); }
-  function carregaGrupo(c, rolar) {
-    api('/api/chat/grupo').then(function (r) {
-      if (!grupoAtivo(c)) return;
-      var emb = CH.grupoEmb === c;
-      if (!r.ok) {
-        c.innerHTML = '<div class="ch">' + topoChat('Equipe Bento', 'Grupo da equipe', { volta: !emb, sino: emb, inicial: 'E' }) +
-          '<p class="vazio" style="padding:16px">' + esc(r.status === 0 ? 'Sem conexão agora.' : (r.d && r.d.erro) || 'Não consegui abrir o grupo.') + '</p></div>';
-        var bv1 = c.querySelector('[data-ch="volta"]');
-        if (bv1) bv1.addEventListener('click', voltaChat);
-        return;
-      }
-      var d = r.d, msgs = (CH.grupoAntigas || []).concat(d.mensagens || []);
-      if (CTX.como) d.pode_escrever = false; // prévia: escreveria como a própria administração
-      var rascunho = c.querySelector('#ch-txt');
-      if (rascunho && rascunho.value.trim() && !rolar) { agendaGrupo(c); return; } // não atropela quem está digitando
-      var h = '<div class="ch">' + topoChat('Equipe Bento', d.pode_escrever ? 'Grupo de todos do bar' : 'Grupo de todos do bar · só leitura', { volta: !emb, sino: emb, inicial: 'E' });
-      h += '<div class="ch-msgs" id="ch-msgs">';
-      if (d.mais_antigas && !(CH.grupoAntigas || []).length) h += '<button type="button" class="ch-mais" data-antes="' + (msgs[0] ? msgs[0].id : 0) + '">Mensagens anteriores</button>';
-      var diaAnt = null;
-      if (!msgs.length) h += '<p class="ch-fim">Nada por aqui ainda.</p>';
-      msgs.forEach(function (m) {
-        if (m.dia !== diaAnt) { h += '<div class="ch-dsep"><span>' + esc(m.dia === d.hoje ? 'Hoje' : diaTxt(m.dia)) + '</span></div>'; diaAnt = m.dia; }
-        if (m.autor === 'pessoa') {
-          var hr = '<span class="h">' + hora(m.criado_em) + '</span>';
-          h += m.minha ? '<div class="bb eu">' + esc(m.texto) + hr + '</div>'
-            : '<div class="bb humano"><div class="quem">' + esc(m.autor_nome || '') + '</div>' + esc(m.texto) + botaoOuvir() + hr + '</div>';
-        } else {
-          h += bolha(m, false);
-        }
-      });
-      h += '</div>';
-      if (d.pode_escrever) {
-        h += '<form class="ch-in" id="ch-form"><textarea id="ch-txt" rows="1" placeholder="Mensagem para a equipe…" aria-label="Mensagem para o grupo"></textarea>' +
-          '<button type="submit" aria-label="Enviar">➤</button></form>';
-      } else {
-        h += '<p class="ch-fim" style="padding-bottom:14px">' + (CTX.como ? 'Prévia de outro nível: escrever fica desligado.'
-          : 'Para escrever no grupo, entre com a sua senha individual.') + '</p>';
-      }
-      h += '</div>';
-      c.innerHTML = h;
-      var bv2 = c.querySelector('[data-ch="volta"]');
-      if (bv2) bv2.addEventListener('click', voltaChat);
-      var bm = c.querySelector('[data-antes]');
-      if (bm) bm.addEventListener('click', function () {
-        bm.disabled = true;
-        api('/api/chat/grupo?antes=' + bm.getAttribute('data-antes')).then(function (r2) {
-          if (!r2.ok) { bm.disabled = false; toast('Não consegui carregar.'); return; }
-          CH.grupoAntigas = r2.d.mensagens || [];
-          carregaGrupo(c, false);
-        });
-      });
-      ligaEnvio(c, function (texto) { return api('/api/chat/grupo', { metodo: 'POST', corpo: { texto: texto } }); },
-        function () { carregaGrupo(c, true); });
-      if (rolar !== false) window.scrollTo(0, document.body.scrollHeight);
-      agendaGrupo(c);
-    });
-  }
-  function agendaGrupo(c) {
-    if (CH.timer) clearTimeout(CH.timer);
-    CH.timer = setTimeout(function () {
-      CH.timer = null;
-      if (grupoAtivo(c) && document.body.contains(c) && document.visibilityState === 'visible') carregaGrupo(c, false);
-      else if (grupoAtivo(c) && document.body.contains(c)) agendaGrupo(c);
-    }, 20000);
-  }
-
   /** Campo de envio comum: Enter envia no computador, o campo cresce, e
    * depois de enviar recarrega a conversa. */
   function ligaEnvio(c, envia, depois) {
