@@ -136,6 +136,9 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .cont{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--coral);color:#fff;font-size:11.5px;font-weight:700;line-height:1}
 :root[data-tema="escuro"] .cont{color:#2b2620}
 .sino-m .cont{position:absolute;top:-4px;right:-4px}
+/* Regra de classe com display vence o [hidden] do navegador: sem isto o
+   contador mostrava um "0" vermelho no sino o tempo todo. */
+[hidden]{display:none!important}
 .lado button .cont{margin-left:auto}
 .av{display:flex;gap:12px;align-items:flex-start;padding:13px 0;border-top:1px solid var(--linha);width:100%;text-align:left;text-decoration:none;color:inherit}
 .av:first-child{border-top:0}
@@ -259,6 +262,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
 .bb .tag{font-size:11.5px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.02em}
 .bb.alvo{outline:2px solid var(--verde)}
 /* Os dois botões do chat do dia: "?" pergunta, "!" avisa ou pede */
+.ch-cancela{position:sticky;bottom:0;display:flex;justify-content:center;padding:8px 10px calc(8px + env(safe-area-inset-bottom));background:var(--sup);border-top:1px solid var(--linha)}
 .ch-dois{position:sticky;bottom:0;display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:8px 10px calc(8px + env(safe-area-inset-bottom));background:var(--sup);border-top:1px solid var(--linha)}
 .ch-dois button{display:flex;align-items:center;gap:9px;min-width:0;padding:9px 11px;border-radius:14px;border:1px solid var(--linha);background:var(--bg);text-align:left}
 .ch-dois .ic{width:34px;height:34px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-weight:700;font-size:19px}
@@ -410,7 +414,23 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
       .then(function (r) {
         return r.json().catch(function () { return {}; }).then(function (d) { return { status: r.status, ok: r.ok, d: d }; });
       })
-      .catch(function () { return { status: 0, ok: false, d: {} }; });
+      .catch(function () { return { status: 0, ok: false, d: {} }; })
+      .then(function (res) {
+        if (res.status === 401 && CTX && !sessaoCaiu) confereSessao();
+        return res;
+      });
+  }
+  // Token vencido com o app aberto: só a abertura tratava o 401, e as telas
+  // mostravam um erro sem saída. Confirma no /api/app antes de mandar entrar
+  // de novo (um 401 de outra rota não derruba a tela à toa).
+  var sessaoCaiu = false;
+  function confereSessao() {
+    sessaoCaiu = true;
+    api('/api/app').then(function (r) {
+      if (r.status !== 401) { sessaoCaiu = false; return; }
+      estado('Sua sessão venceu', 'Entre de novo com a sua senha. Depois disso você volta direto para cá.',
+        'Entrar', 'index.html?trocar=1&volta=app#acesso');
+    });
   }
 
   // Dado com validade curta: trocar de tela não refaz o pedido a cada toque,
@@ -420,7 +440,10 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     var c = cache[nome];
     if (!forca && c && Date.now() - c.em < 60000) return c.p;
     var p = fn();
-    cache[nome] = { em: Date.now(), p: p };
+    var reg = { em: Date.now(), p: p };
+    cache[nome] = reg;
+    // Falha não fica guardada: voltou o sinal, o próximo toque pede de novo.
+    p.then(function (r) { if (!r.ok && cache[nome] === reg) delete cache[nome]; });
     return p;
   }
   var dados = {
@@ -491,6 +514,8 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
       }
       CTX = r.d;
       montaMoldura();
+      navN = 0;
+      try { history.replaceState(estadoApp(), ''); } catch (e) {}
       vai();
     });
   }
@@ -518,6 +543,10 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
       b.addEventListener('click', function () {
         var v = b.getAttribute('data-como');
         lsPoe(LS.como, v === 'admin' ? null : v);
+        // Outro nível começa da lista de conversas: a conversa aberta antes
+        // (o chat de outra pessoa, a fila de todos) não existe na prévia.
+        CH_CAMPOS.forEach(function (k) { CH[k] = null; });
+        CH.vista = 'dia';
         $('conteudo').innerHTML = '<div class="esq"></div><div class="esq"></div>';
         abre();
       });
@@ -550,9 +579,35 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   function modo() { return pode('chat.ver') && ls(LS.modo) !== 'funcoes' ? 'chat' : 'funcoes'; }
   function poeModo(m) {
     lsPoe(LS.modo, m);
-    if (m === 'chat') { CH.dia = null; CH.pessoa = null; CH.sala = null; CH.vista = 'dia'; }
+    irChat(m === 'chat' ? { dia: null, pessoa: null, sala: null, vista: 'dia' } : {});
+  }
+  // --- Botão voltar do celular ------------------------------------------------
+  // Cada tela do chat (grupo, setor, conversa, mês) e a troca Chat | Funções
+  // entram no histórico do navegador: o voltar do Android volta para a tela
+  // anterior, como no WhatsApp, em vez de sair do app.
+  var navN = 0, popEm = 0;
+  var CH_CAMPOS = ['dia', 'pessoa', 'vista', 'mes', 'sala', 'fila', 'alvo', 'pergunta'];
+  function estadoApp() {
+    var ch = {};
+    CH_CAMPOS.forEach(function (k) { ch[k] = CH[k] == null ? null : CH[k]; });
+    return { app: 1, n: navN, modo: modo(), ch: ch };
+  }
+  function irChat(m) {
+    Object.keys(m).forEach(function (k) { CH[k] = m[k]; });
+    navN++;
+    try { history.pushState(estadoApp(), ''); } catch (e) {}
     vai();
   }
+  window.addEventListener('popstate', function (e) {
+    var s = e.state;
+    if (!s || !s.app || !CTX) return;
+    popEm = Date.now();
+    navN = s.n || 0;
+    lsPoe(LS.modo, s.modo);
+    CH_CAMPOS.forEach(function (k) { CH[k] = s.ch ? s.ch[k] : null; });
+    if (!CH.vista) CH.vista = 'dia';
+    vai();
+  });
   function vai() {
     if (!CTX) return;
     var m = modo();
@@ -588,6 +643,8 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   // Link para uma tela (#/turno, #/contagem...) sai do modo chat: é o "abrir"
   // dos botões do bom dia e do sino.
   window.addEventListener('hashchange', function () {
+    // O voltar que mudou o endereço já foi tratado no popstate.
+    if (Date.now() - popEm < 500) return;
     if (CTX && modo() === 'chat' && /^#\/[a-z]/.test(location.hash)) lsPoe(LS.modo, 'funcoes');
     vai();
   });
@@ -610,7 +667,9 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   }
   function falhou(b, titulo, r) {
     var msg = r && r.status === 0 ? 'Sem conexão agora.' : (r && r.d && r.d.erro) ? r.d.erro : 'Não consegui carregar.';
-    b.innerHTML = '<h2>' + esc(titulo) + '</h2><p class="vazio">' + esc(msg) + '</p>';
+    b.innerHTML = '<h2>' + esc(titulo) + '</h2><p class="vazio">' + esc(msg) + '</p>' +
+      '<div class="acoes"><button type="button" class="btn sec" data-de-novo>Tentar de novo</button></div>';
+    b.querySelector('[data-de-novo]').addEventListener('click', function () { vai(); });
   }
 
   // --- Rotina do dia: as contas são as do mural (bartender-painel.js) ------
@@ -1303,17 +1362,48 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   // receita ou é praticamente só o nome: "acabou o gin do negroni" é problema
   // para a coordenação, não pedido de ficha.
   var PEDE_RECEITA = /\b(receita|ficha|como (faz|fazer|faco|prepara|preparar|monta|montar)|preparo|ingrediente|quantos? ml|dose)\b/;
-  function casaFicha(texto) {
-    var t = norm(texto), melhor = null;
-    (FICHAS.fichas || []).forEach(function (f) {
-      var n = norm(f.n);
-      if (n.length < 4) return;
-      if ((' ' + t + ' ').indexOf(' ' + n + ' ') < 0) return;
-      if (!melhor || n.length > norm(melhor.n).length) melhor = f;
+  // "Acabou o negroni", "cadê o gin do negroni": é aviso, não pedido de ficha.
+  var PARECE_AVISO = /\b(acab\w*|falt\w*|termin\w*|zerou|quebr\w*|cade|sumiu|estrag\w*|vencid\w*|nao tem|sem)\b/;
+  var PALAVRA_VAZIA = { a: 1, o: 1, as: 1, os: 1, de: 1, da: 1, do: 1, das: 1, dos: 1, e: 1, um: 1, uma: 1, no: 1, na: 1, pro: 1, pra: 1 };
+  // Apelido que sozinho não diz qual drink é ("Bento", "base", "mocktail").
+  var APELIDO_GENERICO = { bento: 1, base: 1, mocktail: 1, drink: 1, classico: 1 };
+  function palavras(s) { return norm(s).split(' ').filter(function (w) { return w && !PALAVRA_VAZIA[w]; }); }
+  // Nomes pelos quais a ficha é chamada: o nome sem o parêntese e cada apelido
+  // de dentro dele. "Gin & Tônica (Gin Tônica, Bento)" casa com "gin tônica";
+  // antes o nome inteiro, com o parêntese, nunca casava com nada.
+  function nomesFicha(f) {
+    if (f._nomes) return f._nomes;
+    var n = String(f.n || ''), m = /^(.*?)\s*\((.*)\)\s*$/.exec(n);
+    var cand = [m ? m[1] : n];
+    if (m) m[2].split(/[,;/]|\s[—–-]\s/).forEach(function (x) { cand.push(x); });
+    f._nomes = cand.map(palavras).filter(function (ws) {
+      return ws.length > 1 || (ws.length === 1 && ws[0].length >= 4 && !APELIDO_GENERICO[ws[0]]);
     });
-    if (!melhor) return null;
-    var sobra = t.split(' ').length - norm(melhor.n).split(' ').length;
-    return PEDE_RECEITA.test(t) || sobra <= 2 ? melhor : null;
+    return f._nomes;
+  }
+  function casaFicha(texto) {
+    var nt = norm(texto), t = palavras(texto);
+    if (!t.length) return null;
+    var ts = ' ' + t.join(' ') + ' ';
+    var melhor = null, pontos = 0, usadas = 0, empate = false;
+    (FICHAS.fichas || []).forEach(function (f) {
+      var p = 0, u = 0;
+      nomesFicha(f).forEach(function (ws) {
+        // Nome inteiro vale mais que começo de nome; nome longo ("Suco/limão
+        // taiti espremido") casa pelas duas primeiras palavras ("suco de limão").
+        if (ts.indexOf(' ' + ws.join(' ') + ' ') >= 0) { if (ws.length * 10 + 5 > p) { p = ws.length * 10 + 5; u = ws.length; } }
+        else if (ws.length >= 3 && ts.indexOf(' ' + ws.slice(0, 2).join(' ') + ' ') >= 0 && 20 > p) { p = 20; u = 2; }
+      });
+      if (!p) return;
+      if (p > pontos) { pontos = p; melhor = f; usadas = u; empate = false; }
+      else if (p === pontos && f !== melhor) empate = true;
+    });
+    // Duas fichas empatadas ("pré-batch" casa com três): melhor perguntar à
+    // coordenação do que mostrar a ficha errada.
+    if (!melhor || empate) return null;
+    var aviso = PARECE_AVISO.test(nt) && !/\b(receita|ficha)\b/.test(nt);
+    if (aviso) return null;
+    return PEDE_RECEITA.test(nt) || t.length - usadas === 0 ? melhor : null;
   }
   function fichaPorNome(nome) {
     var k = norm(nome);
@@ -1360,7 +1450,9 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     var k = (pessoa || '') + '|' + mes, c = mesCache[k];
     if (c && Date.now() - c.em < 60000) return c.p;
     var p = api('/api/chat/mes?mes=' + mes + (pessoa ? '&pessoa=' + encodeURIComponent(pessoa) : ''));
-    mesCache[k] = { em: Date.now(), p: p };
+    var reg = { em: Date.now(), p: p };
+    mesCache[k] = reg;
+    p.then(function (r) { if (!r.ok && mesCache[k] === reg) delete mesCache[k]; });
     return p;
   }
 
@@ -1380,6 +1472,8 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     chatLista(c);
   }
   function voltaChat() {
+    // O "‹" faz o mesmo que o voltar do celular quando há para onde voltar.
+    if (history.state && history.state.app && history.state.n > 0) { history.back(); return; }
     if (CH.pessoa) CH.pessoa = null; else CH.sala = null;
     CH.dia = null; CH.vista = 'dia';
     vai();
@@ -1405,10 +1499,23 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     api(q).then(function (r) {
       if (!r.ok) {
         c.innerHTML = '<div class="blk" style="margin:16px"><h2>Chat</h2><p class="vazio">' +
-          esc(r.status === 0 ? 'Sem conexão agora.' : (r.d && r.d.erro) || 'Não consegui abrir o chat.') + '</p></div>';
+          esc(r.status === 0 ? 'Sem conexão agora.' : (r.d && r.d.erro) || 'Não consegui abrir o chat.') + '</p>' +
+          '<div class="acoes"><button type="button" class="btn sec" data-de-novo>Tentar de novo</button></div></div>';
+        c.querySelector('[data-de-novo]').addEventListener('click', function () { chatDia(c, completo); });
         return;
       }
       var d = r.d;
+      // Prévia de outro nível: o chat é o da própria administração (as rotas
+      // leem o token real), então enviar fica desligado, como marcar item.
+      if (CTX.como) d.pode_escrever = false;
+      var coord = !!(pessoa && pode('chat.conversas') && !CTX.como);
+      var agu = coord ? (d.mensagens || []).concat(d.abertos || []).filter(function (m) { return m.autor === 'eu' && m.status === 'aguardando'; }) : [];
+      // A coordenação escolhe qual pergunta responder (antes era sempre a mais antiga).
+      var alvoP = agu.filter(function (m) { return m.id === CH.pergunta; })[0] || agu[0] || null;
+      function botaoResp(m) {
+        return '<div class="ch-bot"><button type="button" data-perg="' + esc(m.id) + '" class="' + (alvoP && alvoP.id === m.id ? 'esc' : '') +
+          '">Responder esta pergunta</button></div>';
+      }
       if (d.sem_pessoa) {
         c.innerHTML = '<div class="ch">' + topoChat('Chat', 'Portal Bento', { sino: !completo, volta: completo }) +
           '<div class="ch-folga"><div><b>O chat é por pessoa</b>Você entrou com a senha do nível, que não diz quem é você. ' +
@@ -1431,28 +1538,45 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
       h += '<div class="ch-msgs" id="ch-msgs">';
       (d.abertos || []).forEach(function (m) {
         h += '<div class="ch-pino">📌 <b>Em aberto desde ' + esc(dataBr(m.dia)) + ':</b> ' + esc(m.texto) + '</div>';
+        if (coord && agu.length > 1) h += botaoResp(m);
       });
+      if (CTX.como) h += '<p class="ch-fim">Prévia de outro nível: este é o seu chat, e enviar fica desligado.</p>';
       var msgs = d.mensagens || [];
       if (!msgs.length && d.folga) {
         h += '</div><div class="ch-folga"><div><b>Folga</b>Nenhum aviso hoje.' +
           (d.amanha && d.amanha !== 'folga' ? '<br><br>Amanhã: ' + TURNO_ROT[d.amanha].toLowerCase() + '.' : '') + '</div></div>';
       } else {
         if (!msgs.length) h += '<p class="ch-fim">' + (hoje ? 'Nada por aqui ainda.' : 'Nenhuma mensagem neste dia.') + '</p>';
-        msgs.forEach(function (m) { h += bolha(m, d.pode_escrever); });
+        msgs.forEach(function (m) {
+          h += bolha(m, d.pode_escrever);
+          if (coord && m.autor === 'eu' && m.status === 'aguardando' && agu.length > 1) h += botaoResp(m);
+        });
         if (hoje && completo && !pessoa) h += '<p class="ch-fim">Toque num dia da semana para ver outro dia.</p>';
         h += '</div>';
       }
       if (d.pode_escrever) {
         h += '<div id="ch-comp">' + compDois() + '</div>';
-      } else if (pessoa && pode('chat.conversas')) {
-        var agu = msgs.concat(d.abertos || []).filter(function (m) { return m.autor === 'eu' && m.status === 'aguardando'; });
-        h += '<form class="ch-in coord" id="ch-form" data-pergunta="' + (agu.length ? agu[0].id : '') + '"><textarea id="ch-txt" rows="1" placeholder="' +
-          (agu.length ? 'Responder: ' + esc(agu[0].texto.slice(0, 40)) : 'Escrever como coordenação (cai no chat de hoje)') +
+      } else if (coord) {
+        h += '<form class="ch-in coord" id="ch-form" data-pergunta="' + (alvoP ? esc(alvoP.id) : '') + '"><textarea id="ch-txt" rows="1" placeholder="' +
+          (alvoP ? 'Responder: ' + esc(alvoP.texto.slice(0, 40)) : 'Escrever como coordenação (cai no chat de hoje)') +
           '" aria-label="Resposta da coordenação"></textarea><button type="submit" aria-label="Enviar">➤</button></form>';
       }
       h += '</div>';
       c.innerHTML = h;
       ligaChat(c, d, completo, pessoa);
+      Array.prototype.forEach.call(c.querySelectorAll('[data-perg]'), function (b) {
+        b.addEventListener('click', function () {
+          var id = Number(b.getAttribute('data-perg'));
+          var m = agu.filter(function (x) { return x.id === id; })[0];
+          var f = c.querySelector('#ch-form'), ta = c.querySelector('#ch-txt');
+          if (!m || !f || !ta) return;
+          CH.pergunta = id;
+          f.setAttribute('data-pergunta', String(id));
+          ta.placeholder = 'Responder: ' + m.texto.slice(0, 40);
+          Array.prototype.forEach.call(c.querySelectorAll('[data-perg]'), function (x) { x.classList.toggle('esc', x === b); });
+          ta.focus();
+        });
+      });
       if (completo) pintaSemana(pessoa, d.dia);
       contaNaoLidos();
       if (hoje) window.scrollTo(0, document.body.scrollHeight);
@@ -1504,7 +1628,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
       b.addEventListener('click', function () { CH.dia = b.getAttribute('data-dia'); chatDia(c, true); });
     });
     var bm = c.querySelector('[data-ch="mes"]');
-    if (bm) bm.addEventListener('click', function () { CH.vista = 'mes'; CH.mes = d.dia.slice(0, 7); vai(); });
+    if (bm) bm.addEventListener('click', function () { irChat({ vista: 'mes', mes: d.dia.slice(0, 7) }); });
     var bv = c.querySelector('[data-ch="volta"]');
     if (bv) bv.addEventListener('click', voltaChat);
     Array.prototype.forEach.call(c.querySelectorAll('[data-bot]'), function (b) {
@@ -1533,7 +1657,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
       api('/api/chat/responder', { metodo: 'POST', corpo: { pessoa: pessoa, texto: texto, id: Number(f.getAttribute('data-pergunta')) || undefined } })
         .then(function (r) {
           if (!r.ok) { ta.disabled = false; toast((r.d && r.d.erro) || 'Não consegui enviar.'); return; }
-          CH.dia = null;
+          CH.dia = null; CH.pergunta = null;
           chatDia(c, completo);
         });
     });
@@ -1549,8 +1673,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   // Recibo de um pedido: abre o chat do setor (no modo Chat), nos pedidos dela.
   function abreSetor(slug) {
     lsPoe(LS.modo, 'chat');
-    CH.sala = 'setor:' + slug; CH.pessoa = null; CH.dia = null; CH.vista = 'dia'; CH.alvo = null; CH.fila = 'meus';
-    vai();
+    irChat({ sala: 'setor:' + slug, pessoa: null, dia: null, vista: 'dia', alvo: null, fila: 'meus' });
   }
 
   // --- Os dois botões do chat do dia (mockup_caixa_entrada_chat_v3.html) ----
@@ -1596,16 +1719,25 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
           return;
         }
         if (texto.length < 5) { toast('Escreva um pouco mais: pelo menos 5 letras.'); return; }
-        box.innerHTML = '';
-        avisoFluxo(c, completo, texto, function () { poe(null); });
+        avisoFluxo(c, completo, texto, function () { poe(null); }, box);
       });
     }
     poe(null);
   }
 
-  function avisoFluxo(c, completo, texto, volta) {
+  function avisoFluxo(c, completo, texto, volta, box) {
     var lista = c.querySelector('#ch-msgs');
-    var A = { setor: null, cat: null, urg: null, setores: [], urgs: {}, dicas: null };
+    var A = { setor: null, cat: null, urg: null, setores: [], urgs: {}, dicas: null, cancelado: false };
+    // Enquanto o aviso não sai, o lugar dos dois botões vira "Cancelar": antes
+    // não havia como desistir no meio sem sair da tela.
+    box.innerHTML = '<div class="ch-cancela"><button type="button" class="btn sec">Cancelar aviso</button></div>';
+    box.querySelector('button').addEventListener('click', function () {
+      A.cancelado = true;
+      Array.prototype.forEach.call(lista.querySelectorAll('.fluxo button'), function (x) { x.disabled = true; });
+      Array.prototype.forEach.call(lista.querySelectorAll('.pensa'), function (x) { x.parentNode.remove(); });
+      site('Cancelado. Nada foi enviado.');
+      volta();
+    });
     var fim = lista.querySelector('.ch-fim:last-child');
     if (fim) fim.remove();
     function add(html) {
@@ -1615,11 +1747,12 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     }
     function site(html) { return add('<div class="bb site">' + html + '</div>'); }
     function chips(ops, cb) {
-      var el = add('<div class="ch-bot">' + ops.map(function (o) {
+      var el = add('<div class="ch-bot fluxo">' + ops.map(function (o) {
         return '<button type="button" data-v="' + esc(o[0]) + '">' + esc(o[1]) + '</button>';
       }).join('') + '</div>');
       Array.prototype.forEach.call(el.querySelectorAll('button'), function (b) {
         b.addEventListener('click', function () {
+          if (A.cancelado) return;
           Array.prototype.forEach.call(el.querySelectorAll('button'), function (x) { x.disabled = true; });
           b.classList.add('esc');
           cb(b.getAttribute('data-v'));
@@ -1636,6 +1769,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     add('<div class="bb eu"><span class="mt a">! Aviso</span><br>' + esc(texto) + '</div>');
     var pensa = site('<span class="pensa">Vendo para qual setor vai…</span>');
     api('/api/chat/aviso/sugerir', { metodo: 'POST', corpo: { texto: texto } }).then(function (r) {
+      if (A.cancelado) return;
       if (!r.ok) return erro(pensa, r, 'Não consegui agora. Nada foi enviado.');
       var d = r.d;
       A.setores = d.setores || []; A.urgs = d.urgencias || {};
@@ -1668,11 +1802,17 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
       // A dica vem enquanto a pessoa escolhe a urgência.
       A.dicas = api('/api/chat/aviso/dicas', { metodo: 'POST', corpo: { texto: texto, setor: A.setor, categoria: A.cat } });
       site('É para quando?');
-      chips(Object.keys(A.urgs).map(function (k) { return [k, A.urgs[k]]; }), function (v) { A.urg = v; dicas(); });
+      chips(Object.keys(A.urgs).map(function (k) { return [k, A.urgs[k]]; }), function (v) {
+        A.urg = v;
+        // Urgente não espera dica: vai direto para o setor.
+        if (v === 'urgente') return envia();
+        dicas();
+      });
     }
     function dicas() {
       var esp = site('<span class="pensa">Só um instante…</span>');
       A.dicas.then(function (r) {
+        if (A.cancelado) return;
         var p = r.ok ? (r.d.passos || []) : [];
         if (!p.length) { esp.remove(); return envia(); }
         esp.innerHTML = 'Antes de enviar, vale tentar:<ol>' + p.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ol>';
@@ -1684,6 +1824,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
       });
     }
     function envia() {
+      box.innerHTML = ''; // enviando: não dá mais para cancelar
       var el = site('<span class="pensa">Enviando…</span>');
       api('/api/chat/setor', { metodo: 'POST', corpo: { setor: A.setor, categoria: A.cat, urgencia: A.urg, texto: texto, origem: 'meu_chat' } })
         .then(function (r) {
@@ -1744,9 +1885,9 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
         b.addEventListener('click', function () { if (b.disabled) return; CH.mes = b.getAttribute('data-mes'); chatMes(c); });
       });
       Array.prototype.forEach.call(box.querySelectorAll('[data-ir-dia]'), function (b) {
-        b.addEventListener('click', function () { CH.dia = b.getAttribute('data-ir-dia'); CH.vista = 'dia'; vai(); });
+        b.addEventListener('click', function () { irChat({ dia: b.getAttribute('data-ir-dia'), vista: 'dia' }); });
       });
-      box.querySelector('[data-ch="hoje"]').addEventListener('click', function () { CH.dia = null; CH.vista = 'dia'; vai(); });
+      box.querySelector('[data-ch="hoje"]').addEventListener('click', function () { irChat({ dia: null, vista: 'dia' }); });
     });
   }
 
@@ -1765,7 +1906,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
       }
       if ((d.aguardando || []).length) {
         h += '<div class="ch-sec">Para você responder · ' + d.aguardando.length + '</div>' + d.aguardando.map(function (m) {
-          return '<button type="button" class="ch-conv" data-p="' + esc(m.dia === d.hoje ? '' : m.dia) + '" data-nome="' + esc(nomeDaChave(d, m)) + '"><span class="ch-av">?</span>' +
+          return '<button type="button" class="ch-conv" data-p="' + esc(m.dia === d.hoje ? '' : m.dia) + '" data-pid="' + esc(m.id) + '" data-nome="' + esc(nomeDaChave(d, m)) + '"><span class="ch-av">?</span>' +
             '<span class="t"><span class="l1"><b>' + esc(nomeDaChave(d, m)) + '</b><small>' + esc(dataBr(m.dia)) + ' ' + hora(m.criado_em) + '</small></span><span class="ult">' + esc(m.texto) + '</span></span></button>';
         }).join('');
       }
@@ -1791,12 +1932,12 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
       Array.prototype.forEach.call(box.querySelectorAll('[data-nome]'), function (b) {
         b.addEventListener('click', function () {
           lsPoe(LS.modo, 'chat');
-          CH.pessoa = b.getAttribute('data-nome'); CH.dia = b.getAttribute('data-p') || null; CH.vista = 'dia'; CH.sala = 'conversas';
-          vai();
+          irChat({ pessoa: b.getAttribute('data-nome'), dia: b.getAttribute('data-p') || null, vista: 'dia', sala: 'conversas',
+            pergunta: Number(b.getAttribute('data-pid')) || null });
         });
       });
       var bm = box.querySelector('[data-meu]');
-      if (bm) bm.addEventListener('click', function () { lsPoe(LS.modo, 'chat'); CH.pessoa = null; CH.dia = null; CH.vista = 'dia'; CH.sala = 'meu'; vai(); });
+      if (bm) bm.addEventListener('click', function () { lsPoe(LS.modo, 'chat'); irChat({ pessoa: null, dia: null, vista: 'dia', sala: 'meu' }); });
     });
   }
   // Produção e tarefas do bom dia: vêm prontas da rotina publicada (o worker
@@ -1896,8 +2037,9 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
       box.innerHTML = h;
       Array.prototype.forEach.call(box.querySelectorAll('[data-sala]'), function (b) {
         b.addEventListener('click', function () {
-          CH.sala = b.getAttribute('data-sala'); CH.pessoa = null; CH.dia = null; CH.vista = 'dia'; CH.alvo = null;
-          vai();
+          // fila: null — o recibo de um pedido abre o setor em "Meus pedidos",
+          // mas entrar pela lista volta à fila padrão de quem pode ver todos.
+          irChat({ sala: b.getAttribute('data-sala'), pessoa: null, dia: null, vista: 'dia', alvo: null, fila: null });
         });
       });
     });
@@ -1919,6 +2061,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
         return;
       }
       var d = r.d, msgs = (CH.grupoAntigas || []).concat(d.mensagens || []);
+      if (CTX.como) d.pode_escrever = false; // prévia: escreveria como a própria administração
       var rascunho = c.querySelector('#ch-txt');
       if (rascunho && rascunho.value.trim() && !rolar) { agendaGrupo(c); return; } // não atropela quem está digitando
       var h = '<div class="ch">' + topoChat('Equipe Bento', d.pode_escrever ? 'Grupo de todos do bar' : 'Grupo de todos do bar · só leitura', { volta: true, inicial: 'E' });
@@ -1941,7 +2084,8 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
         h += '<form class="ch-in" id="ch-form"><textarea id="ch-txt" rows="1" placeholder="Mensagem para a equipe…" aria-label="Mensagem para o grupo"></textarea>' +
           '<button type="submit" aria-label="Enviar">➤</button></form>';
       } else {
-        h += '<p class="ch-fim" style="padding-bottom:14px">Para escrever no grupo, entre com a sua senha individual.</p>';
+        h += '<p class="ch-fim" style="padding-bottom:14px">' + (CTX.como ? 'Prévia de outro nível: escrever fica desligado.'
+          : 'Para escrever no grupo, entre com a sua senha individual.') + '</p>';
       }
       h += '</div>';
       c.innerHTML = h;
@@ -2033,7 +2177,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
           h += d.todos ? '<div class="bb eu"><div class="quem">' + esc(rq) + '</div>' + rcorpo + '</div>'
             : '<div class="bb humano"><div class="quem">' + esc(rq) + '</div>' + rcorpo + '</div>';
         }
-        if (d.todos && aberta(dm)) {
+        if (d.todos && aberta(dm) && !CTX.como) {
           h += '<div class="ch-bot">' + ['Visto', 'Em andamento', 'Resolvido'].filter(function (x) { return x !== dm.status; }).map(function (x) {
             return '<button type="button" data-status="' + esc(x) + '" data-chave="' + esc(dm.chave) + '">' + esc(x) + '</button>';
           }).join('') + '<button type="button" data-responder="' + esc(dm.chave) + '">Responder</button></div>';
@@ -2041,7 +2185,9 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
       });
       h += '</div>';
       var alvoDm = dms.filter(function (x) { return x.chave === alvo; })[0];
-      if (d.todos) {
+      if (CTX.como) {
+        h += '<p class="ch-fim" style="padding-bottom:14px">Prévia de outro nível: pedir e responder ficam desligados.</p>';
+      } else if (d.todos) {
         if (alvoDm) {
           h += '<form class="ch-in coord" id="ch-form"><textarea id="ch-txt" rows="1" placeholder="Responder ' + esc(primeiroNome(alvoDm.solicitante || '')) + ': ' +
             esc(alvoDm.descricao.slice(0, 36)) + '" aria-label="Resposta ao pedido"></textarea><button type="submit" aria-label="Enviar">➤</button></form>';
