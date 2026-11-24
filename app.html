@@ -258,6 +258,24 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
 .selo:not(.ok):not(.atencao){background:var(--sup2);color:var(--tx2)}
 .bb .tag{font-size:11.5px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.02em}
 .bb.alvo{outline:2px solid var(--verde)}
+/* Os dois botões do chat do dia: "?" pergunta, "!" avisa ou pede */
+.ch-dois{position:sticky;bottom:0;display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:8px 10px calc(8px + env(safe-area-inset-bottom));background:var(--sup);border-top:1px solid var(--linha)}
+.ch-dois button{display:flex;align-items:center;gap:9px;min-width:0;padding:9px 11px;border-radius:14px;border:1px solid var(--linha);background:var(--bg);text-align:left}
+.ch-dois .ic{width:34px;height:34px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-weight:700;font-size:19px}
+.ch-dois .p .ic{background:var(--sup2);color:var(--tx)}
+.ch-dois .a .ic{background:var(--acento);color:#fff}
+.ch-dois b{display:block;font-size:14.5px;font-weight:600}
+.ch-dois small{display:block;font-size:11.5px;color:var(--tx3);line-height:1.25}
+.ch-in .modo{width:auto;height:auto;border-radius:999px;background:none;font-size:22px;color:var(--tx3);padding:0 2px;align-self:center}
+.ch-in .mtag{align-self:center;flex-shrink:0;font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--sup2);color:var(--tx)}
+.ch-in .mtag.a{background:var(--acento-bg);color:var(--acento-tx)}
+.bb .mt{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;margin-bottom:3px;background:var(--sup2);color:var(--tx2)}
+.bb .mt.a{background:var(--acento);color:#fff}
+.bb .rec{margin-top:5px;border:1px solid var(--linha);border-radius:9px;padding:6px 9px;background:var(--bg);font-size:13.5px}
+.bb .rec div{display:flex;justify-content:space-between;gap:8px}
+.bb .rec span{color:var(--tx3)}
+.bb ol{margin:4px 0;padding-left:20px}
+.bb .pensa{color:var(--tx3);font-style:italic}
 .ch-folga{flex:1;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--tx2);padding:40px 24px}
 .ch-folga b{display:block;font-family:var(--serif);font-weight:500;font-size:24px;color:var(--tx);margin-bottom:6px}
 .ch-mes{padding:12px 14px}
@@ -1391,8 +1409,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
         h += '</div>';
       }
       if (d.pode_escrever) {
-        h += '<form class="ch-in" id="ch-form"><textarea id="ch-txt" rows="1" placeholder="Pergunte qualquer coisa…" aria-label="Mensagem"></textarea>' +
-          '<button type="submit" aria-label="Enviar">➤</button></form>';
+        h += '<div id="ch-comp">' + compDois() + '</div>';
       } else if (pessoa && pode('chat.conversas')) {
         var agu = msgs.concat(d.abertos || []).filter(function (m) { return m.autor === 'eu' && m.status === 'aguardando'; });
         h += '<form class="ch-in coord" id="ch-form" data-pergunta="' + (agu.length ? agu[0].id : '') + '"><textarea id="ch-txt" rows="1" placeholder="' +
@@ -1412,9 +1429,13 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     var h = '', hr = '<span class="h">' + hora(m.criado_em) + '</span>';
     var ex = m.extra || {};
     if (m.autor === 'eu') {
+      if (m.tipo === 'aviso') {
+        return '<div class="bb eu"><span class="mt a">! Aviso</span><br>' + esc(m.texto) +
+          (ex.setor_label ? '<br><span class="selo">' + esc(ex.setor_label + (ex.urgencia ? ' · ' + ex.urgencia : '')) + '</span>' : '') + hr + '</div>';
+      }
       var selo = m.status === 'aguardando' ? '<br><span class="selo atencao">Aguardando coordenação</span>'
         : m.status === 'respondida' ? '<br><span class="selo ok">Respondida</span>' : '';
-      return '<div class="bb eu">' + esc(m.texto) + selo + hr + '</div>';
+      return '<div class="bb eu">' + (m.tipo === 'texto' ? '<span class="mt">? Pergunta</span><br>' : '') + esc(m.texto) + selo + hr + '</div>';
     }
     if (m.autor === 'humano') {
       return '<div class="bb humano"><div class="quem">' + esc(m.autor_nome || 'Coordenação') + '</div>' + esc(m.texto) + hr + '</div>';
@@ -1425,6 +1446,10 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
         (ex.links || []).map(function (l) { return '<a class="ir" href="#/' + esc(l.tela) + '">' + esc(l.rotulo) + ' ›</a>'; }).join('');
     } else if (m.tipo === 'ficha') {
       h = fichaHtml(ex.ficha || '');
+    } else if (m.tipo === 'pedido') {
+      h = esc(m.texto) + '<div class="rec"><div><span>Tipo</span>' + esc(ex.categoria || '') + '</div><div><span>Urgência</span>' +
+        esc(ex.urgencia || '') + '</div></div>' +
+        (ex.setor ? '<button type="button" class="ir" data-abre-setor="' + esc(ex.setor) + '">Abrir o chat de ' + esc(ex.setor_label || 'setor') + ' ›</button>' : '');
     } else {
       h = esc(m.texto);
     }
@@ -1456,30 +1481,180 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
           });
       });
     });
+    Array.prototype.forEach.call(c.querySelectorAll('[data-abre-setor]'), function (b) {
+      b.addEventListener('click', function () { abreSetor(b.getAttribute('data-abre-setor')); });
+    });
+    if (c.querySelector('#ch-comp')) return ligaComp(c, completo);
+    // Coordenação respondendo no chat de outra pessoa.
     var f = c.querySelector('#ch-form'), ta = c.querySelector('#ch-txt');
     if (!f) return;
-    ta.addEventListener('input', function () { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 120) + 'px'; });
-    ta.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' && !e.shiftKey && window.matchMedia('(min-width:900px)').matches) { e.preventDefault(); f.requestSubmit(); }
-    });
+    ligaCampo(f, ta);
     f.addEventListener('submit', function (e) {
       e.preventDefault();
       var texto = ta.value.trim();
       if (!texto) return;
       ta.disabled = true;
-      var pedido;
-      if (f.classList.contains('coord')) {
-        pedido = api('/api/chat/responder', { metodo: 'POST', corpo: { pessoa: pessoa, texto: texto, id: Number(f.getAttribute('data-pergunta')) || undefined } });
-      } else {
-        var fi = casaFicha(texto);
-        pedido = api('/api/chat', { metodo: 'POST', corpo: fi ? { texto: texto, ficha: fi.n } : { texto: texto } });
+      api('/api/chat/responder', { metodo: 'POST', corpo: { pessoa: pessoa, texto: texto, id: Number(f.getAttribute('data-pergunta')) || undefined } })
+        .then(function (r) {
+          if (!r.ok) { ta.disabled = false; toast((r.d && r.d.erro) || 'Não consegui enviar.'); return; }
+          CH.dia = null;
+          chatDia(c, completo);
+        });
+    });
+  }
+
+  function ligaCampo(f, ta) {
+    ta.addEventListener('input', function () { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 120) + 'px'; });
+    ta.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && !e.shiftKey && window.matchMedia('(min-width:900px)').matches) { e.preventDefault(); f.requestSubmit(); }
+    });
+  }
+
+  // Recibo de um pedido: abre o chat do setor (no modo Chat), nos pedidos dela.
+  function abreSetor(slug) {
+    lsPoe(LS.modo, 'chat');
+    CH.sala = 'setor:' + slug; CH.pessoa = null; CH.dia = null; CH.vista = 'dia'; CH.alvo = null; CH.fila = 'meus';
+    vai();
+  }
+
+  // --- Os dois botões do chat do dia (mockup_caixa_entrada_chat_v3.html) ----
+  // "?" pergunta: receita responde com a ficha, o resto vai à coordenação
+  // (POST /api/chat, como sempre). "!" avisa ou pede: o worker sugere o setor,
+  // a pessoa confirma com um toque, escolhe a urgência, vê a dica de resolver
+  // sozinha e só então o pedido grava (POST /api/chat/setor, o mesmo dos chats
+  // de setor). Os passos do meio só existem na tela: nada grava antes do envio.
+  function compDois() {
+    return '<div class="ch-dois">' +
+      '<button type="button" class="p" data-msg="p"><span class="ic">?</span><span><b>Perguntar</b><small>receita, validade, como faz</small></span></button>' +
+      '<button type="button" class="a" data-msg="a"><span class="ic">!</span><span><b>Avisar ou pedir</b><small>acabou, quebrou, preciso de</small></span></button></div>';
+  }
+  function compCampo(m) {
+    var a = m === 'a';
+    return '<form class="ch-in" id="ch-form"><button type="button" class="modo" data-msg="x" aria-label="Voltar aos dois botões">×</button>' +
+      '<span class="mtag' + (a ? ' a' : '') + '">' + (a ? '! Avisar' : '? Perguntar') + '</span>' +
+      '<textarea id="ch-txt" rows="1" placeholder="' + (a ? 'O que aconteceu ou do que precisa?' : 'Escreva sua pergunta…') + '" aria-label="' +
+      (a ? 'Aviso ou pedido' : 'Pergunta') + '"></textarea><button type="submit" aria-label="Enviar">➤</button></form>';
+  }
+  function ligaComp(c, completo) {
+    var box = c.querySelector('#ch-comp');
+    function poe(m) {
+      box.innerHTML = m ? compCampo(m) : compDois();
+      Array.prototype.forEach.call(box.querySelectorAll('[data-msg]'), function (b) {
+        b.addEventListener('click', function () { var v = b.getAttribute('data-msg'); poe(v === 'x' ? null : v); });
+      });
+      if (!m) return;
+      var f = box.querySelector('#ch-form'), ta = box.querySelector('#ch-txt');
+      ligaCampo(f, ta);
+      ta.focus();
+      f.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var texto = ta.value.trim();
+        if (!texto) return;
+        if (m === 'p') {
+          ta.disabled = true;
+          var fi = casaFicha(texto);
+          api('/api/chat', { metodo: 'POST', corpo: fi ? { texto: texto, ficha: fi.n } : { texto: texto } }).then(function (r) {
+            if (!r.ok) { ta.disabled = false; toast((r.d && r.d.erro) || 'Não consegui enviar.'); return; }
+            chatDia(c, completo);
+          });
+          return;
+        }
+        if (texto.length < 5) { toast('Escreva um pouco mais: pelo menos 5 letras.'); return; }
+        box.innerHTML = '';
+        avisoFluxo(c, completo, texto, function () { poe(null); });
+      });
+    }
+    poe(null);
+  }
+
+  function avisoFluxo(c, completo, texto, volta) {
+    var lista = c.querySelector('#ch-msgs');
+    var A = { setor: null, cat: null, urg: null, setores: [], urgs: {}, dicas: null };
+    var fim = lista.querySelector('.ch-fim:last-child');
+    if (fim) fim.remove();
+    function add(html) {
+      lista.insertAdjacentHTML('beforeend', html);
+      window.scrollTo(0, document.body.scrollHeight);
+      return lista.lastElementChild;
+    }
+    function site(html) { return add('<div class="bb site">' + html + '</div>'); }
+    function chips(ops, cb) {
+      var el = add('<div class="ch-bot">' + ops.map(function (o) {
+        return '<button type="button" data-v="' + esc(o[0]) + '">' + esc(o[1]) + '</button>';
+      }).join('') + '</div>');
+      Array.prototype.forEach.call(el.querySelectorAll('button'), function (b) {
+        b.addEventListener('click', function () {
+          Array.prototype.forEach.call(el.querySelectorAll('button'), function (x) { x.disabled = true; });
+          b.classList.add('esc');
+          cb(b.getAttribute('data-v'));
+        });
+      });
+    }
+    function setorDe(slug) { return A.setores.filter(function (s) { return s.slug === slug; })[0] || null; }
+    function catDe(st, slug) { return st ? st.categorias.filter(function (x) { return x.slug === slug; })[0] || null : null; }
+    function erro(el, r, padrao) {
+      el.innerHTML = esc(r.status === 0 ? 'Sem conexão agora. Nada foi enviado.' : (r.d && r.d.erro) || padrao);
+      volta();
+    }
+
+    add('<div class="bb eu"><span class="mt a">! Aviso</span><br>' + esc(texto) + '</div>');
+    var pensa = site('<span class="pensa">Vendo para qual setor vai…</span>');
+    api('/api/chat/aviso/sugerir', { metodo: 'POST', corpo: { texto: texto } }).then(function (r) {
+      if (!r.ok) return erro(pensa, r, 'Não consegui agora. Nada foi enviado.');
+      var d = r.d;
+      A.setores = d.setores || []; A.urgs = d.urgencias || {};
+      if (d.conduta) {
+        pensa.innerHTML = 'Isso parece ser sobre um colega. Assunto assim não vai para um setor: só o RH e a coordenação devem ler. ' +
+          'Use o Registro Rápido, na categoria <b>Equipe / conduta</b>. Nada foi enviado.' +
+          '<a class="ir" href="' + esc(legado('registro.html')) + '">Abrir o Registro Rápido ›</a>';
+        return volta();
       }
-      pedido.then(function (r) {
-        if (!r.ok) { ta.disabled = false; toast((r.d && r.d.erro) || 'Não consegui enviar.'); return; }
-        if (f.classList.contains('coord')) { CH.dia = null; }
-        chatDia(c, completo);
+      var st = setorDe(d.setor), ct = catDe(st, d.categoria);
+      if (!st || !ct) { pensa.innerHTML = 'Para qual setor é?'; return escolheSetor(); }
+      pensa.innerHTML = 'Entendi como <b>' + esc(st.label) + ' · ' + esc(ct.label) + '</b>. Está certo?';
+      chips([['s', 'Sim'], ['o', 'Outro setor']], function (v) {
+        if (v === 's') { A.setor = st.slug; A.cat = ct.slug; return urgencia(); }
+        site('Para qual setor é?');
+        escolheSetor();
       });
     });
+
+    function escolheSetor() {
+      chips(A.setores.map(function (s) { return [s.slug, s.label]; }), function (v) {
+        var st = setorDe(v);
+        A.setor = v;
+        if (st.categorias.length === 1) { A.cat = st.categorias[0].slug; return urgencia(); }
+        site('Qual destes?');
+        chips(st.categorias.map(function (x) { return [x.slug, x.label]; }), function (v2) { A.cat = v2; urgencia(); });
+      });
+    }
+    function urgencia() {
+      // A dica vem enquanto a pessoa escolhe a urgência.
+      A.dicas = api('/api/chat/aviso/dicas', { metodo: 'POST', corpo: { texto: texto, setor: A.setor, categoria: A.cat } });
+      site('É para quando?');
+      chips(Object.keys(A.urgs).map(function (k) { return [k, A.urgs[k]]; }), function (v) { A.urg = v; dicas(); });
+    }
+    function dicas() {
+      var esp = site('<span class="pensa">Só um instante…</span>');
+      A.dicas.then(function (r) {
+        var p = r.ok ? (r.d.passos || []) : [];
+        if (!p.length) { esp.remove(); return envia(); }
+        esp.innerHTML = 'Antes de enviar, vale tentar:<ol>' + p.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ol>';
+        chips([['r', 'Resolvi, não precisa'], ['e', 'Enviar mesmo assim']], function (v) {
+          if (v === 'e') return envia();
+          site('Boa! Nada foi enviado.');
+          volta();
+        });
+      });
+    }
+    function envia() {
+      var el = site('<span class="pensa">Enviando…</span>');
+      api('/api/chat/setor', { metodo: 'POST', corpo: { setor: A.setor, categoria: A.cat, urgencia: A.urg, texto: texto, origem: 'meu_chat' } })
+        .then(function (r) {
+          if (!r.ok) return erro(el, r, 'Não consegui enviar. Nada foi gravado.');
+          chatDia(c, completo);
+        });
+    }
   }
 
   function pintaSemana(pessoa, dia) {
