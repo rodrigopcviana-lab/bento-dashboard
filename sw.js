@@ -102,6 +102,12 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
+  // Vídeo (os de treinamento, em videos/) fica com o navegador: ele pede em
+  // pedaços (Range) e o iPhone só toca vídeo servido assim. Passar pelo
+  // service worker baixaria o arquivo inteiro e o guardaria no cache.
+  const ext = url.pathname.split(".").pop().toLowerCase();
+  if (["mp4", "webm", "m4v", "mov"].includes(ext)) return;
+
   const isHTML =
     req.mode === "navigate" ||
     (req.headers.get("accept") || "").includes("text/html");
