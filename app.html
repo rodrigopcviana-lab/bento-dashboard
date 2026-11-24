@@ -450,15 +450,18 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
 /* Os dois botões do chat do dia: "?" pergunta, "!" avisa ou pede */
 .ch-cancela{position:sticky;bottom:0;display:flex;justify-content:center;padding:8px 10px calc(8px + env(safe-area-inset-bottom));background:var(--sup);border-top:1px solid var(--linha)}
 .ch-dois{position:sticky;bottom:0;display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:8px 10px calc(8px + env(safe-area-inset-bottom));background:var(--sup);border-top:1px solid var(--linha)}
-.ch-dois button{display:flex;align-items:center;gap:9px;min-width:0;padding:9px 11px;border-radius:14px;border:1px solid var(--linha);background:var(--bg);text-align:left}
-.ch-dois .ic{width:34px;height:34px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-weight:700;font-size:19px}
+/* Compactos (24/11/2026): uma linha de 44px, sem subtítulo. */
+.ch-dois button{display:flex;align-items:center;justify-content:center;gap:7px;min-width:0;height:44px;padding:0 10px;border-radius:999px;border:1px solid var(--linha);background:var(--bg);font-size:14.5px;font-weight:600;white-space:nowrap}
+.ch-dois .ic{width:26px;height:26px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-weight:700;font-size:16px}
 .ch-dois .p .ic{background:var(--sup2);color:var(--tx)}
 .ch-dois .a .ic{background:var(--acento);color:#fff}
-.ch-dois b{display:block;font-size:14.5px;font-weight:600}
-.ch-dois small{display:block;font-size:11.5px;color:var(--tx3);line-height:1.25}
-.ch-in .modo{width:auto;height:auto;border-radius:999px;background:none;font-size:22px;color:var(--tx3);padding:0 2px;align-self:center}
-.ch-in .mtag{align-self:center;flex-shrink:0;font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--sup2);color:var(--tx)}
-.ch-in .mtag.a{background:var(--acento-bg);color:var(--acento-tx)}
+:root[data-tema="escuro"] .ch-dois .a .ic{color:#2b2620}
+.ch-in .modo{width:32px;height:42px;border-radius:999px;background:none;font-size:22px;color:var(--tx3);padding:0;align-self:center}
+.ch-in .mtag{align-self:center;flex-shrink:0;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:16px;font-weight:700;background:var(--sup2);color:var(--tx)}
+.ch-in .mtag.a{background:var(--acento);color:#fff}
+:root[data-tema="escuro"] .ch-in .mtag.a{color:#2b2620}
+/* Digitando no chat: a barra de baixo some e o campo fica colado no teclado. */
+@media (max-width:899px){body.digitando #barra-nav{display:none}body.digitando main{padding-bottom:12px}body.digitando:not(.modo-chat) .ch-in{bottom:0}body.digitando:not(.modo-chat) .ch-opc{bottom:58px}}
 .bb .mt{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;margin-bottom:3px;background:var(--sup2);color:var(--tx2)}
 .bb .mt.a{background:var(--acento);color:#fff}
 .bb .rec{margin-top:5px;border:1px solid var(--linha);border-radius:9px;padding:6px 9px;background:var(--bg);font-size:13.5px}
@@ -2974,14 +2977,14 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   // de setor). Os passos do meio só existem na tela: nada grava antes do envio.
   function compDois() {
     return '<div class="ch-dois">' +
-      '<button type="button" class="p" data-msg="p"><span class="ic">?</span><span><b>Perguntar</b><small>receita, dúvida, como usar</small></span></button>' +
-      '<button type="button" class="a" data-msg="a"><span class="ic">!</span><span><b>Avisar ou pedir</b><small>acabou, quebrou, preciso de</small></span></button></div>';
+      '<button type="button" class="p" data-msg="p" title="Receita, dúvida, como usar"><span class="ic">?</span>Perguntar</button>' +
+      '<button type="button" class="a" data-msg="a" title="Acabou, quebrou, preciso de"><span class="ic">!</span>Avisar ou pedir</button></div>';
   }
   function compCampo(m) {
     var a = m === 'a';
     return '<form class="ch-in" id="ch-form"><button type="button" class="modo" data-msg="x" aria-label="Voltar aos dois botões">×</button>' +
-      '<span class="mtag' + (a ? ' a' : '') + '">' + (a ? '! Avisar' : '? Perguntar') + '</span>' +
-      '<textarea id="ch-txt" rows="1" placeholder="' + (a ? 'O que aconteceu ou do que precisa?' : 'Escreva sua pergunta…') + '" aria-label="' +
+      '<span class="mtag' + (a ? ' a' : '') + '" aria-hidden="true">' + (a ? '!' : '?') + '</span>' +
+      '<textarea id="ch-txt" rows="1" placeholder="' + (a ? 'Acabou, quebrou, falta…' : 'Sua pergunta…') + '" aria-label="' +
       (a ? 'Aviso ou pedido' : 'Pergunta') + '"></textarea><button type="submit" aria-label="Enviar">➤</button></form>';
   }
   function ligaComp(c, completo) {
@@ -3014,6 +3017,33 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     }
     poe(null);
   }
+
+  // --- Teclado no celular (24/11/2026) -----------------------------------------
+  // No iPhone o teclado cobre o campo e a barra de baixo fica entre os dois.
+  // Com o foco num campo do chat a barra some e o campo rola para ficar logo
+  // acima do teclado; volta quando o foco sai.
+  var digT = 0;
+  function campoVisivel() {
+    var a = document.activeElement, f = a && a.closest && a.closest('.ch-in');
+    if (f) f.scrollIntoView({ block: 'end' });
+  }
+  document.addEventListener('focusin', function (e) {
+    if (!e.target.closest || !e.target.closest('.ch-in') || !/^(TEXTAREA|INPUT)$/.test(e.target.tagName)) return;
+    clearTimeout(digT);
+    document.body.classList.add('digitando');
+    setTimeout(campoVisivel, 350);
+  });
+  document.addEventListener('focusout', function () {
+    clearTimeout(digT);
+    // Espera o toque no "enviar" terminar antes de devolver a barra.
+    digT = setTimeout(function () {
+      var a = document.activeElement;
+      if (!(a && a.closest && a.closest('.ch-in') && /^(TEXTAREA|INPUT)$/.test(a.tagName))) document.body.classList.remove('digitando');
+    }, 250);
+  });
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', function () {
+    if (document.body.classList.contains('digitando')) campoVisivel();
+  });
 
   function avisoFluxo(c, completo, texto, volta, box) {
     var lista = c.querySelector('#ch-msgs');
