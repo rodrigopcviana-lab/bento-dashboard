@@ -906,8 +906,12 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
   .qb-chip[aria-pressed="true"] { border-color: var(--ambar); background: var(--ambar-bg);
                                   color: var(--ambar-2); font-weight: 600; }
   .qb-chip.qb-extra { color: var(--text-2); border-style: dashed; }
+  .qb-itens .qb-chip { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 76px; }
+  .qb-chip svg { width: 34px; height: 40px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6;
+                 stroke-linecap: round; stroke-linejoin: round; opacity: .8; }
+  .qb-chip[aria-pressed="true"] svg { opacity: 1; }
   .qb-chip:focus-visible { outline: 2px solid var(--ambar-2); outline-offset: 2px; }
-  .qb-chips.qb-falta { box-shadow: 0 0 0 2px var(--coral); }
+  .qb-chips.qb-falta { box-shadow: 0 0 0 2px #f09b9b; }
   @media (prefers-reduced-motion: reduce) { .qb-chips { transition: none; } }
 </style>
 <script>
@@ -931,6 +935,24 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
     if ((a.getAttribute('href') || '').split('/').pop() === aqui) a.style.display = 'none';
   });
 
+  // Desenho do formato de cada copo (viewBox 40x48). Só a forma: não é a peça exata.
+  var FORMATOS = {
+    'Caneca chopp': '<path d="M9 9h18v31a3 3 0 0 1-3 3H12a3 3 0 0 1-3-3z"/><path d="M27 15h4a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3h-4"/><path d="M13 14v24M18 14v24M23 14v24"/>',
+    'Copo baixo liso': '<path d="M8 17h24l-2 24a2 2 0 0 1-2 2H12a2 2 0 0 1-2-2z"/><path d="M10 37h20"/>',
+    'Long Drink soho': '<path d="M12 4h16l-1.5 38a2 2 0 0 1-2 2h-9a2 2 0 0 1-2-2z"/><path d="M14 38h12"/>',
+    'Taça Mistic Coupe': '<path d="M5 12h30c0 8-6.5 12-15 12S5 20 5 12z"/><path d="M20 24v15M12 43h16"/>',
+    'Caneca cobre': '<path d="M9 12h19l-1 28a3 3 0 0 1-3 3H13a3 3 0 0 1-3-3z"/><path d="M27.5 17h3a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3h-3.5"/><path d="M9.3 20h18.4M9.7 34h17.6"/>',
+    'Tulipa': '<path d="M13 4h14c1 6-1 9 0 14 .8 5-2 10-7 10s-7.8-5-7-10c1-5-1-8 0-14z"/><path d="M20 28v11M13 43h14"/>',
+    'Taça Gin': '<path d="M8 8h24c1 11-4 18-12 18S7 19 8 8z"/><path d="M20 26v13M12 43h16"/>',
+    'Shot': '<path d="M13 22h14l-1.5 19a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2z"/><path d="M14 37h12"/>',
+    'Copo Baixo Soho': '<path d="M8 17h24l-2 24a2 2 0 0 1-2 2H12a2 2 0 0 1-2-2z"/><path d="M14 18l1 24M20 18v25M26 18l-1 24"/>',
+    'Copo Haus': '<path d="M7 15h26l-1.5 26a2 2 0 0 1-2 2h-19a2 2 0 0 1-2-2z"/><path d="M8.6 36h22.8"/><path d="M11 39.5h18"/>',
+    'Taça Prestige': '<path d="M11 4h18c1.5 9-1 18-9 18s-10.5-9-9-18z"/><path d="M11.6 11h16.8"/><path d="M20 22v17M12 43h16"/>',
+    'Caneca de café': '<path d="M10 20h18v11a7 7 0 0 1-7 7h-4a7 7 0 0 1-7-7z"/><path d="M28 23h2.5a3.5 3.5 0 0 1 0 7H27.5"/><path d="M5 41h28"/>',
+    'Cálice de licor': '<path d="M14 14h12c0 7-2.5 11-6 11s-6-4-6-11z"/><path d="M20 25v14M14 43h12"/>',
+    'Jarra de Aperol': '<path d="M12 6h15l-2 5 3 6v22a4 4 0 0 1-4 4H14a4 4 0 0 1-4-4V17l3-6z"/><path d="M28 19h2a4 4 0 0 1 4 4v8a4 4 0 0 1-4 4h-2"/><path d="M10 24h18"/>'
+  };
+
   // Botões de um toque montados das <option> (o <select> segue como fonte).
   function chips(select, classeExtra) {
     var grade = document.createElement('div');
@@ -941,7 +963,15 @@ window.carregaProtegidoJSON = function (chave, callback, onErro) {
       var b = document.createElement('button');
       b.type = 'button';
       b.className = 'qb-chip' + (/^Outro/.test(o.value) ? ' qb-extra' : '');
-      b.textContent = o.textContent;
+      var forma = select === itemSel && FORMATOS[o.value];
+      if (forma) {
+        b.innerHTML = '<svg viewBox="0 0 40 48" aria-hidden="true">' + forma + '</svg>';
+        var rot = document.createElement('span');
+        rot.textContent = o.textContent;
+        b.appendChild(rot);
+      } else {
+        b.textContent = o.textContent;
+      }
       b.setAttribute('aria-pressed', 'false');
       b.addEventListener('click', function () {
         select.value = o.value;
