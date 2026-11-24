@@ -211,6 +211,12 @@ tr.sec td{font-weight:600;color:var(--tx3);font-size:12px;text-transform:upperca
 .barra-nav.muitas{padding-left:0;padding-right:0}
 .barra-nav.muitas button{font-size:10.5px;letter-spacing:-.02em;padding:4px 0}
 .barra-nav button.on{color:var(--acento);font-weight:600}
+/* Chat no centro da barra (24/11/2026): pílula suave atrás do ícone, cheia quando ativo. */
+.barra-nav button.centro .cb{display:flex;align-items:center;justify-content:center;width:48px;height:30px;margin-top:-4px;border-radius:999px;background:color-mix(in srgb,var(--acento) 13%,transparent);color:var(--acento)}
+.barra-nav button.centro{color:var(--tx2)}
+.barra-nav button.centro.on{color:var(--acento)}
+.barra-nav button.centro.on .cb{background:var(--acento);color:#fff}
+:root[data-tema="escuro"] .barra-nav button.centro.on .cb{color:#2b2620}
 .estado{max-width:520px;margin:14vh auto;text-align:center;padding:0 16px}
 .estado h1{font-family:var(--serif);font-weight:500;font-size:28px;margin:0 0 10px}
 .estado p{color:var(--tx2)}
@@ -943,8 +949,17 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     // No celular a Caixa de entrada é o sino do topo de cada tela, não um
     // botão a mais na barra (com sete, nenhum rótulo caberia).
     var bn = $('barra-nav');
-    bn.innerHTML = CTX.nav.filter(function (n) { return n.id !== 'caixa' && !n.topo; }).map(function (n) {
-      return '<button type="button" data-tela="' + n.id + '">' + ic(n.icone, 22) + '<span>' + esc(n.curto || n.rotulo) + '</span></button>';
+    // O Chat fica no meio da barra, com uma pílula discreta (pedido de 24/11/2026).
+    var naBarra = CTX.nav.filter(function (n) { return n.id !== 'caixa' && !n.topo; });
+    var chatN = naBarra.filter(function (n) { return n.id === 'chat'; })[0];
+    if (chatN && naBarra.length > 2) {
+      naBarra = naBarra.filter(function (n) { return n !== chatN; });
+      naBarra.splice(Math.floor(naBarra.length / 2), 0, chatN);
+    }
+    bn.innerHTML = naBarra.map(function (n) {
+      return n === chatN
+        ? '<button type="button" class="centro" data-tela="' + n.id + '"><span class="cb">' + ic(n.icone, 20) + '</span><span>' + esc(n.curto || n.rotulo) + '</span></button>'
+        : '<button type="button" data-tela="' + n.id + '">' + ic(n.icone, 22) + '<span>' + esc(n.curto || n.rotulo) + '</span></button>';
     }).join('');
     bn.classList.toggle('muitas', bn.children.length > 6);
     bn.hidden = false;
@@ -1869,7 +1884,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   // site pode servir o app.html antigo. O app confere app-versao.json (sempre
   // rede: o sw.js nunca guarda *versao.json) e oferece atualizar, limpando os
   // caches. Mesmo desenho do aviso do site (JS_VERSAO_BENTO).
-  var APP_BUILD = 'eanqnjkqfgae';
+  var APP_BUILD = 'qbqcmcjjabqb';
   var NV_DISP = 'bento_app_versao_dispensada';
   function atualizaApp() {
     var fim = function () { location.reload(); };
