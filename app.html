@@ -2027,7 +2027,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   if (swPode && 'serviceWorker' in navigator) {
     window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
   }
-  var APP_BUILD = 'rqeqfdppccnk';
+  var APP_BUILD = 'qfjqgrradckk';
   var NV_DISP = 'bento_app_versao_dispensada';
   function atualizaApp() {
     var fim = function () { location.reload(); };
@@ -3792,6 +3792,8 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   }
   function paraVoz() {
     try { speechSynthesis.cancel(); } catch (e) {}
+    if (VOZ.audio) { try { VOZ.audio.pause(); } catch (e) {} VOZ.audio = null; }
+    VOZ.pedido = (VOZ.pedido || 0) + 1; // invalida um /api/voz ainda a caminho
     if (VOZ.el) { VOZ.el.classList.remove('toca'); VOZ.el.innerHTML = ic('play', 18) + '<span>Ouvir</span>'; VOZ.el.setAttribute('aria-label', 'Ouvir a mensagem'); }
     VOZ.el = null;
   }
@@ -3826,14 +3828,34 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     if (era) return;
     var bb = b.closest('.bb'), txt = bb ? textoDaBolha(bb) : '';
     if (!txt) return;
-    var u = new SpeechSynthesisUtterance(txt);
-    u.lang = 'pt-BR';
-    var v = vozPt(); if (v) u.voice = v;
-    u.rate = 1;
-    u.onend = u.onerror = function () { if (VOZ.el === b) paraVoz(); };
     VOZ.el = b;
     b.classList.add('toca'); b.innerHTML = ic('parar', 18) + '<span>Parar</span>'; b.setAttribute('aria-label', 'Parar a leitura');
-    speechSynthesis.speak(u);
+    // Voz natural do servidor (Google, 25/11/2026). Sem internet, sem chave
+    // no worker ou passado o teto do dia, cai na voz do aparelho.
+    var meu = VOZ.pedido;
+    var naoServidor = VOZ.semServidor || !navigator.onLine || !S.token;
+    (naoServidor ? Promise.reject() :
+      fetch(W + '/api/voz', { method: 'POST', headers: { 'X-Token': S.token, 'Content-Type': 'application/json' }, body: JSON.stringify({ texto: txt }) })
+        .then(function (res) {
+          if (res.status === 501) VOZ.semServidor = true; // worker ainda sem a voz do Google: não tenta de novo nesta sessão
+          if (!res.ok) throw new Error('voz ' + res.status);
+          return res.blob();
+        })
+    ).then(function (blob) {
+      if (meu !== VOZ.pedido || VOZ.el !== b) return;
+      var a = new Audio(URL.createObjectURL(blob));
+      VOZ.audio = a;
+      a.onended = a.onerror = function () { URL.revokeObjectURL(a.src); if (VOZ.audio === a && VOZ.el === b) paraVoz(); };
+      return a.play();
+    }).catch(function () {
+      if (meu !== VOZ.pedido || VOZ.el !== b || !('speechSynthesis' in window)) { if (VOZ.el === b) paraVoz(); return; }
+      var u = new SpeechSynthesisUtterance(txt);
+      u.lang = 'pt-BR';
+      var v = vozPt(); if (v) u.voice = v;
+      u.rate = 1;
+      u.onend = u.onerror = function () { if (VOZ.el === b) paraVoz(); };
+      speechSynthesis.speak(u);
+    });
   });
   window.addEventListener('hashchange', paraVoz);
 
