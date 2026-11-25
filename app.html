@@ -2027,7 +2027,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   if (swPode && 'serviceWorker' in navigator) {
     window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
   }
-  var APP_BUILD = 'sqaqmncdksje';
+  var APP_BUILD = 'rqeqfdppccnk';
   var NV_DISP = 'bento_app_versao_dispensada';
   function atualizaApp() {
     var fim = function () { location.reload(); };
@@ -3795,10 +3795,29 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     if (VOZ.el) { VOZ.el.classList.remove('toca'); VOZ.el.innerHTML = ic('play', 18) + '<span>Ouvir</span>'; VOZ.el.setAttribute('aria-label', 'Ouvir a mensagem'); }
     VOZ.el = null;
   }
-  function vozPt() {
-    var vs = speechSynthesis.getVoices() || [];
-    return vs.filter(function (v) { return /^pt[-_]BR/i.test(v.lang); })[0] || vs.filter(function (v) { return /^pt/i.test(v.lang); })[0] || null;
+  // Escolhe a MELHOR voz em português do aparelho, não a primeira da lista:
+  // a primeira costuma ser a voz local antiga (a mais robótica). As neurais
+  // (Edge "Natural/Online", Google, iPhone "Aprimorada/Premium") soam bem
+  // melhor quando existem.
+  function notaVoz(v) {
+    var n = (v.name || '') + ' ' + (v.voiceURI || ''), p = 0;
+    if (/^pt[-_]BR/i.test(v.lang)) p += 100; else if (/^pt/i.test(v.lang)) p += 40; else return -1;
+    if (/natural|neural|online/i.test(n)) p += 60;
+    if (/premium|enhanced|aprimorad|melhorad/i.test(n)) p += 50;
+    if (/google/i.test(n)) p += 35;
+    if (/francisca|thalita|antonio|luciana|felipe/i.test(n)) p += 10;
+    if (/compact|espeak|desktop/i.test(n)) p -= 30;
+    if (v.localService === false) p += 5;
+    return p;
   }
+  function vozPt() {
+    var vs = (speechSynthesis.getVoices() || []).filter(function (v) { return notaVoz(v) >= 0; });
+    vs.sort(function (a, b) { return notaVoz(b) - notaVoz(a); });
+    return vs[0] || null;
+  }
+  // A lista de vozes chega atrasada em alguns navegadores (Chrome/Android):
+  // pedir cedo faz a escolha já valer no primeiro toque em Ouvir.
+  try { speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged = function () { speechSynthesis.getVoices(); }; } catch (e) {}
   document.addEventListener('click', function (e) {
     var b = e.target.closest && e.target.closest('[data-ouvir]');
     if (!b) return;
@@ -3810,7 +3829,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     var u = new SpeechSynthesisUtterance(txt);
     u.lang = 'pt-BR';
     var v = vozPt(); if (v) u.voice = v;
-    u.rate = 1.02;
+    u.rate = 1;
     u.onend = u.onerror = function () { if (VOZ.el === b) paraVoz(); };
     VOZ.el = b;
     b.classList.add('toca'); b.innerHTML = ic('parar', 18) + '<span>Parar</span>'; b.setAttribute('aria-label', 'Parar a leitura');
