@@ -53,6 +53,14 @@ a{color:var(--acento)}
 body[data-tela="chat"] .tema-fl{bottom:calc(176px + env(safe-area-inset-bottom))}
 body.digitando .tema-fl{display:none}
 @media (min-width:900px){.tema-fl,body[data-tela="chat"] .tema-fl{bottom:20px;right:20px}}
+/* Chat flutuante (26/11/2026): saiu do meio da barra de baixo, que ficou com
+   seis botões; espelha a chave dia/noite no canto inferior esquerdo, na cor
+   de destaque. Some na própria tela do chat, ao digitar e no computador, onde
+   a coluna da esquerda já tem o Chat. */
+.chat-fl{position:fixed;left:14px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:40;width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--acento);color:#fff;border:0;box-shadow:0 6px 18px rgba(0,0,0,.28)}
+:root[data-tema="escuro"] .chat-fl{color:#2b2620}
+body[data-tela="chat"] .chat-fl,body.digitando .chat-fl,body.modo-chat .chat-fl{display:none}
+@media (min-width:900px){.chat-fl{display:none}}
 .conta-l{display:flex;flex-direction:column;gap:2px;margin:4px 0 0}
 .conta-l a,.conta-l button{display:flex;align-items:center;gap:10px;min-height:46px;padding:0 6px;border-radius:10px;color:var(--tx);font-size:15px;text-align:left;text-decoration:none;width:100%}
 .conta-l a:hover,.conta-l button:hover{background:var(--bg)}
@@ -211,12 +219,6 @@ tr.sec td{font-weight:600;color:var(--tx3);font-size:12px;text-transform:upperca
 .barra-nav.muitas{padding-left:0;padding-right:0}
 .barra-nav.muitas button{font-size:10.5px;letter-spacing:-.02em;padding:4px 0}
 .barra-nav button.on{color:var(--acento);font-weight:600}
-/* Chat no centro da barra (24/11/2026): pílula suave atrás do ícone, cheia quando ativo. */
-.barra-nav button.centro .cb{display:flex;align-items:center;justify-content:center;width:48px;height:30px;margin-top:-4px;border-radius:999px;background:color-mix(in srgb,var(--acento) 13%,transparent);color:var(--acento)}
-.barra-nav button.centro{color:var(--tx2)}
-.barra-nav button.centro.on{color:var(--acento)}
-.barra-nav button.centro.on .cb{background:var(--acento);color:#fff}
-:root[data-tema="escuro"] .barra-nav button.centro.on .cb{color:#2b2620}
 .estado{max-width:520px;margin:14vh auto;text-align:center;padding:0 16px}
 .estado h1{font-family:var(--serif);font-weight:500;font-size:28px;margin:0 0 10px}
 .estado p{color:var(--tx2)}
@@ -1073,17 +1075,17 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     // No celular a Caixa de entrada é o sino do topo de cada tela, não um
     // botão a mais na barra (com sete, nenhum rótulo caberia).
     var bn = $('barra-nav');
-    // O Chat fica no meio da barra, com uma pílula discreta (pedido de 24/11/2026).
+    // O Chat saiu da barra e virou botão flutuante no canto inferior esquerdo
+    // (pedido de 26/11/2026: sete botões na barra ficavam espremidos).
     var naBarra = CTX.nav.filter(function (n) { return n.id !== 'caixa' && !n.topo; });
     var chatN = naBarra.filter(function (n) { return n.id === 'chat'; })[0];
-    if (chatN && naBarra.length > 2) {
-      naBarra = naBarra.filter(function (n) { return n !== chatN; });
-      naBarra.splice(Math.floor(naBarra.length / 2), 0, chatN);
-    }
+    if (chatN) naBarra = naBarra.filter(function (n) { return n !== chatN; });
+    var cf = document.getElementById('chat-fl');
+    if (chatN && !cf) {
+      document.body.insertAdjacentHTML('beforeend', '<button type="button" id="chat-fl" class="chat-fl" data-tela="chat" aria-label="' + esc(chatN.rotulo) + '" title="' + esc(chatN.rotulo) + '">' + ic(chatN.icone, 24) + '</button>');
+    } else if (!chatN && cf) cf.remove();
     bn.innerHTML = naBarra.map(function (n) {
-      return n === chatN
-        ? '<button type="button" class="centro" data-tela="' + n.id + '"><span class="cb">' + ic(n.icone, 20) + '</span><span>' + esc(n.curto || n.rotulo) + '</span></button>'
-        : '<button type="button" data-tela="' + n.id + '">' + ic(n.icone, 22) + '<span>' + esc(n.curto || n.rotulo) + '</span></button>';
+      return '<button type="button" data-tela="' + n.id + '">' + ic(n.icone, 22) + '<span>' + esc(n.curto || n.rotulo) + '</span></button>';
     }).join('');
     bn.classList.toggle('muitas', bn.children.length > 6);
     bn.hidden = false;
@@ -2027,7 +2029,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   if (swPode && 'serviceWorker' in navigator) {
     window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
   }
-  var APP_BUILD = 'qfjqgrradckk';
+  var APP_BUILD = 'jmrdpemhkcgb';
   var NV_DISP = 'bento_app_versao_dispensada';
   function atualizaApp() {
     var fim = function () { location.reload(); };
