@@ -162,6 +162,21 @@ a.linha .v::after,.linha.vai .v::after{content:"";display:inline-block;width:7px
 .qb-top{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px}
 .qb-dia{font-size:12px;font-weight:600;color:var(--tx3);margin:10px 0 0;text-transform:uppercase;letter-spacing:.02em}
 .seg{display:inline-flex;background:var(--sup2);border-radius:999px;padding:3px;gap:2px}
+.uz-tot{display:flex;flex-wrap:wrap;gap:8px 22px;margin:12px 0 4px;font-size:20px;font-weight:600}
+.uz-tot small{display:block;font-size:12px;font-weight:400;color:var(--tx3)}
+.uz-nota{font-size:13px;color:var(--tx3);margin:8px 0 0}
+.uz-conta{display:flex;flex-direction:column;gap:8px}
+.uz-cab{display:flex;justify-content:space-between;gap:10px;width:100%;text-align:left;background:none;border:0;padding:0;color:inherit;font:inherit;cursor:pointer}
+.uz-cab .t{min-width:0}
+.uz-cab small{display:block;color:var(--tx3);font-size:12.5px;font-weight:400}
+.uz-cab .v{text-align:right;white-space:nowrap;font-size:14px}
+.uz-num{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:13px;color:var(--tx2)}
+.uz-tira{display:grid;grid-template-columns:repeat(14,1fr);gap:3px}
+.uz-tira i{display:block;height:14px;border-radius:3px;background:var(--sup2)}
+.uz-tira i.n1{background:var(--verde);opacity:.3}
+.uz-tira i.n2{background:var(--verde);opacity:.55}
+.uz-tira i.n3{background:var(--verde);opacity:.8}
+.uz-tira i.n4{background:var(--verde)}
 .seg button{padding:9px 15px;border-radius:999px;font-size:14px;color:var(--tx2)}
 .seg button.on{background:var(--sup);color:var(--tx);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.12)}
 .controles{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
@@ -1061,6 +1076,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
       navN = 0;
       try { history.replaceState(estadoApp(), ''); } catch (e) {}
       vai();
+      iniciaUso();
     });
   }
 
@@ -1200,7 +1216,8 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
       contaNaoLidos();
       return;
     }
-    var id = /^#\/catalogo/.test(location.hash) && pode('inventario.catalogo') ? 'catalogo' : telaAtual();
+    var id = /^#\/catalogo/.test(location.hash) && pode('inventario.catalogo') ? 'catalogo'
+      : /^#\/uso/.test(location.hash) && pode('acessos.uso') ? 'uso' : telaAtual();
     Array.prototype.forEach.call(document.querySelectorAll('[data-tela]'), function (b) {
       var on = b.getAttribute('data-tela') === id;
       b.classList.toggle('on', on);
@@ -2074,7 +2091,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   if (swPode && 'serviceWorker' in navigator) {
     window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
   }
-  var APP_BUILD = 'mgagrcgsrcan';
+  var APP_BUILD = 'hprqqcapmjbr';
   var NV_DISP = 'bento_app_versao_dispensada';
   function atualizaApp() {
     var fim = function () { location.reload(); };
@@ -2157,7 +2174,8 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
       '<p class="comp-txt">' + esc(NOME[nr]) + (CTX.como ? ' · vendo como ' + esc(NOME[CTX.nivel]) : '') + '</p><div class="conta-l">';
     atalhos.forEach(function (n) { h += '<a href="#/' + n.id + '">' + ic(n.icone, 20) + '<span>' + esc(n.rotulo) + '</span></a>'; });
     if (pode('inventario.catalogo')) h += '<a href="#/catalogo">' + ic('list', 20) + '<span>Catálogo de itens</span></a>';
-    if (atalhos.length || pode('inventario.catalogo')) h += '<hr>';
+    if (pode('acessos.uso')) h += '<a href="#/uso">' + ic('grafico', 20) + '<span>Uso do app</span></a>';
+    if (atalhos.length || pode('inventario.catalogo') || pode('acessos.uso')) h += '<hr>';
     h += '<button type="button" data-tema-troca></button>';
     if (PERFIL_SITE[nr]) h += '<a href="' + PERFIL_SITE[nr] + '">' + ic('pessoa', 20) + '<span>Meu perfil e WhatsApp (site)</span></a>';
     if (HOME[nr]) h += '<a href="' + HOME[nr] + '">' + ic('casa', 20) + '<span>Abrir o site atual</span></a>';
@@ -3463,6 +3481,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   // --- Acessos: a tabela que substitui as cópias por nível --------------------
   TELAS.acessos = function (c) {
     topo(c, 'Acessos', 'Quem vê o quê no app novo');
+    if (pode('acessos.uso')) c.insertAdjacentHTML('beforeend', '<div class="blk"><a class="linha" href="#/uso"><span class="t">Uso do app<small>Quem abre, quando e por quanto tempo</small></span><span class="v"></span></a></div>');
     var t = CTX.tabela || [];
     var niveis = CTX.niveis || ['equipe', 'maitres', 'admin'];
     var nomeTela = {};
@@ -3483,6 +3502,109 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
       'Cada dado continua conferido pela própria rota: a tabela escolhe o que pedir, nunca abre o que a rota fecha. ' +
       'Mudar uma regra é trocar uma linha no Worker; editar pela tela fica para a próxima fase.</div>';
     c.insertAdjacentHTML('beforeend', h);
+  };
+
+  // --- Uso do app (26/11/2026) ------------------------------------------------
+  // Sinal de uso: ao abrir, a cada minuto com a tela visível, ao trocar de tela
+  // e ao sair. O Worker junta os sinais em sessões (conta + aparelho). Só a
+  // pessoa dona lê (acessos.uso).
+  function tipoAparelho() {
+    var u = navigator.userAgent;
+    if (/iPad/.test(u) || (/Macintosh/.test(u) && navigator.maxTouchPoints > 1)) return 'iPad';
+    if (/iPhone|iPod/.test(u)) return 'iPhone';
+    if (/Android/.test(u)) return /Mobile/.test(u) ? 'Android' : 'Tablet Android';
+    if (/Windows/.test(u)) return 'Windows';
+    if (/Macintosh/.test(u)) return 'Mac';
+    return 'Outro';
+  }
+  function sinalUso(saindo) {
+    if (!CTX) return;
+    var dev = ls('bento_app_device');
+    if (!dev) { dev = 'd' + Math.random().toString(36).slice(2) + Date.now().toString(36); lsPoe('bento_app_device', dev); }
+    try {
+      fetch(W + '/api/app/uso', { method: 'POST', headers: { 'X-Token': S.token, 'Content-Type': 'application/json' }, cache: 'no-store',
+        keepalive: !!saindo, body: JSON.stringify({ device: dev, aparelho: tipoAparelho(), tela: document.body.getAttribute('data-tela') || 'chat', saindo: !!saindo }) })
+        .catch(function () {});
+    } catch (e) {}
+  }
+  var usoLigado = false;
+  function iniciaUso() {
+    if (usoLigado) return;
+    usoLigado = true;
+    sinalUso();
+    setInterval(function () { if (!document.hidden) sinalUso(); }, 60 * 1000);
+    document.addEventListener('visibilitychange', function () { sinalUso(document.hidden); });
+    window.addEventListener('pagehide', function () { sinalUso(true); });
+    window.addEventListener('hashchange', function () { setTimeout(sinalUso, 300); });
+  }
+  function usoDuracao(seg) {
+    seg = seg || 0;
+    if (seg < 60) return seg ? 'menos de 1 min' : 'só abriu';
+    var m = Math.round(seg / 60);
+    if (m < 60) return m + ' min';
+    var h = Math.floor(m / 60), r = m % 60;
+    return h + ' h' + (r ? ' ' + r + ' min' : '');
+  }
+  function usoDia(iso) { var d = new Date(iso); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  function usoQuando(iso) {
+    var d = new Date(iso), agora = new Date(), min = Math.round((agora - d) / 60000);
+    if (min < 3) return 'agora';
+    if (min < 60) return 'há ' + min + ' min';
+    var hoje = usoDia(agora.toISOString()), dia = usoDia(iso), ontem = usoDia(new Date(agora.getTime() - 864e5).toISOString());
+    if (dia === hoje) return 'hoje, ' + hora(d.getTime());
+    if (dia === ontem) return 'ontem, ' + hora(d.getTime());
+    var n = Math.round((new Date(hoje + 'T12:00') - new Date(dia + 'T12:00')) / 864e5);
+    return 'há ' + n + ' dias (' + dataBr(dia) + ')';
+  }
+  var USO_TELA = { chat: 'chat', marketing: 'marketing', turno: 'rotina', performance: 'performance', inventario: 'inventário', eventos: 'eventos',
+    escala: 'escala', fichas: 'fichas', conteudo: 'conteúdo', acessos: 'acessos', catalogo: 'catálogo', uso: 'uso', outra: 'outra' };
+  TELAS.uso = function (c) {
+    topo(c, 'Uso do app', 'Quem abre o app, quando e por quanto tempo');
+    var dias = Number(ls('app_piloto_uso_dias')) || 30;
+    var b = bloco(c);
+    api('/api/app/uso?dias=' + dias).then(function (r) {
+      if (!r.ok) { falhou(b, 'Uso do app', r); return; }
+      var d = r.d, ult14 = [];
+      for (var i = 13; i >= 0; i--) ult14.push(somaDias(d.hoje, -i));
+      var h = '<div class="seg" role="group" aria-label="Período">' + [7, 30, 90].map(function (n) {
+        return '<button type="button" data-uso-dias="' + n + '" class="' + (n === d.dias ? 'on' : '') + '" aria-pressed="' + (n === d.dias) + '">' + n + ' dias</button>';
+      }).join('') + '</div>';
+      if (d.contas.length) h += '<div class="uz-tot"><span><small>Contas que usaram</small>' + d.total.contas + '</span><span><small>Sessões</small>' + d.total.sessoes +
+        '</span><span><small>Tempo total</small>' + usoDuracao(d.total.segundos) + '</span></div>';
+      h += '<p class="uz-nota">Conta o tempo com o app aberto na tela, por aparelho. Senha compartilhada aparece como uma conta só. A contagem começou em 26/11/2026.</p>';
+      b.innerHTML = h;
+      if (!d.contas.length) c.insertAdjacentHTML('beforeend', '<div class="blk"><p class="vazio">Ninguém abriu o app nestes ' + d.dias + ' dias.</p></div>');
+      d.contas.forEach(function (k, idx) {
+        var nome = k.pessoa || 'Senha compartilhada';
+        var tira = '<div class="uz-tira" aria-label="Últimos 14 dias">' + ult14.map(function (dia) {
+          var tem = Object.prototype.hasOwnProperty.call(k.por_dia, dia), sg = k.por_dia[dia] || 0;
+          var n = !tem ? 0 : sg < 300 ? 1 : sg < 1200 ? 2 : sg < 3600 ? 3 : 4;
+          return '<i class="n' + n + '" title="' + dataBr(dia) + ': ' + (tem ? usoDuracao(sg) : 'não abriu') + '"></i>';
+        }).join('') + '</div>';
+        var tl = function (t) { return USO_TELA[t] || t; };
+        c.insertAdjacentHTML('beforeend', '<div class="blk uz-conta">' +
+          '<button type="button" class="uz-cab" data-uso-abre="' + idx + '" aria-expanded="false"><span class="t"><b>' + esc(nome) + '</b>' +
+            (k.compartilhada ? ' <span class="pill">compartilhada</span>' : '') + '<small>' + esc(NOME[k.nivel] || k.nivel) + '</small></span>' +
+            '<span class="v"><b>' + esc(usoQuando(k.ultimo)) + '</b><small>último acesso</small></span></button>' +
+          '<div class="uz-num"><span>' + usoDuracao(k.segundos) + ' no total</span><span>' + k.dias_ativos + (k.dias_ativos === 1 ? ' dia' : ' dias') + '</span><span>' +
+            k.sessoes + (k.sessoes === 1 ? ' sessão' : ' sessões') + '</span><span>' + k.aparelhos + (k.aparelhos === 1 ? ' aparelho' : ' aparelhos') + '</span></div>' + tira +
+          '<div class="uz-sess" id="uz-s' + idx + '" hidden><p class="uz-nota">Mais usado: ' + (k.telas.map(tl).join(', ') || '—') +
+            '. Primeiro acesso no período: ' + esc(usoQuando(k.primeiro)) + '.</p>' +
+            k.recentes.map(function (x) {
+              return '<div class="linha"><span class="t">' + dataBr(usoDia(x.inicio)) + ' · ' + hora(new Date(x.inicio).getTime()) + '–' + hora(new Date(x.fim).getTime()) +
+                '<small>' + esc(x.aparelho || 'aparelho') + (x.telas.length ? ' · ' + x.telas.map(tl).join(', ') : '') + '</small></span><span class="v">' + usoDuracao(x.segundos) + '</span></div>';
+            }).join('') + '</div></div>');
+      });
+      Array.prototype.forEach.call(c.querySelectorAll('[data-uso-dias]'), function (bt) {
+        bt.addEventListener('click', function () { lsPoe('app_piloto_uso_dias', bt.getAttribute('data-uso-dias')); vai(); });
+      });
+      Array.prototype.forEach.call(c.querySelectorAll('[data-uso-abre]'), function (bt) {
+        bt.addEventListener('click', function () {
+          var el = c.querySelector('#uz-s' + bt.getAttribute('data-uso-abre'));
+          el.hidden = !el.hidden; bt.setAttribute('aria-expanded', String(!el.hidden));
+        });
+      });
+    });
   };
 
   // --- Chat (PLANO_CHAT_APP_BENTO.md, 24/11/2026) ---------------------------
