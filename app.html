@@ -543,6 +543,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 /* Cérebro do chat (24/11/2026): resposta automática marcada. */
 .bb.site .ia-m{display:block;font-size:11.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--tx3);margin-bottom:4px}
 .bb.site .ia-f{display:block;font-size:12px;color:var(--tx3);margin-top:6px}
+.bb.site .ia-f a{color:inherit;text-decoration:underline;text-underline-offset:2px}
 .ch-ensina{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--tx2);padding:6px 12px 0}
 .ch-ensina input{width:18px;height:18px}
 /* Marketing (24/11/2026) */
@@ -2171,7 +2172,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   // e guarda na cópia do app-sw.js. Recarrega só num momento seguro: na
   // próxima troca de tela, ao sair ou voltar para o app, ou depois de 1 min
   // sem mexer. Volta para a mesma tela e rolagem e avisa "App atualizado".
-  var APP_BUILD = 'hhhrhkdcahmj';
+  var APP_BUILD = 'gardennqgbja';
   var NV_TENT = 'bento_app_nv';
   var versaoPronta = null, conferindo = false, ultimaAcao = Date.now(), mexeu = false;
   ['pointerdown', 'keydown', 'scroll', 'input'].forEach(function (ev) {
@@ -4053,6 +4054,18 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     });
   }
 
+  // Fonte da resposta automática (27/11/2026): só o que a IA disse ter usado,
+  // com link para a tela do app ou a página do portal. Mensagem antiga só tem
+  // os nomes (ex.fontes) e continua aparecendo como texto.
+  function fontesIa(ex) {
+    var lista = ex.fontes_link && ex.fontes_link.length ? ex.fontes_link : (ex.fontes || []).map(function (f) { return { f: f, p: '' }; });
+    if (!lista.length) return '';
+    return '<span class="ia-f">Fonte: ' + lista.map(function (x) {
+      var p = String(x.p || '').replace(/^app\.html(?=#\/)/, '');
+      return /^(#\/[a-z-]+|[a-z0-9-]+\.html(#[a-z0-9-]*)?)$/.test(p) ? '<a href="' + esc(p) + '">' + esc(x.f) + '</a>' : esc(x.f);
+    }).join(' · ') + '</span>';
+  }
+
   function bolha(m, podeEscrever) {
     var h = '', hr = '<span class="h">' + hora(m.criado_em) + '</span>';
     var ex = m.extra || {};
@@ -4075,7 +4088,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
         (ex.links || []).map(function (l) { return '<a class="ir" href="#/' + esc(l.tela) + '">' + esc(l.rotulo) + ' ›</a>'; }).join('');
     } else if (m.tipo === 'ia') {
       h = '<span class="ia-m">Resposta automática</span>' + esc(m.texto).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>') +
-        (ex.fontes && ex.fontes.length ? '<span class="ia-f">Fonte: ' + esc(ex.fontes.join(' · ')) + '</span>' : '');
+        fontesIa(ex);
     } else if (m.tipo === 'ficha') {
       h = fichaHtml(ex.ficha || '');
     } else if (m.tipo === 'video') {
