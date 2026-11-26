@@ -347,6 +347,16 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .fd-hero.copo img{object-fit:contain;padding:6%}
 .fd-hero.prod{background:var(--acento-bg);color:var(--acento-tx);aspect-ratio:auto;height:120px}
 .fd-hero .selo-copo{left:12px;bottom:12px;font-size:12px;padding:4px 10px}
+/* Ficha aberta: a foto aparece INTEIRA (o bartender copia a montagem), sem recorte. */
+.fd-hero.foto{aspect-ratio:auto;max-height:none;height:min(50vh,460px)}
+.fd-hero.foto img{object-fit:contain}
+.fd-hero[data-amplia]{cursor:zoom-in}
+.fd-amp{position:absolute;right:12px;bottom:12px;width:36px;height:36px;border-radius:50%;background:rgba(31,27,22,.72);color:#fff;display:flex;align-items:center;justify-content:center}
+.lb{position:fixed;inset:0;z-index:200;background:rgba(12,10,8,.95);display:flex;align-items:center;justify-content:center;padding:calc(56px + env(safe-area-inset-top)) 8px calc(24px + env(safe-area-inset-bottom));cursor:zoom-out}
+.lb img{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px}
+.lb.copo img{background:#fff;padding:4%}
+.lb-x{position:absolute;top:calc(10px + env(safe-area-inset-top));right:12px;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;font-size:28px;line-height:1;display:flex;align-items:center;justify-content:center}
+.lb-t{position:absolute;top:calc(20px + env(safe-area-inset-top));left:16px;right:68px;color:#f0e7d8;font-family:var(--serif);font-size:19px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fd-cab{margin:14px 2px 4px}
 .fd-cab h1{font-family:var(--serif);font-weight:500;font-size:28px;line-height:1.15;margin:0}
 .fd-cab .alt{color:var(--tx3);font-size:13.5px;margin-top:3px}
@@ -2172,7 +2182,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   // e guarda na cópia do app-sw.js. Recarrega só num momento seguro: na
   // próxima troca de tela, ao sair ou voltar para o app, ou depois de 1 min
   // sem mexer. Volta para a mesma tela e rolagem e avisa "App atualizado".
-  var APP_BUILD = 'gardennqgbja';
+  var APP_BUILD = 'dsejkmgcjchg';
   var NV_TENT = 'bento_app_nv';
   var versaoPronta = null, conferindo = false, ultimaAcao = Date.now(), mexeu = false;
   ['pointerdown', 'keydown', 'scroll', 'input'].forEach(function (ev) {
@@ -3350,9 +3360,38 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   }
   function fichaImagem(f, cls) {
     if (f.s === 'producoes') return '<div class="' + cls + ' prod" aria-hidden="true">' + ic('garrafa', cls === 'fd-hero' ? 40 : 34) + '</div>';
-    if (f.f) return '<div class="' + cls + '"><img src="fotos/' + esc(f.f) + '" alt="" loading="lazy" decoding="async"></div>';
-    if (f.fc) return '<div class="' + cls + ' copo"><img src="fotos/' + esc(f.fc) + '" alt="" loading="lazy" decoding="async"><span class="selo-copo">Foto do copo</span></div>';
+    var det = cls === 'fd-hero';
+    var amp = det ? ' data-amplia role="button" tabindex="0" aria-label="Ampliar a foto"' : '';
+    var lupa = det ? '<span class="fd-amp" aria-hidden="true">' + ic('lupa', 18) + '</span>' : '';
+    if (f.f) return '<div class="' + cls + (det ? ' foto' : '') + '"' + amp + '><img src="fotos/' + esc(f.f) + '" alt="" loading="lazy" decoding="async">' + lupa + '</div>';
+    if (f.fc) return '<div class="' + cls + ' copo"' + amp + '><img src="fotos/' + esc(f.fc) + '" alt="" loading="lazy" decoding="async"><span class="selo-copo">Foto do copo</span>' + lupa + '</div>';
     return '<div class="' + cls + '" aria-hidden="true">' + ic('cocktail', 34) + '</div>';
+  }
+  // Foto em tela cheia. Entra no histórico: o voltar do celular fecha a foto,
+  // não a ficha. Fecha também com toque, com o X e com Esc.
+  function ampliaFoto(src, titulo, copo) {
+    if (document.querySelector('.lb')) return;
+    var d = document.createElement('div');
+    d.className = 'lb' + (copo ? ' copo' : '');
+    d.setAttribute('role', 'dialog'); d.setAttribute('aria-modal', 'true'); d.setAttribute('aria-label', 'Foto: ' + titulo);
+    d.innerHTML = '<div class="lb-t">' + esc(titulo) + '</div><button type="button" class="lb-x" aria-label="Fechar">&times;</button><img src="' + esc(src) + '" alt="' + esc(titulo) + '">';
+    document.body.appendChild(d);
+    document.body.style.overflow = 'hidden';
+    var noHist = false;
+    try { history.pushState({ lb: 1 }, ''); noHist = true; } catch (e) {}
+    function some() {
+      if (!d.parentNode) return;
+      d.remove();
+      document.body.style.overflow = '';
+      window.removeEventListener('popstate', some);
+      document.removeEventListener('keydown', esc1);
+    }
+    function fecha() { if (noHist && history.state && history.state.lb) history.back(); else some(); }
+    function esc1(e) { if (e.key === 'Escape') fecha(); }
+    window.addEventListener('popstate', some);
+    document.addEventListener('keydown', esc1);
+    d.addEventListener('click', fecha);
+    d.querySelector('.lb-x').focus();
   }
   function fichaPreco(f) { return f.v != null ? dinheiro(f.v, f.v % 1 ? 2 : 0) : ''; }
 
@@ -3498,6 +3537,12 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
       if (fichaDaGrade) history.back(); else location.hash = '#/fichas';
     });
     c.querySelector('[data-fd-pdf]').addEventListener('click', function () { imprimeFichas([f], nm.t); });
+    var hero = c.querySelector('[data-amplia]');
+    if (hero) {
+      var abre = function () { ampliaFoto('fotos/' + (f.f || f.fc), nm.t, !f.f); };
+      hero.addEventListener('click', abre);
+      hero.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abre(); } });
+    }
     if (pode('fichas.precificacao')) {
       dados.custos().then(function (r) {
         if (!r.ok) return; // sem precificação: a ficha continua igual
