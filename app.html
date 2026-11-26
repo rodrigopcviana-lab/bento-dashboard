@@ -951,29 +951,96 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') filaDrena(); });
   setInterval(function () { if (fila().length) filaDrena(); }, 20000);
 
+  // Troca de tela rápida (26/11/2026, mesma ideia do portal de Medellín):
+  // leitura que já tem cópia no aparelho espera a rede só LENTO_MS; passou
+  // disso, a tela abre com a cópia e, quando o dado novo chega diferente, a
+  // tela se redesenha sozinha (redesenhaSeguro). Até 15 s depois de uma
+  // escrita a espera vai a 5 s, para ninguém ver o próprio envio sumir.
+  // FRESCO guarda por 15 s a resposta que acabou de chegar: o redesenho e as
+  // telas vizinhas usam ela, sem chamada a mais ao Worker.
+  var LENTO_MS = 700, FRESCO = {}, escritaEm = 0;
+  function apiLeitura(caminho, op) {
+    var m = op.metodo || 'GET';
+    return m === 'GET' || (m === 'POST' && !!OFF_POST[caminho.split('?')[0]]);
+  }
   function api(caminho, op) {
     op = op || {};
+    if (!apiLeitura(caminho, op)) { FRESCO = {}; escritaEm = Date.now(); }
+    var k = offPode(caminho, op) ? offChave(caminho, op) : null;
+    if (k && FRESCO[k] && Date.now() - FRESCO[k].em < 15000) {
+      return Promise.resolve({ status: 200, ok: true, d: JSON.parse(FRESCO[k].s) });
+    }
     var h = { 'X-Token': S.token };
     if (op.corpo) h['Content-Type'] = 'application/json';
-    return fetch(W + caminho, { method: op.metodo || 'GET', headers: h, cache: 'no-store',
+    var rede = fetch(W + caminho, { method: op.metodo || 'GET', headers: h, cache: 'no-store',
       body: op.corpo ? JSON.stringify(op.corpo) : undefined })
       .then(function (r) {
         return r.json().catch(function () { return {}; }).then(function (d) { return { status: r.status, ok: r.ok, d: d }; });
       })
       .catch(function () { return { status: 0, ok: false, d: {} }; })
       .then(function (res) {
-        if (offPode(caminho, op)) {
-          var k = offChave(caminho, op);
-          if (res.ok) offGuarda(k, res.d);
-          else if (res.status === 0) {
-            var g = offLe(k);
-            if (g) res = { status: 200, ok: true, d: g.d, offline: g.em };
-          }
+        if (k && res.ok) {
+          offGuarda(k, res.d);
+          try { FRESCO[k] = { em: Date.now(), s: JSON.stringify(res.d) }; } catch (e) {}
         }
-        marcaRede(res.status !== 0 && !res.offline, res.offline);
+        if (res.status !== 0) marcaRede(true);
         if (res.status === 401 && CTX && !sessaoCaiu) confereSessao();
         return res;
       });
+    var g = k ? offLe(k) : null;
+    var semCopia = function (res) {
+      if (res.status !== 0) return res;
+      if (g) { marcaRede(false, g.em); return { status: 200, ok: true, d: g.d, offline: g.em }; }
+      marcaRede(false);
+      return res;
+    };
+    if (!g) return rede.then(semCopia);
+    var tela = document.body.getAttribute('data-tela');
+    var espera = Date.now() - escritaEm < 15000 ? 5000 : LENTO_MS;
+    return new Promise(function (pronto) {
+      var feito = false;
+      var t = setTimeout(function () {
+        if (feito) return;
+        feito = true;
+        pronto({ status: 200, ok: true, d: g.d, lento: g.em });
+        rede.then(function (res) {
+          var mudou = false;
+          try { mudou = res.ok && JSON.stringify(res.d) !== JSON.stringify(g.d); } catch (e) {}
+          if (mudou) redesenhaSeguro(tela);
+          else if (res.status === 0) marcaRede(false, g.em);
+        });
+      }, espera);
+      rede.then(function (res) {
+        if (feito) return;
+        feito = true;
+        clearTimeout(t);
+        pronto(semCopia(res));
+      });
+    });
+  }
+  // Nada some debaixo do dedo: com janela aberta, campo em foco ou texto ainda
+  // não enviado, o app não redesenha nem recarrega.
+  function momentoSeguro() {
+    if (document.querySelector('dialog[open]')) return false;
+    var a = document.activeElement;
+    if (a && a.matches && a.matches('input, textarea, select, [contenteditable="true"]')) return false;
+    return !Array.prototype.some.call(document.querySelectorAll('main input, main textarea, main select'), function (el) {
+      if (el.type === 'checkbox' || el.type === 'radio') return el.checked !== el.defaultChecked;
+      if (el.tagName === 'SELECT') return Array.prototype.some.call(el.options, function (o) { return o.selected !== o.defaultSelected; });
+      if (el.type === 'file') return !!el.value;
+      return el.value !== el.defaultValue;
+    });
+  }
+  var redesenhaT = null;
+  function redesenhaSeguro(tela) {
+    clearTimeout(redesenhaT);
+    redesenhaT = setTimeout(function () {
+      if (!CTX || document.body.getAttribute('data-tela') !== tela || !momentoSeguro()) return;
+      var y = window.scrollY;
+      cache = {};
+      vai();
+      setTimeout(function () { window.scrollTo(0, y); }, 80);
+    }, 250);
   }
   // Token vencido com o app aberto: só a abertura tratava o 401, e as telas
   // mostravam um erro sem saída. Confirma no /api/app antes de mandar entrar
@@ -1243,6 +1310,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     // O voltar que mudou o endereço já foi tratado no popstate.
     if (Date.now() - popEm < 500) return;
     if (CTX && modo() === 'chat' && /^#\/[a-z]/.test(location.hash)) lsPoe(LS.modo, 'funcoes');
+    if (versaoPronta && tentaAtualizar(true)) return;
     vai();
   });
 
@@ -2086,38 +2154,65 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   // só usava o app ficava sem cópia nenhuma no aparelho.
   // Só quando a API mora em outro domínio (produção): o sw.js refaz o pedido
   // pela URL e perderia o X-Token de uma API no mesmo endereço (teste local).
+  // Desde 26/11/2026 o app tem service worker PRÓPRIO (app-sw.js, scope
+  // app.html): cópia primeiro para o app.html, então abre na hora com Wi-Fi
+  // ruim ou sem internet. O sw.js do site segue cuidando das outras páginas.
   var swPode = false;
   try { swPode = new URL(W, location.href).origin !== location.origin; } catch (e) {}
+  var APP_CACHE = 'bento-app-v1';
+  var APP_URL = new URL('app.html', location.href).href;
   if (swPode && 'serviceWorker' in navigator) {
-    window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+    window.addEventListener('load', function () { navigator.serviceWorker.register('app-sw.js', { scope: 'app.html' }).catch(function () {}); });
   }
-  var APP_BUILD = 'hprqqcapmjbr';
-  var NV_DISP = 'bento_app_versao_dispensada';
-  function atualizaApp() {
-    var fim = function () { location.reload(); };
-    setTimeout(fim, 2500);
-    var limpa = window.caches ? caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); }) : Promise.resolve();
-    var sw = navigator.serviceWorker && navigator.serviceWorker.getRegistrations
-      ? navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.update(); })); }) : Promise.resolve();
-    Promise.all([limpa, sw]).then(fim, fim);
-  }
+  // Versão nova (26/11/2026: sozinha, sem botão). O app confere
+  // app-versao.json (arquivo do site, não o Worker) ao abrir, ao voltar para a
+  // tela e a cada 10 min. Achou outra, baixa o app.html novo, confere que ele
+  // é mesmo a versão anunciada (o Pages leva até 1 min para trocar o arquivo)
+  // e guarda na cópia do app-sw.js. Recarrega só num momento seguro: na
+  // próxima troca de tela, ao sair ou voltar para o app, ou depois de 1 min
+  // sem mexer. Volta para a mesma tela e rolagem e avisa "App atualizado".
+  var APP_BUILD = 'hhhrhkdcahmj';
+  var NV_TENT = 'bento_app_nv';
+  var versaoPronta = null, conferindo = false, ultimaAcao = Date.now(), mexeu = false;
+  ['pointerdown', 'keydown', 'scroll', 'input'].forEach(function (ev) {
+    document.addEventListener(ev, function () { ultimaAcao = Date.now(); mexeu = true; }, { capture: true, passive: true });
+  });
+  function ssLe(k) { try { return JSON.parse(sessionStorage.getItem(k) || 'null'); } catch (e) { return null; } }
   function confereVersao() {
-    if (document.visibilityState === 'hidden' || document.getElementById('nova-v')) return;
+    if (versaoPronta || conferindo || navigator.onLine === false) return;
+    conferindo = true;
     fetch('app-versao.json?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
       if (!d || !d.build || d.build === APP_BUILD) return;
-      var disp = null;
-      try { disp = localStorage.getItem(NV_DISP); } catch (e) {}
-      if (disp === d.build) return;
-      var el = document.createElement('div');
-      el.id = 'nova-v'; el.className = 'nova-v'; el.setAttribute('role', 'status');
-      el.innerHTML = '<span>Nova versão do app disponível.</span><button type="button" class="ok">Atualizar</button><button type="button" class="x" aria-label="Agora não">&times;</button>';
-      document.body.appendChild(el);
-      el.querySelector('.ok').addEventListener('click', function () { el.querySelector('.ok').textContent = 'Atualizando…'; atualizaApp(); });
-      el.querySelector('.x').addEventListener('click', function () { try { localStorage.setItem(NV_DISP, d.build); } catch (e) {} el.remove(); });
-    }).catch(function () {});
+      var t = ssLe(NV_TENT);
+      if (t && t.b === d.build && Date.now() - t.em < 10 * 60000) return; // já recarregou para ela: o Pages ainda não trocou
+      return fetch(APP_URL, { cache: 'no-store', credentials: 'same-origin' }).then(function (r) { return r.ok ? r.text() : null; }).then(function (html) {
+        if (!html || html.indexOf("APP_BUILD = '" + d.build + "'") < 0) return;
+        var poe = window.caches ? caches.open(APP_CACHE).then(function (c) {
+          return c.put(APP_URL, new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } }));
+        }) : Promise.resolve();
+        return poe.then(function () { versaoPronta = d.build; tentaAtualizar(); }, function () { versaoPronta = d.build; });
+      });
+    }).catch(function () {}).then(function () { conferindo = false; });
   }
-  setTimeout(confereVersao, 4000);
+  function tentaAtualizar(forca) {
+    if (!versaoPronta || !momentoSeguro()) return false;
+    // Recém-aberto e sem toque ainda: entra na hora. Mexendo: espera 1 min parado.
+    if (!forca && mexeu && document.visibilityState === 'visible' && Date.now() - ultimaAcao < 60000) return false;
+    try { sessionStorage.setItem(NV_TENT, JSON.stringify({ b: versaoPronta, em: Date.now(), y: window.scrollY })); } catch (e) {}
+    location.reload();
+    return true;
+  }
+  setTimeout(confereVersao, 1500);
   setInterval(confereVersao, 10 * 60 * 1000);
+  setInterval(function () { tentaAtualizar(); }, 15000);
+  document.addEventListener('visibilitychange', function () { tentaAtualizar(true); });
+  // Logo depois de recarregar para a versão nova: avisa e volta a rolagem.
+  (function () {
+    var t = ssLe(NV_TENT);
+    if (!t || t.b !== APP_BUILD) return;
+    try { sessionStorage.removeItem(NV_TENT); } catch (e) {}
+    setTimeout(function () { if (t.y) window.scrollTo(0, t.y); toast('App atualizado.'); }, 600);
+  })();
   // App instalado voltando do alternador não recarrega nada: só este evento
   // pega esse caso.
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') confereVersao(); });
