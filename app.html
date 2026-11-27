@@ -206,6 +206,7 @@ a.linha .v::after,.linha.vai .v::after{content:"";display:inline-block;width:7px
 .uz-tira i.n4{background:var(--verde)}
 .seg button{padding:9px 15px;border-radius:999px;font-size:14px;color:var(--tx2)}
 .seg button.on{background:var(--sup);color:var(--tx);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.esc-seg{margin-bottom:14px}.esc-dia .t small{display:block;margin-top:3px}.esc-dia .t small b{color:var(--tx);font-weight:600}
 .controles{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .chk{display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--tx2)}
 .chk input{width:18px;height:18px;accent-color:var(--acento)}
@@ -2277,7 +2278,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   // e guarda na cópia do app-sw.js. Recarrega só num momento seguro: na
   // próxima troca de tela, ao sair ou voltar para o app, ou depois de 1 min
   // sem mexer. Volta para a mesma tela e rolagem e avisa "App atualizado".
-  var APP_BUILD = 'knprbpspnren';
+  var APP_BUILD = 'dabneebksdrh';
   var NV_TENT = 'bento_app_nv';
   var versaoPronta = null, conferindo = false, ultimaAcao = Date.now(), mexeu = false;
   ['pointerdown', 'keydown', 'scroll', 'input'].forEach(function (ev) {
@@ -2460,6 +2461,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   // com id maior que o anterior (data + letra). `tela` ou `pode` limitam a quem
   // tem aquela tela ou permissão.
   var NOVIDADES = [
+    { id: '2026-11-27e', t: 'Escala da equipe', d: 'O ícone de calendário no topo abre a Escala. Ela começa nos seus dias, e a aba Equipe mostra quem trabalha em cada turno e quem está de folga nos próximos 7 dias.', tela: 'escala' },
     { id: '2026-11-27d', t: 'Novo nome: Site mobile Bento', d: 'O app novo deixou de ser piloto: agora é o Site mobile do Bento, a versão do site feita para o celular.' },
     { id: '2026-11-27c', t: 'Aviso de versão nova', d: 'Quando sair uma versão nova, aparece uma faixa no topo com o botão Atualizar agora. Se preferir, toque no X: ela entra sozinha da próxima vez que você trocar de tela ou voltar para o app. Também dá para procurar na sua conta, em Atualizar o app.' },
     { id: '2026-11-27b', t: 'Aviso das novidades', d: 'Quando o app mudar, esta janela mostra o que há de novo. Para ver de novo, abra a sua conta (ícone de pessoa no topo) e toque em Novidades do app.' },
@@ -3442,25 +3444,32 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     return Object.keys(por).map(function (k) { return por[k]; });
   }
 
+  // Minha | Equipe (27/11/2026, pedido do Rodrigo): abre na escala da própria
+  // pessoa, e a troca mostra a equipe inteira, dia a dia, por turno. Sem pessoa
+  // na sessão (ou fora da escala), só a da equipe.
+  var ESC_VISTA_K = 'bento_app_escala_vista';
+  function escVista() { try { return sessionStorage.getItem(ESC_VISTA_K) === 'equipe' ? 'equipe' : 'minha'; } catch (e) { return 'minha'; } }
+  function escHora(x) { return x.entrada && x.saida ? ' ' + x.entrada + '–' + x.saida : ''; }
   TELAS.escala = function (c) {
-    topo(c, 'Minha escala', 'Os próximos 7 dias, pela escala oficial');
+    topo(c, 'Escala', 'Os próximos 7 dias, pela escala oficial');
     var b = bloco(c);
     b.innerHTML = '<p class="vazio">Carregando…</p>';
     var hoje = new Date(); hoje.setHours(12, 0, 0, 0);
     var datas = [];
     for (var i = 0; i < 7; i++) { var d = new Date(hoje); d.setDate(hoje.getDate() + i); datas.push(d); }
     dados.escala(isoLocal(datas[0]), isoLocal(datas[6])).then(function (r) {
-      if (!r.ok) { falhou(b, 'Minha escala', r); return; }
+      if (!r.ok) { falhou(b, 'Escala', r); return; }
       var dias = r.d.dias || [], padrao = r.d.padrao || [];
       var eu = chaveNome(CTX.pessoa || '');
       var conhecido = eu && padrao.concat(dias).some(function (x) { return chaveNome(x.pessoa) === eu; });
       var sub = c.querySelector('.topo .sub');
-      if (sub && !conhecido) sub.textContent = eu ? 'Seu nome não está na escala: esta é a da casa' : 'Escala da casa (entrou sem nome)';
-      b.innerHTML = '<h2>' + (conhecido ? 'Seus dias' : 'A casa') + '</h2>' + datas.map(function (dt, i) {
-        var ls = linhasEscala(dt, dias, padrao);
-        var trab = ls.filter(function (x) { return x.turno && x.turno !== 'Folga'; });
-        var quando = (i === 0 ? 'Hoje' : ESC_DIA_CURTO[dt.getDay()]) + ' · ' + dataBr(isoLocal(dt));
-        if (conhecido) {
+      if (sub && !conhecido) sub.textContent = eu ? 'Seu nome não está na escala: esta é a da equipe' : 'Escala da equipe (entrou sem nome)';
+      function quandoDe(dt, i) { return (i === 0 ? 'Hoje' : ESC_DIA_CURTO[dt.getDay()]) + ' · ' + dataBr(isoLocal(dt)); }
+      function minha() {
+        return '<h2>Seus dias</h2>' + datas.map(function (dt, i) {
+          var ls = linhasEscala(dt, dias, padrao);
+          var trab = ls.filter(function (x) { return x.turno && x.turno !== 'Folga'; });
+          var quando = quandoDe(dt, i);
           var m = ls.filter(function (x) { return chaveNome(x.pessoa) === eu; })[0];
           if (!m) return '<div class="linha"><div class="t">' + esc(quando) + '<small>Sem escala lançada</small></div></div>';
           if (m.turno === 'Folga') {
@@ -3471,14 +3480,43 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
           var det = (m.entrada && m.saida ? m.entrada + ' – ' + m.saida : 'horário a confirmar') +
             ' · ' + (com.length ? 'com ' + com.join(', ') : 'só você no turno') + (m.doPadrao ? ' · pelo padrão' : '');
           return '<div class="linha"><div class="t">' + esc(quando) + '<small>' + esc(det) + '</small></div><span class="v"><span class="pill' +
-            (i === 0 ? ' atencao' : '') + '">' + esc(m.turno) + '</span></span></div>';
-        }
-        var txt = ['Dia', 'Noite'].map(function (t) {
-          var ps = trab.filter(function (x) { return x.turno === t; }).map(function (x) { return primeiroNome(x.pessoa); });
-          return ps.length ? t + ': ' + ps.join(', ') : '';
-        }).filter(Boolean).join(' · ') || 'Sem escala lançada';
-        return '<div class="linha"><div class="t">' + esc(quando) + '<small>' + esc(txt) + '</small></div></div>';
-      }).join('');
+            (i === 0 ? ' atencao' : '') + '">' + esc(TURNO_ROT[m.turno] || m.turno) + '</span></span></div>';
+        }).join('');
+      }
+      function equipe() {
+        var algumPadrao = false;
+        return '<h2>Equipe</h2>' + datas.map(function (dt, i) {
+          var ls = linhasEscala(dt, dias, padrao);
+          var nome = function (x) {
+            if (x.doPadrao) algumPadrao = true;
+            var n = esc(primeiroNome(x.pessoa));
+            return chaveNome(x.pessoa) === eu ? '<b>' + n + '</b>' : n;
+          };
+          var partes = ['Dia', 'Noite'].map(function (t) {
+            var ps = ls.filter(function (x) { return x.turno === t; });
+            return ps.length ? '<small>' + esc(TURNO_ROT[t]) + ': ' + ps.map(function (x) { return nome(x) + esc(escHora(x)); }).join(', ') + '</small>' : '';
+          });
+          var outros = ls.filter(function (x) { return x.turno && x.turno !== 'Folga' && x.turno !== 'Dia' && x.turno !== 'Noite'; });
+          if (outros.length) partes.push('<small>' + outros.map(function (x) { return nome(x) + ' (' + esc(x.turno) + esc(escHora(x)) + ')'; }).join(', ') + '</small>');
+          var folga = ls.filter(function (x) { return x.turno === 'Folga'; });
+          if (folga.length) partes.push('<small>Folga: ' + folga.map(nome).join(', ') + '</small>');
+          var corpo = partes.filter(Boolean).join('') || '<small>Sem escala lançada</small>';
+          return '<div class="linha esc-dia"><div class="t">' + esc(quandoDe(dt, i)) + corpo + '</div></div>';
+        }).join('') + (algumPadrao ? '<p class="vazio" style="margin-top:10px">Dias ainda sem semana montada aparecem pelo padrão de cada pessoa.</p>' : '');
+      }
+      function desenha() {
+        var v = conhecido ? escVista() : 'equipe';
+        var seg = conhecido ? '<div class="seg esc-seg" role="tablist"><button type="button" data-esc-vista="minha" class="' + (v === 'minha' ? 'on' : '') +
+          '">Minha</button><button type="button" data-esc-vista="equipe" class="' + (v === 'equipe' ? 'on' : '') + '">Equipe</button></div>' : '';
+        b.innerHTML = seg + (v === 'minha' ? minha() : equipe());
+        Array.prototype.forEach.call(b.querySelectorAll('[data-esc-vista]'), function (bt) {
+          bt.addEventListener('click', function () {
+            try { sessionStorage.setItem(ESC_VISTA_K, bt.getAttribute('data-esc-vista')); } catch (e) {}
+            desenha();
+          });
+        });
+      }
+      desenha();
     });
   };
 
