@@ -275,6 +275,16 @@ tr.sec td{font-weight:600;color:var(--tx3);font-size:12px;text-transform:upperca
 .rede{position:fixed;left:50%;top:calc(6px + env(safe-area-inset-top));transform:translateX(-50%);z-index:12;background:#7a4b1f;color:#fff;font-size:12.5px;line-height:1.3;padding:6px 12px;border-radius:999px;box-shadow:0 4px 14px rgba(0,0,0,.25);max-width:calc(100% - 24px);text-align:center;display:none}
 .rede.on{display:block}
 .rede.volta{background:#2f7a4a}
+/* Aviso de versão nova (27/11/2026): faixa no topo com Atualizar agora. */
+.nv-aviso{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top));transform:translateX(-50%);z-index:60;width:min(480px,calc(100% - 20px));display:flex;align-items:center;gap:10px;padding:10px 8px 10px 12px;border-radius:14px;background:var(--sup);color:var(--tx);border:1px solid var(--acento);box-shadow:0 8px 24px rgba(0,0,0,.28);animation:nvEntra .25s ease-out}
+@keyframes nvEntra{from{opacity:0;transform:translate(-50%,-12px)}to{opacity:1;transform:translateX(-50%)}}
+.nv-aviso .nv-ic{color:var(--acento);display:flex;flex-shrink:0}
+.nv-aviso .nv-tx{flex:1;min-width:0;display:flex;flex-direction:column;cursor:pointer}
+.nv-aviso .nv-tx b{font-size:14.5px}
+.nv-aviso .nv-tx span{font-size:12.5px;color:var(--tx2)}
+.nv-aviso .nv-ok{min-height:40px;padding:0 14px;border-radius:999px;background:var(--acento);color:#fff;font-weight:600;font-size:13.5px;white-space:nowrap;flex-shrink:0}
+:root[data-tema="escuro"] .nv-aviso .nv-ok{color:#2b2620}
+.nv-aviso .nv-x{width:36px;height:40px;font-size:22px;line-height:1;color:var(--tx3);flex-shrink:0}
 .folha{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;z-index:10}
 .folha.on{display:flex}
 .folha .caixa{background:var(--sup);width:100%;max-width:440px;border-radius:18px 18px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom))}
@@ -2253,7 +2263,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   // e guarda na cópia do app-sw.js. Recarrega só num momento seguro: na
   // próxima troca de tela, ao sair ou voltar para o app, ou depois de 1 min
   // sem mexer. Volta para a mesma tela e rolagem e avisa "App atualizado".
-  var APP_BUILD = 'nmjnebfmabmf';
+  var APP_BUILD = 'ksqjemdfbbcm';
   var NV_TENT = 'bento_app_nv';
   var versaoPronta = null, conferindo = false, ultimaAcao = Date.now(), mexeu = false;
   ['pointerdown', 'keydown', 'scroll', 'input'].forEach(function (ev) {
@@ -2276,7 +2286,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
         var poe = window.caches ? caches.open(APP_CACHE).then(function (c) {
           return c.put(APP_URL, new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } }));
         }) : Promise.resolve();
-        return poe.then(function () { versaoPronta = d.build; tentaAtualizar(); }, function () { versaoPronta = d.build; });
+        return poe.then(function () { versaoPronta = d.build; avisoVersao(); }, function () { versaoPronta = d.build; avisoVersao(); });
       });
     }).catch(function () {}).then(function () { conferindo = false; });
   }
@@ -2290,7 +2300,47 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   }
   setTimeout(confereVersao, 1500);
   setInterval(confereVersao, 10 * 60 * 1000);
-  setInterval(function () { tentaAtualizar(); }, 15000);
+  // Aviso "Nova versão disponível" (27/11/2026, pedido do Rodrigo, no jeito
+  // do aviso de atualização do Claude): com o app aberto, a versão nova não
+  // entra mais sozinha depois de 1 min parado; aparece uma faixa no topo com
+  // "Atualizar agora". Ela continua entrando sozinha ao trocar de tela e ao
+  // sair e voltar para o app, quando ninguém está olhando.
+  var AV_DISP = 'bento_app_nv_dispensa';
+  function avisoVersao() {
+    if (!versaoPronta || $('nv-aviso')) return;
+    try { if (sessionStorage.getItem(AV_DISP) === versaoPronta) return; } catch (e) {}
+    var a = document.createElement('div');
+    a.id = 'nv-aviso'; a.className = 'nv-aviso'; a.setAttribute('role', 'status');
+    a.innerHTML = '<span class="nv-ic">' + ic('estrela', 18) + '</span><span class="nv-tx"><b>Nova versão do app</b><span>Toque para ver o que mudou.</span></span>' +
+      '<button type="button" class="nv-ok" data-nv-agora>Atualizar agora</button>' +
+      '<button type="button" class="nv-x" data-nv-depois aria-label="Depois">&times;</button>';
+    document.body.appendChild(a);
+  }
+  function atualizaAgora() {
+    if (!momentoSeguro()) { toast('Envie ou apague o texto que está escrevendo e toque de novo.'); return; }
+    if (versaoPronta) { tentaAtualizar(true); return; }
+    // Sem versão pronta (menu da conta): confere agora; se houver outra, apaga
+    // a cópia do aparelho e recarrega direto da internet.
+    toast('Procurando atualização…');
+    fetch('app-versao.json?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+      if (d && d.build === APP_BUILD) { toast('O app já está na versão mais nova.'); return; }
+      var limpa = window.caches ? caches.keys().then(function (ks) {
+        return Promise.all(ks.filter(function (k) { return k.indexOf('bento-app-') === 0; }).map(function (k) { return caches.delete(k); }));
+      }) : Promise.resolve();
+      limpa.catch(function () {}).then(function () {
+        try { sessionStorage.setItem(NV_TENT, JSON.stringify({ b: d && d.build, em: Date.now(), y: window.scrollY })); } catch (e) {}
+        location.reload();
+      });
+    }).catch(function () { toast('Sem conexão agora. Tente de novo com internet.'); });
+  }
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest) return;
+    if (e.target.closest('[data-nv-agora]') || e.target.closest('.nv-tx')) atualizaAgora();
+    else if (e.target.closest('[data-nv-depois]')) {
+      try { sessionStorage.setItem(AV_DISP, versaoPronta || ''); } catch (x) {}
+      var a = $('nv-aviso'); if (a) a.remove();
+    } else if (e.target.closest('[data-atualiza-app]')) { fechaConta(); atualizaAgora(); }
+  });
   document.addEventListener('visibilitychange', function () { tentaAtualizar(true); });
   // Logo depois de recarregar para a versão nova: avisa e volta a rolagem.
   (function () {
@@ -2358,6 +2408,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     if (pode('acessos.uso')) h += '<a href="#/uso">' + ic('grafico', 20) + '<span>Uso do app</span></a>';
     if (pode('acessos.correcoes')) h += '<a href="#/correcoes">' + ic('alerta', 20) + '<span>Avisos de erro' + (CTX.correcoes_pendentes ? ' · ' + CTX.correcoes_pendentes + (CTX.correcoes_pendentes > 1 ? ' pendentes' : ' pendente') : '') + '</span></a>';
     if (atalhos.length || pode('inventario.catalogo') || pode('acessos.uso') || pode('acessos.correcoes')) h += '<hr>';
+    h += '<button type="button" data-atualiza-app>' + ic('relogio', 20) + '<span>Atualizar o app</span></button>';
     h += '<button type="button" data-novidades>' + ic('estrela', 20) + '<span>Novidades do app</span></button>';
     if (pode('chat.avisar_erro')) h += '<button type="button" data-erro-app>' + ic('alerta', 20) + '<span>Avisar um erro no app</span></button>';
     h += '<button type="button" data-tema-troca></button>';
@@ -2384,6 +2435,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   // com id maior que o anterior (data + letra). `tela` ou `pode` limitam a quem
   // tem aquela tela ou permissão.
   var NOVIDADES = [
+    { id: '2026-11-27c', t: 'Aviso de versão nova', d: 'Quando sair uma versão nova, aparece uma faixa no topo com o botão Atualizar agora. Se preferir, toque no X: ela entra sozinha da próxima vez que você trocar de tela ou voltar para o app. Também dá para procurar na sua conta, em Atualizar o app.' },
     { id: '2026-11-27b', t: 'Aviso das novidades', d: 'Quando o app mudar, esta janela mostra o que há de novo. Para ver de novo, abra a sua conta (ícone de pessoa no topo) e toque em Novidades do app.' },
     { id: '2026-11-27a', t: 'Ranking no lugar de Vendas', d: 'Os 3 que mais saem aparecem num pódio, e a lista mostra quem subiu ▲ ou desceu ▼ de posição em relação ao mês anterior.', tela: 'performance' },
     { id: '2026-11-26f', t: 'Conteúdo no botão redondo', d: 'O Conteúdo saiu da barra de baixo: agora é o botão redondo no canto inferior esquerdo.', tela: 'conteudo' },
@@ -2391,7 +2443,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     { id: '2026-11-26d', t: 'Chat no meio da barra', d: 'O Chat voltou para o meio da barra de baixo, no botão redondo mais alto.', tela: 'chat' },
     { id: '2026-11-26c', t: 'Inventário agora é Controle', d: 'Mesma tela, nome novo: copos, insumos, equipamentos e utensílios.', tela: 'inventario' },
     { id: '2026-11-26b', t: 'Fichas técnicas com foto', d: 'As fichas aparecem em grade com foto. Toque na foto para ver inteira, em tela cheia.', tela: 'fichas' },
-    { id: '2026-11-26a', t: 'Abre sem internet e se atualiza sozinho', d: 'O app abre mesmo sem sinal, com os últimos dados, e troca para a versão nova sozinho, sem você fazer nada.' }
+    { id: '2026-11-26a', t: 'Abre sem internet e se atualiza sozinho', d: 'O app abre mesmo sem sinal, com os últimos dados.' }
   ];
   var NOV_CHAVE = 'bento_app_novidades';
   function novidadesPraMim() {
