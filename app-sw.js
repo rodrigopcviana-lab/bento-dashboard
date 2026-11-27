@@ -4,7 +4,7 @@
  * mais específico, então este cuida do app e o sw.js do site continua
  * cuidando das outras páginas. Publicar o app não exige republicar o site.
  *
- * Estratégia (26/11/2026, mesma ideia do portal de Medellín):
+ * Estratégia (26/11/2026, mesma ideia do portal de Medellín; v2 em 27/11):
  *   - app.html: cópia primeiro. Abre na hora, com ou sem internet. A rede
  *     atualiza a cópia por trás, e a casca confere app-versao.json: versão
  *     nova é baixada e entra num momento seguro (ver confereVersao na casca).
@@ -65,6 +65,10 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(daRede(req.url));
     return;
   }
+  // Conferência de versão nova (27/11/2026): a casca pede "app.html?nv=<build>"
+  // e precisa do arquivo da REDE. Sem esta linha, a regra da casca abaixo
+  // devolvia a cópia velha e o app não trocava de versão com ele aberto.
+  if (url.searchParams.has("nv")) return;
   const ehCasca = req.mode === "navigate" || url.href.split("?")[0].split("#")[0] === CASCA;
   if (ehCasca) {
     event.respondWith((async () => {
