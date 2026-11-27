@@ -325,6 +325,25 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .comp-dlg .comp-acoes .pri{background:var(--acento);border-color:var(--acento);color:#fff}
 :root[data-tema="escuro"] .comp-dlg .comp-acoes .pri{color:#2b2620}
 .comp-dlg .comp-acoes button[hidden]{display:none}
+/* Avisos de erro (27/11/2026) */
+.er-dlg .er-alvo{display:inline-block;margin-top:8px;font-size:13px;font-weight:600;color:var(--tx2);background:var(--sup2);border-radius:999px;padding:4px 12px}
+.er-dlg .er-campos{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.er-dlg .er-campos button{min-height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--linha);font-size:13.5px;color:var(--tx2)}
+.er-dlg .er-campos button.on{background:var(--acento);border-color:var(--acento);color:#fff;font-weight:600}
+:root[data-tema="escuro"] .er-dlg .er-campos button.on{color:#2b2620}
+.er-dlg textarea{width:100%;min-height:96px;resize:vertical;padding:10px 12px;font:inherit;font-size:16px;color:var(--tx);background:var(--bg);border:1px solid var(--linha);border-radius:10px}
+.er-dlg .er-nota{margin:6px 0 0;font-size:12.5px;color:var(--tx3)}
+.fd-erro{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:48px;margin-top:12px;padding:10px;border-radius:14px;border:1px dashed var(--linha);color:var(--tx2);font-size:14px;font-weight:500}
+.er-filtro{flex-wrap:wrap;overflow:visible;margin:0 0 6px}
+.cr-item{display:flex;flex-direction:column;gap:6px;padding:12px 0;border-top:1px solid var(--linha)}
+.er-filtro + .cr-item{border-top:0}
+.cr-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.cr-top b{font-size:15px;min-width:0;overflow-wrap:anywhere}
+.cr-txt{margin:0;font-size:15px;line-height:1.4;overflow-wrap:anywhere}
+.cr-meta{font-size:12.5px;color:var(--tx3)}
+.cr-resp{margin:0;font-size:13.5px;color:var(--tx2);background:var(--sup2);border-radius:10px;padding:8px 10px}
+.cr-bts{display:flex;gap:6px;flex-wrap:wrap}
+.cr-bts .btn{min-height:40px;padding:0 14px;font-size:13.5px}
 .cont{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--coral);color:#fff;font-size:11.5px;font-weight:700;line-height:1}
 :root[data-tema="escuro"] .cont{color:#2b2620}
 .sino-m .cont{position:absolute;top:-4px;right:-4px}
@@ -1336,7 +1355,8 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
       return;
     }
     var id = /^#\/catalogo/.test(location.hash) && pode('inventario.catalogo') ? 'catalogo'
-      : /^#\/uso/.test(location.hash) && pode('acessos.uso') ? 'uso' : telaAtual();
+      : /^#\/uso/.test(location.hash) && pode('acessos.uso') ? 'uso'
+      : /^#\/correcoes/.test(location.hash) && pode('acessos.correcoes') ? 'correcoes' : telaAtual();
     Array.prototype.forEach.call(document.querySelectorAll('[data-tela]'), function (b) {
       var on = b.getAttribute('data-tela') === id;
       b.classList.toggle('on', on);
@@ -2223,7 +2243,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   // e guarda na cópia do app-sw.js. Recarrega só num momento seguro: na
   // próxima troca de tela, ao sair ou voltar para o app, ou depois de 1 min
   // sem mexer. Volta para a mesma tela e rolagem e avisa "App atualizado".
-  var APP_BUILD = 'kajfmmnkammj';
+  var APP_BUILD = 'nghefnfhjrge';
   var NV_TENT = 'bento_app_nv';
   var versaoPronta = null, conferindo = false, ultimaAcao = Date.now(), mexeu = false;
   ['pointerdown', 'keydown', 'scroll', 'input'].forEach(function (ev) {
@@ -2322,7 +2342,9 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     atalhos.forEach(function (n) { h += '<a href="#/' + n.id + '">' + ic(n.icone, 20) + '<span>' + esc(n.rotulo) + '</span></a>'; });
     if (pode('inventario.catalogo')) h += '<a href="#/catalogo">' + ic('list', 20) + '<span>Catálogo de itens</span></a>';
     if (pode('acessos.uso')) h += '<a href="#/uso">' + ic('grafico', 20) + '<span>Uso do app</span></a>';
-    if (atalhos.length || pode('inventario.catalogo') || pode('acessos.uso')) h += '<hr>';
+    if (pode('acessos.correcoes')) h += '<a href="#/correcoes">' + ic('alerta', 20) + '<span>Avisos de erro' + (CTX.correcoes_pendentes ? ' · ' + CTX.correcoes_pendentes + (CTX.correcoes_pendentes > 1 ? ' pendentes' : ' pendente') : '') + '</span></a>';
+    if (atalhos.length || pode('inventario.catalogo') || pode('acessos.uso') || pode('acessos.correcoes')) h += '<hr>';
+    if (pode('chat.avisar_erro')) h += '<button type="button" data-erro-app>' + ic('alerta', 20) + '<span>Avisar um erro no app</span></button>';
     h += '<button type="button" data-tema-troca></button>';
     if (PERFIL_SITE[nr]) h += '<a href="' + PERFIL_SITE[nr] + '">' + ic('pessoa', 20) + '<span>Meu perfil e WhatsApp (site)</span></a>';
     if (HOME[nr]) h += '<a href="' + HOME[nr] + '">' + ic('casa', 20) + '<span>Abrir o site atual</span></a>';
@@ -2335,6 +2357,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     if (!e.target.closest) return;
     if (e.target.closest('[data-tema-troca]')) trocaTema();
     else if (e.target.closest('[data-conta]')) abreConta();
+    else if (e.target.closest('[data-erro-app]')) { fechaConta(); abreAvisoErro({ tela: document.body.getAttribute('data-tela') || 'outra' }); }
   });
 
   // --- Performance (24/11/2026) -----------------------------------------------
@@ -3594,11 +3617,14 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
       }).join('') + me.soltas.map(function (s) { return '<dt>Obs.</dt><dd>' + esc(s) + '</dd>'; }).join('') + '</dl></div>';
     }
     h += '<div data-fd-precif></div><div class="fd-acoes"><button type="button" class="fc-exp" data-fd-pdf>' + ic('baixar', 16) + 'PDF desta ficha</button></div>';
+    if (pode('chat.avisar_erro')) h += '<button type="button" class="fd-erro" data-fd-erro>' + ic('alerta', 18) + 'Achou um erro nesta ficha?</button>';
     c.insertAdjacentHTML('beforeend', h);
     c.querySelector('[data-fd-volta]').addEventListener('click', function () {
       if (fichaDaGrade) history.back(); else location.hash = '#/fichas';
     });
     c.querySelector('[data-fd-pdf]').addEventListener('click', function () { imprimeFichas([f], nm.t); });
+    var fdErro = c.querySelector('[data-fd-erro]');
+    if (fdErro) fdErro.addEventListener('click', function () { abreAvisoErro({ tela: 'ficha', alvo: 'ficha:' + f.k, alvo_nome: nm.t, ficha: true }); });
     var hero = c.querySelector('[data-amplia]');
     if (hero) {
       var abre = function () { ampliaFoto('fotos/' + (f.f || f.fc), nm.t, !f.f); };
@@ -3685,6 +3711,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   TELAS.acessos = function (c) {
     topo(c, 'Acessos', 'Quem vê o quê no app novo');
     if (pode('acessos.uso')) c.insertAdjacentHTML('beforeend', '<div class="blk"><a class="linha" href="#/uso"><span class="t">Uso do app<small>Quem abre, quando e por quanto tempo</small></span><span class="v"></span></a></div>');
+    if (pode('acessos.correcoes')) c.insertAdjacentHTML('beforeend', '<div class="blk"><a class="linha" href="#/correcoes"><span class="t">Avisos de erro<small>O que a equipe avisou que está errado. Nada muda sem você confirmar.</small></span><span class="v">' + (CTX.correcoes_pendentes ? '<span class="pill atencao">' + CTX.correcoes_pendentes + '</span>' : '') + '</span></a></div>');
     var t = CTX.tabela || [];
     var niveis = CTX.niveis || ['equipe', 'maitres', 'admin'];
     var nomeTela = {};
@@ -3705,6 +3732,105 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
       'Cada dado continua conferido pela própria rota: a tabela escolhe o que pedir, nunca abre o que a rota fecha. ' +
       'Mudar uma regra é trocar uma linha no Worker; editar pela tela fica para a próxima fase.</div>';
     c.insertAdjacentHTML('beforeend', h);
+  };
+
+  // --- Avisos de erro (27/11/2026, clone do IZ) -------------------------------
+  // Quem acha um erro no app avisa por aqui. Nada muda sozinho: o aviso cai na
+  // fila do Worker (app_correcao), o Claude revisa e apresenta problema e
+  // solução, e o Rodrigo confirma antes de qualquer correção.
+  var CAMPOS_ERRO = [['tecnica', 'Técnica'], ['ingredientes', 'Ingredientes'], ['preparo', 'Preparo'], ['copo', 'Copo'],
+    ['guarnicao', 'Guarnição'], ['foto', 'Foto'], ['nome', 'Nome'], ['outro', 'Outro']];
+  function abreAvisoErro(op) {
+    op = op || {};
+    var campo = null;
+    var d = document.getElementById('erro-dlg');
+    if (d) d.remove();
+    d = document.createElement('dialog');
+    d.id = 'erro-dlg'; d.className = 'comp-dlg er-dlg';
+    d.setAttribute('aria-labelledby', 'erro-tit');
+    d.innerHTML = '<div class="comp-cab"><h3 id="erro-tit">Avisar um erro</h3><button type="button" class="comp-x" data-er-x aria-label="Fechar">&times;</button></div>' +
+      (op.alvo_nome ? '<span class="er-alvo">' + esc(op.alvo_nome) + '</span>' : '') +
+      '<p class="comp-txt">Conte o que está errado e como deveria ser. A coordenação confere antes de mudar.</p>' +
+      (op.ficha ? '<div class="er-campos" role="group" aria-label="O que está errado">' + CAMPOS_ERRO.map(function (c) {
+        return '<button type="button" data-campo="' + c[0] + '" aria-pressed="false">' + c[1] + '</button>';
+      }).join('') + '</div>' : '') +
+      '<textarea id="er-tx" maxlength="1500" aria-label="O que está errado" placeholder="' +
+        (op.ficha ? 'Ex.: a técnica é throwing, não batida' : 'Ex.: o ranking está com o mês errado') + '"></textarea>' +
+      '<p class="er-nota">Vai com o seu nome e a tela em que você está.</p>' +
+      '<div class="comp-acoes"><button type="button" data-er-x>Cancelar</button><button type="button" class="pri" id="er-ok">Enviar aviso</button></div>';
+    document.body.appendChild(d);
+    var tx = d.querySelector('#er-tx'), ok = d.querySelector('#er-ok');
+    function fecha() { if (d.close && d.open) d.close(); d.remove(); }
+    d.addEventListener('click', function (ev) {
+      if (ev.target === d || (ev.target.closest && ev.target.closest('[data-er-x]'))) { fecha(); return; }
+      var b = ev.target.closest && ev.target.closest('[data-campo]');
+      if (!b) return;
+      campo = campo === b.getAttribute('data-campo') ? null : b.getAttribute('data-campo');
+      Array.prototype.forEach.call(d.querySelectorAll('[data-campo]'), function (x) {
+        var on = x.getAttribute('data-campo') === campo;
+        x.classList.toggle('on', on); x.setAttribute('aria-pressed', String(on));
+      });
+    });
+    ok.addEventListener('click', function () {
+      var t = tx.value.trim();
+      if (t.length < 5) { toast('Conte em poucas palavras o que está errado.'); tx.focus(); return; }
+      ok.disabled = true; ok.textContent = 'Enviando…';
+      api('/api/app/correcao', { metodo: 'POST', corpo: { tela: op.tela || 'outra', alvo: op.alvo || '', alvo_nome: op.alvo_nome || '', campo: campo, texto: t } }).then(function (r) {
+        if (r.ok) { fecha(); toast('Aviso enviado. Obrigado! A coordenação confere antes de corrigir.'); return; }
+        ok.disabled = false; ok.textContent = 'Enviar aviso';
+        toast(r.status === 0 ? 'Sem internet agora. Tente de novo quando tiver sinal.' : (r.d && r.d.erro) || 'Não consegui enviar.');
+      });
+    });
+    if (d.showModal) d.showModal(); else d.setAttribute('open', '');
+    setTimeout(function () { tx.focus(); }, 200);
+  }
+
+  var ST_CORR = { pendente: ['Pendente', 'atencao'], aprovada: ['Aprovada', ''], recusada: ['Recusada', ''], corrigida: ['Corrigida', 'ok'] };
+  var TELA_CORR = { chat: 'Pelo chat', ficha: 'Ficha', fichas: 'Fichas', performance: 'Ranking', eventos: 'Eventos', escala: 'Escala',
+    turno: 'Rotina', inventario: 'Controle', marketing: 'Marketing', conteudo: 'Conteúdo', acessos: 'Acessos' };
+  TELAS.correcoes = function (c) {
+    topo(c, 'Avisos de erro', 'O que a equipe avisou que está errado. Nada muda sem você confirmar.');
+    var filtro = ls('app_piloto_corr_filtro');
+    if (typeof filtro !== 'string' || ['pendente', 'aprovada', 'corrigida', 'recusada', 'todos'].indexOf(filtro) < 0) filtro = 'pendente';
+    var b = bloco(c);
+    api('/api/app/correcoes' + (filtro !== 'todos' ? '?status=' + filtro : '')).then(function (r) {
+      if (!r.ok) { falhou(b, 'Avisos de erro', r); return; }
+      var cont = r.d.contagem || {}, lista = r.d.correcoes || [];
+      var total = Object.keys(cont).reduce(function (t, k) { return t + cont[k]; }, 0);
+      var h = '<div class="chips er-filtro" role="group" aria-label="Filtro">' + [['pendente', 'Pendentes'], ['aprovada', 'Aprovados'], ['corrigida', 'Corrigidos'], ['recusada', 'Recusados'], ['todos', 'Todos']].map(function (x) {
+        var n = x[0] !== 'todos' ? cont[x[0]] || 0 : total, on = filtro === x[0];
+        return '<button type="button" data-cr-f="' + x[0] + '" class="' + (on ? 'on' : '') + '" aria-pressed="' + on + '">' + x[1] + ' · ' + n + '</button>';
+      }).join('') + '</div>';
+      h += lista.length ? lista.map(function (k) {
+        var st = ST_CORR[k.status] || [k.status, ''];
+        var cp = (CAMPOS_ERRO.filter(function (x) { return x[0] === k.campo; })[0] || [])[1];
+        var quando = new Date(k.quando).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+        return '<div class="cr-item"><div class="cr-top"><b>' + esc(k.alvo_nome || TELA_CORR[k.tela] || 'App') + (cp ? ' · ' + esc(cp) : '') + '</b>' +
+          '<span class="pill ' + st[1] + '">' + st[0] + '</span></div>' +
+          '<p class="cr-txt">' + esc(k.texto) + '</p>' +
+          '<span class="cr-meta">' + esc(k.pessoa || ('Senha compartilhada · ' + (NOME[k.nivel] || k.nivel || ''))) + ' · ' + esc(quando) + '</span>' +
+          (k.resposta ? '<p class="cr-resp">' + esc(k.resposta) + '</p>' : '') +
+          (k.status === 'pendente' || k.status === 'aprovada' ? '<div class="cr-bts">' +
+            (k.status === 'pendente' ? '<button type="button" class="btn sec" data-cr-id="' + k.id + '" data-cr-st="aprovada">Aprovar</button>' : '') +
+            '<button type="button" class="btn sec" data-cr-id="' + k.id + '" data-cr-st="corrigida">Já corrigido</button>' +
+            '<button type="button" class="btn sec" data-cr-id="' + k.id + '" data-cr-st="recusada">Recusar</button></div>' : '') +
+          '</div>';
+      }).join('') : '<p class="vazio">Nenhum aviso aqui.</p>';
+      b.innerHTML = h;
+      c.insertAdjacentHTML('beforeend', '<p class="uz-nota">Na revisão diária o Claude lê os pendentes e te apresenta o problema e a solução proposta. Aprovar só marca: a correção acontece depois, com o seu OK.</p>');
+      Array.prototype.forEach.call(b.querySelectorAll('[data-cr-f]'), function (x) {
+        x.addEventListener('click', function () { lsPoe('app_piloto_corr_filtro', x.getAttribute('data-cr-f')); vai(); });
+      });
+      Array.prototype.forEach.call(b.querySelectorAll('[data-cr-st]'), function (x) {
+        x.addEventListener('click', function () {
+          x.disabled = true;
+          api('/api/app/correcao/estado', { metodo: 'POST', corpo: { id: Number(x.getAttribute('data-cr-id')), status: x.getAttribute('data-cr-st') } }).then(function (r2) {
+            if (!r2.ok) { x.disabled = false; toast(r2.status === 0 ? 'Sem conexão agora.' : (r2.d && r2.d.erro) || 'Não consegui atualizar.'); return; }
+            toast('Atualizado.'); vai();
+          });
+        });
+      });
+    });
   };
 
   // --- Uso do app (26/11/2026) ------------------------------------------------
@@ -3760,7 +3886,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     return 'há ' + n + ' dias (' + dataBr(dia) + ')';
   }
   var USO_TELA = { chat: 'chat', marketing: 'marketing', turno: 'rotina', performance: 'performance', inventario: 'controle', eventos: 'eventos',
-    escala: 'escala', fichas: 'fichas', conteudo: 'conteúdo', acessos: 'acessos', catalogo: 'catálogo', uso: 'uso', outra: 'outra' };
+    escala: 'escala', fichas: 'fichas', conteudo: 'conteúdo', acessos: 'acessos', catalogo: 'catálogo', uso: 'uso', correcoes: 'avisos de erro', outra: 'outra' };
   TELAS.uso = function (c) {
     topo(c, 'Uso do app', 'Quem abre o app, quando e por quanto tempo');
     var dias = Number(ls('app_piloto_uso_dias')) || 30;
@@ -4783,7 +4909,10 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     });
 
     function escolheSetor() {
-      chips(A.setores.map(function (s) { return [s.slug, s.label]; }), function (v) {
+      var ops = A.setores.map(function (s) { return [s.slug, s.label]; });
+      if (pode('chat.avisar_erro')) ops.push(['__erro_app', 'Erro no app ou ficha']);
+      chips(ops, function (v) {
+        if (v === '__erro_app') return enviaErroApp();
         var st = setorDe(v);
         A.setor = v;
         if (st.categorias.length === 1) { A.cat = st.categorias[0].slug; return urgencia(); }
@@ -4814,6 +4943,17 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
           site('Boa! Nada foi enviado.');
           volta();
         });
+      });
+    }
+    // Erro no app ou na ficha (27/11/2026, clone do IZ): não vai para setor
+    // nenhum. Cai na fila de avisos que o Rodrigo revisa antes de corrigir.
+    function enviaErroApp() {
+      box.innerHTML = '';
+      var el = site('<span class="pensa">Enviando…</span>');
+      api('/api/app/correcao', { metodo: 'POST', corpo: { tela: 'chat', texto: texto } }).then(function (r) {
+        if (!r.ok) return erro(el, r, 'Não consegui enviar. Nada foi gravado.');
+        el.innerHTML = 'Obrigado! O aviso de erro foi para a revisão da coordenação. Nada muda antes de ela conferir.';
+        volta();
       });
     }
     function envia() {
