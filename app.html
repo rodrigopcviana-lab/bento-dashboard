@@ -53,6 +53,16 @@ a{color:var(--acento)}
 body[data-tela="chat"] .tema-fl{bottom:calc(176px + env(safe-area-inset-bottom))}
 body.digitando .tema-fl{display:none}
 @media (min-width:900px){.tema-fl,body[data-tela="chat"] .tema-fl{bottom:20px;right:20px}}
+/* Conteúdo flutuante (26/11/2026): saiu da barra de baixo e virou bola no
+   canto inferior esquerdo, espelhando a chave dia/noite da direita, na cor de
+   destaque (onde ficava o Chat flutuante antes de ele voltar ao meio da
+   barra). Some na própria tela do Conteúdo, ao digitar e no computador, onde
+   a coluna da esquerda já tem o Conteúdo. */
+.ct-fl{position:fixed;left:14px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:40;width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--acento);color:#fff;border:0;box-shadow:0 6px 18px rgba(0,0,0,.28)}
+:root[data-tema="escuro"] .ct-fl{color:#2b2620}
+body[data-tela="chat"] .ct-fl{bottom:calc(176px + env(safe-area-inset-bottom))}
+body[data-tela="conteudo"] .ct-fl,body.digitando .ct-fl{display:none}
+@media (min-width:900px){.ct-fl{display:none}}
 .conta-l{display:flex;flex-direction:column;gap:2px;margin:4px 0 0}
 .conta-l a,.conta-l button{display:flex;align-items:center;gap:10px;min-height:46px;padding:0 6px;border-radius:10px;color:var(--tx);font-size:15px;text-align:left;text-decoration:none;width:100%}
 .conta-l a:hover,.conta-l button:hover{background:var(--bg)}
@@ -1218,6 +1228,14 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     // O Chat fica no meio da barra, com a bola acima dos outros botões
     // (24/11/2026; o botão flutuante de 26/11 foi desfeito no mesmo dia).
     var naBarra = CTX.nav.filter(function (n) { return n.id !== 'caixa' && !n.topo; });
+    // O Conteúdo sai da barra e vira bola flutuante no canto inferior esquerdo
+    // (pedido de 26/11/2026). No computador continua na coluna da esquerda.
+    var ctN = naBarra.filter(function (n) { return n.id === 'conteudo'; })[0];
+    if (ctN) naBarra = naBarra.filter(function (n) { return n !== ctN; });
+    var ctf = document.getElementById('ct-fl');
+    if (ctN && !ctf) {
+      document.body.insertAdjacentHTML('beforeend', '<button type="button" id="ct-fl" class="ct-fl" data-tela="conteudo" aria-label="' + esc(ctN.rotulo) + '" title="' + esc(ctN.rotulo) + '">' + ic(ctN.icone, 24) + '</button>');
+    } else if (!ctN && ctf) ctf.remove();
     var chatN = naBarra.filter(function (n) { return n.id === 'chat'; })[0];
     if (chatN && naBarra.length > 2) {
       naBarra = naBarra.filter(function (n) { return n !== chatN; });
@@ -2186,7 +2204,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   // e guarda na cópia do app-sw.js. Recarrega só num momento seguro: na
   // próxima troca de tela, ao sair ou voltar para o app, ou depois de 1 min
   // sem mexer. Volta para a mesma tela e rolagem e avisa "App atualizado".
-  var APP_BUILD = 'jgqnpesbefkm';
+  var APP_BUILD = 'hehejhsjcgkf';
   var NV_TENT = 'bento_app_nv';
   var versaoPronta = null, conferindo = false, ultimaAcao = Date.now(), mexeu = false;
   ['pointerdown', 'keydown', 'scroll', 'input'].forEach(function (ev) {
