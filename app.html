@@ -2259,6 +2259,14 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   try { swPode = new URL(W, location.href).origin !== location.origin; } catch (e) {}
   var APP_CACHE = 'bento-app-v2'; // mesmo nome do CACHE em app-sw.js
   var APP_URL = new URL('app.html', location.href).href;
+  // "?sw=" vem do app-sw.js ao destravar uma cópia velha (27/11/2026). Só serve
+  // para forçar a carga: some do endereço sem recarregar de novo.
+  try {
+    if (/[?&]sw=/.test(location.search) && history.replaceState) {
+      var semSw = new URL(location.href); semSw.searchParams.delete('sw');
+      history.replaceState(history.state, '', semSw.pathname + semSw.search + semSw.hash);
+    }
+  } catch (e) {}
   if (swPode && 'serviceWorker' in navigator) {
     window.addEventListener('load', function () { navigator.serviceWorker.register('app-sw.js', { scope: 'app.html' }).catch(function () {}); });
   }
@@ -2269,7 +2277,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   // e guarda na cópia do app-sw.js. Recarrega só num momento seguro: na
   // próxima troca de tela, ao sair ou voltar para o app, ou depois de 1 min
   // sem mexer. Volta para a mesma tela e rolagem e avisa "App atualizado".
-  var APP_BUILD = 'ndbrbssqafhh';
+  var APP_BUILD = 'knprbpspnren';
   var NV_TENT = 'bento_app_nv';
   var versaoPronta = null, conferindo = false, ultimaAcao = Date.now(), mexeu = false;
   ['pointerdown', 'keydown', 'scroll', 'input'].forEach(function (ev) {

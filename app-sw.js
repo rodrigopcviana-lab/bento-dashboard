@@ -26,6 +26,11 @@ function daRede(url) {
     res.redirected ? new Response(res.body, { status: res.status, statusText: res.statusText, headers: res.headers }) : res
   );
 }
+// Só o cache DESTA versão. caches.match() sem nome procura em todos, e uma
+// casca velha ainda aberta pode recriar o cache v1 antes de recarregar.
+function doCache(chave) {
+  return caches.open(CACHE).then((c) => c.match(chave));
+}
 function guarda(chave, res) {
   if (res && res.ok) {
     const copia = res.clone();
@@ -59,7 +64,12 @@ self.addEventListener("activate", (event) => {
     if (!velhas.length) return;
     const telas = await self.clients.matchAll({ type: "window" });
     await Promise.all(telas.map((c) => {
-      try { return c.navigate(c.url.split("#")[0] === CASCA ? c.url : CASCA).catch(() => {}); } catch (e) { return null; }
+      // Mesmo endereço com #hash seria só rolagem, sem recarregar: o "?sw="
+      // muda o endereço e força a carga. A casca nova tira o parâmetro.
+      const u = new URL(c.url);
+      if (u.href.split("?")[0].split("#")[0] !== CASCA) return null; // só telas do app
+      u.searchParams.set("sw", CACHE);
+      try { return c.navigate(u.href).catch(() => {}); } catch (e) { return null; }
     }));
   })());
 });
@@ -84,7 +94,7 @@ self.addEventListener("fetch", (event) => {
   if (ehCasca) {
     event.respondWith((async () => {
       const rede = daRede(CASCA).then((r) => guarda(CASCA, r)).catch(() => null);
-      const copia = await caches.match(CASCA);
+      const copia = await doCache(CASCA);
       if (copia) { event.waitUntil(rede); return copia; }
       return (await rede) || new Response("<p style=\"font:16px sans-serif;padding:24px\">Sem internet e sem cópia do app neste aparelho. Abra de novo quando a internet voltar.</p>",
         { status: 503, headers: { "Content-Type": "text/html; charset=utf-8" } });
@@ -92,11 +102,11 @@ self.addEventListener("fetch", (event) => {
     return;
   }
   if (ext === "json") {
-    event.respondWith(daRede(req.url).then((r) => guarda(req, r)).catch(() => caches.match(req)));
+    event.respondWith(daRede(req.url).then((r) => guarda(req, r)).catch(() => doCache(req)));
     return;
   }
   event.respondWith(
-    caches.match(req).then((copia) => {
+    doCache(req).then((copia) => {
       const rede = daRede(req.url).then((r) => guarda(req, r)).catch(() => copia || Response.error());
       if (copia) { event.waitUntil(rede); return copia; }
       return rede;
