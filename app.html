@@ -2263,7 +2263,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   // e guarda na cópia do app-sw.js. Recarrega só num momento seguro: na
   // próxima troca de tela, ao sair ou voltar para o app, ou depois de 1 min
   // sem mexer. Volta para a mesma tela e rolagem e avisa "App atualizado".
-  var APP_BUILD = 'ksqjemdfbbcm';
+  var APP_BUILD = 'psqpbsbfsrcs';
   var NV_TENT = 'bento_app_nv';
   var versaoPronta = null, conferindo = false, ultimaAcao = Date.now(), mexeu = false;
   ['pointerdown', 'keydown', 'scroll', 'input'].forEach(function (ev) {
@@ -2445,7 +2445,10 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     { id: '2026-11-26b', t: 'Fichas técnicas com foto', d: 'As fichas aparecem em grade com foto. Toque na foto para ver inteira, em tela cheia.', tela: 'fichas' },
     { id: '2026-11-26a', t: 'Abre sem internet e se atualiza sozinho', d: 'O app abre mesmo sem sinal, com os últimos dados.' }
   ];
-  var NOV_CHAVE = 'bento_app_novidades';
+  // Visto por PESSOA, não por aparelho (27/11/2026, ideia da sessão do
+  // Medellín): o celular do bar é dividido, e com uma chave só a segunda pessoa
+  // nunca via as novidades.
+  function novChave() { return 'bento_app_novidades:' + (CTX && (CTX.pessoa || CTX.nivel_real) || ''); }
   function novidadesPraMim() {
     var telas = (CTX && CTX.nav || []).map(function (n) { return n.id; });
     return NOVIDADES.filter(function (n) { return (!n.tela || telas.indexOf(n.tela) >= 0) && (!n.pode || pode(n.pode)); });
@@ -2453,7 +2456,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   function mostraNovidades(todas) {
     if (!CTX) return;
     var visto = null;
-    try { visto = localStorage.getItem(NOV_CHAVE); } catch (e) {}
+    try { visto = localStorage.getItem(novChave()); } catch (e) {}
     var minhas = novidadesPraMim();
     var lista = todas ? minhas : minhas.filter(function (n) { return !visto || n.id > visto; });
     if (!lista.length) return;
@@ -2467,11 +2470,11 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
       document.body.appendChild(d);
       d.addEventListener('click', function (ev) {
         if (ev.target === d || (ev.target.closest && ev.target.closest('[data-nov-ok]'))) {
-          try { localStorage.setItem(NOV_CHAVE, NOVIDADES[0].id); } catch (e) {}
+          try { localStorage.setItem(novChave(), NOVIDADES[0].id); } catch (e) {}
           if (d.close) d.close(); else d.removeAttribute('open');
         }
       });
-      d.addEventListener('cancel', function () { try { localStorage.setItem(NOV_CHAVE, NOVIDADES[0].id); } catch (e) {} });
+      d.addEventListener('cancel', function () { try { localStorage.setItem(novChave(), NOVIDADES[0].id); } catch (e) {} });
     }
     d.innerHTML = '<div class="comp-cab"><h3 id="nov-tit">' + ic('estrela', 20) + ' O que mudou no app</h3>' +
       '<button type="button" class="comp-x" data-nov-ok aria-label="Fechar">&times;</button></div>' +
