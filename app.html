@@ -2186,7 +2186,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   // e guarda na cópia do app-sw.js. Recarrega só num momento seguro: na
   // próxima troca de tela, ao sair ou voltar para o app, ou depois de 1 min
   // sem mexer. Volta para a mesma tela e rolagem e avisa "App atualizado".
-  var APP_BUILD = 'dgccmgnpcand';
+  var APP_BUILD = 'jgqnpesbefkm';
   var NV_TENT = 'bento_app_nv';
   var versaoPronta = null, conferindo = false, ultimaAcao = Date.now(), mexeu = false;
   ['pointerdown', 'keydown', 'scroll', 'input'].forEach(function (ev) {
@@ -4222,35 +4222,133 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     return cp.textContent.replace(/\s+/g, ' ').replace(/([.!?:;])\s*(\.\s*)+/g, '$1 ').replace(/\s+\./g, '.').trim();
   }
   function paraVoz() {
-    try { speechSynthesis.cancel(); } catch (e) {}
+    FALA.parar();
     if (VOZ.audio) { try { VOZ.audio.pause(); } catch (e) {} VOZ.audio = null; }
     VOZ.pedido = (VOZ.pedido || 0) + 1; // invalida um /api/voz ainda a caminho
     if (VOZ.el) { VOZ.el.classList.remove('toca'); VOZ.el.innerHTML = ic('play', 18) + '<span>Ouvir</span>'; VOZ.el.setAttribute('aria-label', 'Ouvir a mensagem'); }
     VOZ.el = null;
   }
-  // Escolhe a MELHOR voz em português do aparelho, não a primeira da lista:
-  // a primeira costuma ser a voz local antiga (a mais robótica). As neurais
-  // (Edge "Natural/Online", Google, iPhone "Aprimorada/Premium") soam bem
-  // melhor quando existem.
-  function notaVoz(v) {
-    var n = (v.name || '') + ' ' + (v.voiceURI || ''), p = 0;
-    if (/^pt[-_]BR/i.test(v.lang)) p += 100; else if (/^pt/i.test(v.lang)) p += 40; else return -1;
-    if (/natural|neural|online/i.test(n)) p += 60;
-    if (/premium|enhanced|aprimorad|melhorad/i.test(n)) p += 50;
-    if (/google/i.test(n)) p += 35;
-    if (/francisca|thalita|antonio|luciana|felipe/i.test(n)) p += 10;
-    if (/compact|espeak|desktop/i.test(n)) p -= 30;
-    if (v.localService === false) p += 5;
-    return p;
-  }
-  function vozPt() {
-    var vs = (speechSynthesis.getVoices() || []).filter(function (v) { return notaVoz(v) >= 0; });
-    vs.sort(function (a, b) { return notaVoz(b) - notaVoz(a); });
-    return vs[0] || null;
-  }
-  // A lista de vozes chega atrasada em alguns navegadores (Chrome/Android):
-  // pedir cedo faz a escolha já valer no primeiro toque em Ouvir.
-  try { speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged = function () { speechSynthesis.getVoices(); }; } catch (e) {}
+  // --- FALA: leitura em voz alta com a voz do aparelho (26/11/2026) ---------
+  // Mesmo bloco no Bento, no Grupo IZ e no Medellín. Sem servidor e sem
+  // custo. Três coisas deixam a voz do celular menos robótica:
+  // 1) escolhe a MELHOR voz em português instalada, não a primeira da lista;
+  // 2) limpa o texto antes (emoji, markdown, link, símbolo de real, "ml", "12h30",
+  //    "26/11" viram palavras), para a voz não soletrar símbolo;
+  // 3) fala frase por frase: pausa natural entre elas, e o Chrome não corta
+  //    a leitura longa no meio (ele para sozinho depois de uns 15 segundos).
+  var FALA = (function () {
+    var MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+    var vivas = []; // o Chrome perde o onend de fala que ficou sem referência
+    var serie = 0;
+    function ok() { return 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window; }
+    function nota(v) {
+      var n = (v.name || '') + ' ' + (v.voiceURI || ''), p = 0;
+      if (/^pt[-_]BR/i.test(v.lang)) p += 100; else if (/^pt/i.test(v.lang)) p += 40; else return -1;
+      if (/natural|neural|online/i.test(n)) p += 60;
+      if (/premium|enhanced|aprimorad|melhorad/i.test(n)) p += 50;
+      if (/google/i.test(n)) p += 35;
+      if (/francisca|thalita|antonio|luciana|felipe|camila|vitoria|ricardo/i.test(n)) p += 10;
+      if (/compact|espeak|desktop|eloquence|novelty|bad news|bells|whisper|zarvox|trinoids|organ/i.test(n)) p -= 40;
+      if (v.localService === false) p += 5;
+      return p;
+    }
+    function voz() {
+      if (!ok()) return null;
+      var vs = (speechSynthesis.getVoices() || []).filter(function (v) { return nota(v) >= 0; });
+      vs.sort(function (a, b) { return nota(b) - nota(a); });
+      return vs[0] || null;
+    }
+    function unidade(n, um, varios) { return n + ' ' + (String(n).replace(/\D/g, '') === '1' ? um : varios); }
+    function limpa(t) {
+      t = ' ' + String(t || '') + ' ';
+      t = t.replace(/https?:\/\/\S+/g, ' ')
+        .replace(/[\uD83C-\uDBFF][\uDC00-\uDFFF]/g, ' ')
+        .replace(/[☀-➿⬀-⯿️‍⃣]/g, ' ')
+        .replace(/[*_`#~|>]+/g, ' ')
+        .replace(/\s*\n+\s*/g, '. ')
+        .replace(/\s[•·▪◦-]\s/g, ', ')
+        .replace(/[→⇒➜]/g, ', ')
+        .replace(/\s[–—]\s/g, ', ')
+        .replace(/R\$\s?(\d[\d.]*)(?:,(\d{1,2}))?/g, function (_, r, c) {
+          r = r.replace(/\./g, '');
+          var cent = c ? parseInt(c.length === 1 ? c + '0' : c, 10) : 0;
+          return unidade(r, 'real', 'reais') + (cent ? ' e ' + unidade(cent, 'centavo', 'centavos') : '');
+        })
+        .replace(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/g, function (m, d, mes, a) {
+          var i = parseInt(mes, 10) - 1, dd = parseInt(d, 10);
+          if (i < 0 || i > 11 || dd < 1 || dd > 31) return m;
+          return (dd === 1 ? 'primeiro' : dd) + ' de ' + MESES[i] + (a ? ' de ' + (a.length === 2 ? '20' + a : a) : '');
+        })
+        .replace(/\b(\d{1,2})h(\d{2})\b/gi, function (_, h, mi) { return unidade(parseInt(h, 10), 'hora', 'horas') + ' e ' + parseInt(mi, 10); })
+        .replace(/\b(\d{1,2}):(\d{2})\b/g, function (_, h, mi) { return parseInt(h, 10) + (mi === '00' ? ' horas' : ' e ' + parseInt(mi, 10)); })
+        .replace(/\b(\d+)\s?h\b/gi, function (_, n) { return unidade(n, 'hora', 'horas'); })
+        .replace(/\b(\d+)\s?min\b/gi, function (_, n) { return unidade(n, 'minuto', 'minutos'); })
+        .replace(/\b(\d+(?:,\d+)?)\s?ml\b/gi, '$1 mililitros')
+        .replace(/\b(\d+(?:,\d+)?)\s?kg\b/gi, function (_, n) { return unidade(n, 'quilo', 'quilos'); })
+        .replace(/\b(\d+(?:,\d+)?)\s?g\b/g, '$1 gramas')
+        .replace(/\b(\d+(?:,\d+)?)\s?(?:l|lt|lts)\b/gi, function (_, n) { return unidade(n, 'litro', 'litros'); })
+        .replace(/\b(\d+)\s?x\b/gi, '$1 vezes')
+        .replace(/\bn[º°]\s?/gi, 'número ')
+        .replace(/\bobs\b\.?/gi, 'observação')
+        .replace(/\bqtd[es]?\b\.?/gi, 'quantidade')
+        .replace(/\bvc\b/gi, 'você').replace(/\bvcs\b/gi, 'vocês')
+        .replace(/\bpq\b/gi, 'porque').replace(/\btbm?\b/gi, 'também')
+        .replace(/\s+/g, ' ')
+        .replace(/\s+([.,!?;:])/g, '$1')
+        .replace(/([.!?;:])(?:\s*[.,])+/g, '$1')
+        .replace(/,(\s*,)+/g, ',');
+      return t.replace(/^[\s.,;:]+/, '').trim();
+    }
+    // Frases de até ~220 letras; frase longa demais quebra na vírgula.
+    function frases(t) {
+      var partes = t.match(/[^.!?;:]+[.!?;:]*/g) || [], out = [], cur = '';
+      partes.forEach(function (p) {
+        p = p.trim(); if (!p) return;
+        if (p.length > 220) {
+          (p.match(/[^,]+,?/g) || [p]).forEach(function (q) {
+            q = q.trim(); if (!q) return;
+            if (cur && (cur + ' ' + q).length > 220) { out.push(cur); cur = q; } else cur = cur ? cur + ' ' + q : q;
+          });
+          return;
+        }
+        if (cur && (cur + ' ' + p).length > 220) { out.push(cur); cur = p; }
+        else if (cur && cur.length < 40) cur += ' ' + p; // junta frase curtinha na próxima: menos trancos
+        else { if (cur) out.push(cur); cur = p; }
+      });
+      if (cur) out.push(cur);
+      return out;
+    }
+    function parar() {
+      serie++;
+      vivas = [];
+      if (ok()) { try { speechSynthesis.cancel(); } catch (e) {} }
+    }
+    // Fala o texto e chama aoFim(true) ao acabar, ou aoFim(false) se falhar.
+    // Chamar de dentro do toque (o iPhone só libera a voz assim).
+    function falar(texto, aoFim) {
+      parar();
+      var fim = function (b) { if (aoFim) { var f = aoFim; aoFim = null; f(b); } };
+      if (!ok()) return fim(false);
+      var lista = frases(limpa(texto));
+      if (!lista.length) return fim(false);
+      var minha = serie, v = voz();
+      try { speechSynthesis.resume(); } catch (e) {}
+      lista.forEach(function (f, i) {
+        var u = new SpeechSynthesisUtterance(f);
+        u.lang = v ? v.lang : 'pt-BR';
+        if (v) u.voice = v;
+        u.rate = 1; u.pitch = 1;
+        if (i === lista.length - 1) u.onend = function () { if (minha === serie) { vivas = []; fim(true); } };
+        u.onerror = function (e) { if (minha === serie && (!e || e.error !== 'interrupted' && e.error !== 'canceled')) { parar(); fim(false); } };
+        vivas.push(u);
+        speechSynthesis.speak(u);
+      });
+    }
+    // A lista de vozes chega atrasada no Chrome/Android: pedir cedo faz a
+    // escolha já valer no primeiro toque.
+    try { if (ok()) { speechSynthesis.getVoices(); speechSynthesis.addEventListener('voiceschanged', function () { speechSynthesis.getVoices(); }); } } catch (e) {}
+    return { ok: ok, falar: falar, parar: parar, limpa: limpa, frases: frases, voz: voz };
+  })();
   document.addEventListener('click', function (e) {
     var b = e.target.closest && e.target.closest('[data-ouvir]');
     if (!b) return;
@@ -4261,32 +4359,35 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     if (!txt) return;
     VOZ.el = b;
     b.classList.add('toca'); b.innerHTML = ic('parar', 18) + '<span>Parar</span>'; b.setAttribute('aria-label', 'Parar a leitura');
-    // Voz natural do servidor (Google, 25/11/2026). Sem internet, sem chave
-    // no worker ou passado o teto do dia, cai na voz do aparelho.
+    var local = function () { FALA.falar(txt, function () { if (VOZ.el === b) paraVoz(); }); };
+    // Voz do servidor (Google, /api/voz) só quando o worker tem a chave. A
+    // primeira vez descobre isso em segundo plano e já fala com a voz do
+    // aparelho, ainda dentro do toque (o iPhone só libera a voz assim).
     var meu = VOZ.pedido;
-    var naoServidor = VOZ.semServidor || !navigator.onLine || !S.token;
-    (naoServidor ? Promise.reject() :
-      fetch(W + '/api/voz', { method: 'POST', headers: { 'X-Token': S.token, 'Content-Type': 'application/json' }, body: JSON.stringify({ texto: txt }) })
-        .then(function (res) {
-          if (res.status === 501) VOZ.semServidor = true; // worker ainda sem a voz do Google: não tenta de novo nesta sessão
-          if (!res.ok) throw new Error('voz ' + res.status);
-          return res.blob();
-        })
-    ).then(function (blob) {
-      if (meu !== VOZ.pedido || VOZ.el !== b) return;
-      var a = new Audio(URL.createObjectURL(blob));
-      VOZ.audio = a;
-      a.onended = a.onerror = function () { URL.revokeObjectURL(a.src); if (VOZ.audio === a && VOZ.el === b) paraVoz(); };
-      return a.play();
-    }).catch(function () {
-      if (meu !== VOZ.pedido || VOZ.el !== b || !('speechSynthesis' in window)) { if (VOZ.el === b) paraVoz(); return; }
-      var u = new SpeechSynthesisUtterance(txt);
-      u.lang = 'pt-BR';
-      var v = vozPt(); if (v) u.voice = v;
-      u.rate = 1;
-      u.onend = u.onerror = function () { if (VOZ.el === b) paraVoz(); };
-      speechSynthesis.speak(u);
-    });
+    if (VOZ.servidor !== true || !navigator.onLine || !S.token) {
+      local();
+      if (VOZ.servidor === undefined && S.token && navigator.onLine) {
+        VOZ.servidor = null;
+        fetch(W + '/api/voz', { method: 'POST', headers: { 'X-Token': S.token, 'Content-Type': 'application/json' }, body: '{"texto":""}' })
+          .then(function (res) { VOZ.servidor = res.status === 400; }) // 400 = tem chave (texto vazio); 501 = sem chave
+          .catch(function () { VOZ.servidor = undefined; });
+      }
+      return;
+    }
+    fetch(W + '/api/voz', { method: 'POST', headers: { 'X-Token': S.token, 'Content-Type': 'application/json' }, body: JSON.stringify({ texto: txt }) })
+      .then(function (res) {
+        if (res.status === 501) VOZ.servidor = false;
+        if (!res.ok) throw new Error('voz ' + res.status);
+        return res.blob();
+      })
+      .then(function (blob) {
+        if (meu !== VOZ.pedido || VOZ.el !== b) return;
+        var a = new Audio(URL.createObjectURL(blob));
+        VOZ.audio = a;
+        a.onended = a.onerror = function () { URL.revokeObjectURL(a.src); if (VOZ.audio === a && VOZ.el === b) paraVoz(); };
+        return a.play();
+      })
+      .catch(function () { if (meu === VOZ.pedido && VOZ.el === b) local(); });
   });
   window.addEventListener('hashchange', paraVoz);
 
