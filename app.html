@@ -2257,7 +2257,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   // ruim ou sem internet. O sw.js do site segue cuidando das outras páginas.
   var swPode = false;
   try { swPode = new URL(W, location.href).origin !== location.origin; } catch (e) {}
-  var APP_CACHE = 'bento-app-v1';
+  var APP_CACHE = 'bento-app-v2'; // mesmo nome do CACHE em app-sw.js
   var APP_URL = new URL('app.html', location.href).href;
   if (swPode && 'serviceWorker' in navigator) {
     window.addEventListener('load', function () { navigator.serviceWorker.register('app-sw.js', { scope: 'app.html' }).catch(function () {}); });
@@ -2269,15 +2269,26 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   // e guarda na cópia do app-sw.js. Recarrega só num momento seguro: na
   // próxima troca de tela, ao sair ou voltar para o app, ou depois de 1 min
   // sem mexer. Volta para a mesma tela e rolagem e avisa "App atualizado".
-  var APP_BUILD = 'jnrcpsqemefe';
+  var APP_BUILD = 'ndbrbssqafhh';
   var NV_TENT = 'bento_app_nv';
   var versaoPronta = null, conferindo = false, ultimaAcao = Date.now(), mexeu = false;
   ['pointerdown', 'keydown', 'scroll', 'input'].forEach(function (ev) {
     document.addEventListener(ev, function () { ultimaAcao = Date.now(); mexeu = true; }, { capture: true, passive: true });
   });
   function ssLe(k) { try { return JSON.parse(sessionStorage.getItem(k) || 'null'); } catch (e) { return null; } }
+  // O navegador só procura app-sw.js novo quando o app abre do zero. Voltar
+  // pelo alternador não abre do zero, e foi assim que celulares ficaram presos
+  // numa versão velha (27/11/2026). Pedir a conferência aqui resolve.
+  function swConfere() {
+    try {
+      if (swPode && navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
+        navigator.serviceWorker.getRegistration(APP_URL).then(function (r) { if (r) r.update(); }).catch(function () {});
+      }
+    } catch (e) {}
+  }
   function confereVersao() {
     if (versaoPronta || conferindo || navigator.onLine === false) return;
+    swConfere();
     conferindo = true;
     fetch('app-versao.json?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
       if (!d || !d.build || d.build === APP_BUILD) return;

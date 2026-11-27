@@ -15,7 +15,7 @@
  *   - Vídeo e outros domínios (o Worker, fontes): direto, sem passar aqui.
  * Nenhuma chamada a mais ao Worker: dado do Worker não passa por este arquivo.
  */
-const CACHE = "bento-app-v1";
+const CACHE = "bento-app-v2";
 const PREFIXO = "bento-app-";
 const CASCA = self.registration.scope; // .../app.html
 const ATIVOS = ["app.webmanifest", "app-icon-192.png", "app-icon-512.png", "app-icon-512-maskable.png",
@@ -45,12 +45,23 @@ self.addEventListener("install", (event) => {
   );
 });
 
+// v3 (27/11/2026, tarde): celulares ficaram presos na cópia de 26/11. A casca
+// daquela época conferia a versão pedindo o app.html, recebia a cópia velha do
+// próprio service worker e nunca enxergava a nova. Por isso o nome do cache
+// mudou (v1 -> v2): ao ativar, este arquivo apaga a cópia velha e recarrega as
+// telas abertas, que voltam já com a versão nova (guardada no install acima).
+// Só recarrega quando havia cópia antiga: a primeira instalação não pisca.
 self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches.keys()
-      .then((ks) => Promise.all(ks.filter((k) => k.indexOf(PREFIXO) === 0 && k !== CACHE).map((k) => caches.delete(k))))
-      .then(() => self.clients.claim())
-  );
+  event.waitUntil((async () => {
+    const velhas = (await caches.keys()).filter((k) => k.indexOf(PREFIXO) === 0 && k !== CACHE);
+    await Promise.all(velhas.map((k) => caches.delete(k)));
+    await self.clients.claim();
+    if (!velhas.length) return;
+    const telas = await self.clients.matchAll({ type: "window" });
+    await Promise.all(telas.map((c) => {
+      try { return c.navigate(c.url.split("#")[0] === CASCA ? c.url : CASCA).catch(() => {}); } catch (e) { return null; }
+    }));
+  })());
 });
 
 self.addEventListener("fetch", (event) => {
