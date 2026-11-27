@@ -1238,7 +1238,9 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   // Copos e Contagem viraram partes do Inventário (24/11/2026). Link antigo
   // (#/copos, #/contagem, inclusive em bom dia já gravado) cai na parte certa.
   // A Caixa de entrada virou aba do Chat (24/11/2026): #/caixa abre essa aba.
-  var ALIAS_TELA = { copos: 'inventario', contagem: 'inventario', caixa: 'chat' };
+  // A tela Inventário virou Controle (26/11/2026): o id segue 'inventario'
+  // (regras, Uso do app, links gravados); #/controle abre a mesma tela.
+  var ALIAS_TELA = { copos: 'inventario', contagem: 'inventario', controle: 'inventario', caixa: 'chat' };
   function telaAtual() {
     var id = (location.hash.match(/^#\/([a-z]+)/) || [])[1] || 'chat';
     if (ALIAS_TELA[id] && CTX.nav.some(function (n) { return n.id === ALIAS_TELA[id]; })) id = ALIAS_TELA[id];
@@ -1893,7 +1895,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     return '<div class="kpi ' + (cls || '') + '"><b>' + (valor == null ? '—' : esc(valor)) + '</b><span>' + esc(rotulo) + '</span></div>';
   }
 
-  // --- Inventário (24/11/2026) -------------------------------------------------
+  // --- Controle (antes Inventário, 24/11/2026; renomeado em 26/11) -------------
   // Uma tela com partes: Copos (contagem, par, quebras), Insumos e produções
   // (contagens semanais), Equipamentos e Utensílios. Cada parte aparece para
   // quem tem a regra dela na PODE_APP. A parte vai no endereço:
@@ -1911,7 +1913,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     var partes = INV_PARTES.filter(function (p) { return pode(p[2]); });
     var atual = forca || parteInventario();
     if (!partes.some(function (p) { return p[0] === atual; })) atual = partes.length ? partes[0][0] : '';
-    topo(c, 'Inventário', 'Copos, insumos, equipamentos e utensílios');
+    topo(c, 'Controle', 'Copos, insumos, equipamentos e utensílios');
     if (partes.length > 1) {
       c.insertAdjacentHTML('beforeend', '<div class="chips inv-partes" role="tablist">' + partes.map(function (p) {
         var on = p[0] === atual;
@@ -1920,7 +1922,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
       Array.prototype.forEach.call(c.querySelectorAll('[data-inv]'), function (b) {
         b.addEventListener('click', function () {
           var alvo = '#/inventario/' + b.getAttribute('data-inv');
-          // Trocar de parte não empilha histórico: o voltar sai do Inventário.
+          // Trocar de parte não empilha histórico: o voltar sai do Controle.
           if (location.hash === alvo) return;
           history.replaceState(history.state, '', alvo);
           vai();
@@ -2184,7 +2186,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
   // e guarda na cópia do app-sw.js. Recarrega só num momento seguro: na
   // próxima troca de tela, ao sair ou voltar para o app, ou depois de 1 min
   // sem mexer. Volta para a mesma tela e rolagem e avisa "App atualizado".
-  var APP_BUILD = 'prmhmmrmkeke';
+  var APP_BUILD = 'dgccmgnpcand';
   var NV_TENT = 'bento_app_nv';
   var versaoPronta = null, conferindo = false, ultimaAcao = Date.now(), mexeu = false;
   ['pointerdown', 'keydown', 'scroll', 'input'].forEach(function (ev) {
@@ -3699,7 +3701,7 @@ body.modo-chat #conteudo{max-width:720px;margin:0 auto;gap:0}
     var n = Math.round((new Date(hoje + 'T12:00') - new Date(dia + 'T12:00')) / 864e5);
     return 'há ' + n + ' dias (' + dataBr(dia) + ')';
   }
-  var USO_TELA = { chat: 'chat', marketing: 'marketing', turno: 'rotina', performance: 'performance', inventario: 'inventário', eventos: 'eventos',
+  var USO_TELA = { chat: 'chat', marketing: 'marketing', turno: 'rotina', performance: 'performance', inventario: 'controle', eventos: 'eventos',
     escala: 'escala', fichas: 'fichas', conteudo: 'conteúdo', acessos: 'acessos', catalogo: 'catálogo', uso: 'uso', outra: 'outra' };
   TELAS.uso = function (c) {
     topo(c, 'Uso do app', 'Quem abre o app, quando e por quanto tempo');
